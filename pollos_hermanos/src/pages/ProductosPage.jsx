@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { productosAPI, proveedoresAPI } from "../api";
+import { productosAPI, proveedoresAPI, marcasAPI } from "../api";
 
 export default function ProductosPage() {
   const [productos, setProductos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
+  const [marcas, setMarcas] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showAjuste, setShowAjuste] = useState(false);
@@ -14,7 +15,8 @@ export default function ProductosPage() {
     precio: "",
     stock: "",
     unidad: "pieza",
-    proveedorId: "",
+    marcaId: "",
+    codigo_barras: "",
   });
 
   useEffect(() => {
@@ -23,12 +25,14 @@ export default function ProductosPage() {
 
   const loadData = async () => {
     try {
-      const [prodRes, provRes] = await Promise.all([
+      const [prodRes, provRes, marcasRes] = await Promise.all([
         productosAPI.getAll(),
         proveedoresAPI.getAll(),
+        marcasAPI.getAll(),
       ]);
       setProductos(prodRes.data);
       setProveedores(provRes.data);
+      setMarcas(marcasRes.data);
     } catch (error) {
       console.error("Error:", error);
     }
@@ -45,7 +49,7 @@ export default function ProductosPage() {
       }
       setShowForm(false);
       setEditing(null);
-      setForm({ nombre: "", descripcion: "", precio: "", stock: "", unidad: "pieza", proveedorId: "" });
+      setForm({ nombre: "", descripcion: "", precio: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "" });
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -60,7 +64,8 @@ export default function ProductosPage() {
       precio: producto.precio,
       stock: producto.stock,
       unidad: producto.unidad || "pieza",
-      proveedorId: producto.Proveedor?.id || "",
+      marcaId: producto.Marca?.id || "",
+      codigo_barras: producto.codigo_barras || "",
     });
     setShowForm(true);
   };
@@ -91,7 +96,7 @@ export default function ProductosPage() {
             onClick={() => {
               setShowForm(!showForm);
               setEditing(null);
-              setForm({ nombre: "", descripcion: "", precio: "", stock: "", unidad: "pieza", proveedorId: "" });
+              setForm({ nombre: "", descripcion: "", precio: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "" });
             }}
           >
             {showForm ? "Cancelar" : "+ Nuevo Producto"}
@@ -156,14 +161,14 @@ export default function ProductosPage() {
               />
             </div>
             <div className="form-group">
-              <label>Proveedor</label>
+              <label>Marca</label>
               <select
-                value={form.proveedorId}
-                onChange={(e) => setForm({ ...form, proveedorId: e.target.value })}
+                value={form.marcaId}
+                onChange={(e) => setForm({ ...form, marcaId: e.target.value })}
               >
-                <option value="">Sin proveedor</option>
-                {proveedores.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                <option value="">Sin marca</option>
+                {marcas.map((m) => (
+                  <option key={m.id} value={m.id}>{m.nombre} ({m.Proveedor?.nombre || "Sin proveedor"})</option>
                 ))}
               </select>
             </div>
@@ -173,6 +178,14 @@ export default function ProductosPage() {
             <input
               value={form.descripcion}
               onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label>Código de Barras</label>
+            <input
+              value={form.codigo_barras}
+              onChange={(e) => setForm({ ...form, codigo_barras: e.target.value })}
+              placeholder="Ingrese el código de barras"
             />
           </div>
           <div className="form-row">
@@ -216,10 +229,11 @@ export default function ProductosPage() {
             <tr>
               <th>Nombre</th>
               <th>Descripción</th>
+              <th>Código Barras</th>
               <th>Precio</th>
               <th>Stock</th>
               <th>Unidad</th>
-              <th>Proveedor</th>
+              <th>Marca</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -228,10 +242,11 @@ export default function ProductosPage() {
               <tr key={p.id}>
                 <td><strong>{p.nombre}</strong></td>
                 <td>{p.descripcion || "-"}</td>
+                <td>{p.codigo_barras || "-"}</td>
                 <td>${p.precio}</td>
                 <td>{p.stock}</td>
                 <td>{p.unidad}</td>
-                <td>{p.Proveedor?.nombre || "-"}</td>
+                <td>{p.Marca?.nombre || "-"}</td>
                 <td>
                   <button className="btn btn-sm btn-camino" onClick={() => handleEdit(p)}>
                     Editar

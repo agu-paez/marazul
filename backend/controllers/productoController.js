@@ -1,10 +1,14 @@
-import { Producto, Proveedor } from "../models/index.js";
+import { Producto, Marca, Proveedor } from "../models/index.js";
 import { Op, literal } from "sequelize";
 
 export const getAllProductos = async (req, res) => {
   try {
     const productos = await Producto.findAll({
-      include: [{ model: Proveedor, attributes: ["id", "nombre"] }],
+      include: [{ 
+        model: Marca, 
+        attributes: ["id", "nombre"],
+        include: [{ model: Proveedor, attributes: ["id", "nombre"] }]
+      }],
       where: { activo: true },
     });
     res.json(productos);
@@ -16,7 +20,11 @@ export const getAllProductos = async (req, res) => {
 export const getLowStock = async (req, res) => {
   try {
     const productos = await Producto.findAll({
-      include: [{ model: Proveedor, attributes: ["id", "nombre"] }],
+      include: [{ 
+        model: Marca, 
+        attributes: ["id", "nombre"],
+        include: [{ model: Proveedor, attributes: ["id", "nombre"] }]
+      }],
       where: {
         activo: true,
         stock: { [Op.lte]: literal("stock_minimo") },
@@ -30,7 +38,7 @@ export const getLowStock = async (req, res) => {
 
 export const createProducto = async (req, res) => {
   try {
-    const { nombre, descripcion, precio, stock, unidad, proveedorId } = req.body;
+    const { nombre, descripcion, precio, stock, unidad, marcaId, codigo_barras } = req.body;
 
     const producto = await Producto.create({
       nombre,
@@ -38,7 +46,8 @@ export const createProducto = async (req, res) => {
       precio,
       stock,
       unidad,
-      proveedorId,
+      marcaId,
+      codigo_barras,
     });
 
     res.status(201).json({ message: "Producto creado", producto });

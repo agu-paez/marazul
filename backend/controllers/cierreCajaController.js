@@ -1,4 +1,5 @@
-import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, Cliente, User } from "../models/index.js";
+import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, Cliente, User, Proveedor } from "../models/index.js";
+import { getFechaLocal } from "../utils/fecha.js";
 
 const checkDayClosed = async (fecha) => {
   const cierre = await CierreCaja.findOne({ where: { fecha } });
@@ -7,7 +8,7 @@ const checkDayClosed = async (fecha) => {
 
 export const getResumenDelDia = async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getFechaLocal();
 
     const salidasHoy = await SalidaCamion.findAll({
       where: { fecha: today },
@@ -109,7 +110,7 @@ export const getResumenDelDia = async (req, res) => {
 
 export const cerrarCaja = async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getFechaLocal();
 
     const cierreExistente = await CierreCaja.findOne({ where: { fecha: today } });
     if (cierreExistente) {
@@ -199,13 +200,135 @@ export const getHistorialCierres = async (req, res) => {
   }
 };
 
-export const getPagosHoy = async (req, res) => {
+export const getDetalleCierre = async (req, res) => {
   try {
-    const fecha = req.query.fecha || new Date().toISOString().split("T")[0];
+    const fecha = req.query.fecha || getFechaLocal();
+
+    const cierre = await CierreCaja.findOne({ where: { fecha } });
+    if (!cierre) {
+      return res.status(404).json({ message: "No existe cierre para esa fecha" });
+    }
+
+    const salidasHoy = await SalidaCamion.findAll({
+      where: { fecha },
+      include: [
+        {
+          model: SalidaCamionItem,
+          include: [{ model: Producto, attributes: ["id", "nombre", "precio"] }],
+        },
+      ],
+    });
 
     const ventasHoy = await Venta.findAll({
       where: { fecha, estado: "completada" },
-      attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta"],
+      attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "medio_pago", "total", "tipo_venta", "proveedorId"],
+      include: [{ model: Proveedor, attributes: ["id", "nombre", "alias"] }],
+    });
+
+    let kg_enviados = 0;
+    let kg_devueltos = 0;
+
+    for (const salida of salidasHoy) {
+      for (const item of salida.SalidaCamionItems || []) {
+        kg_enviados += item.cantidad || 0;
+        if (item.cantidad_devuelta) {
+          kg_devueltos += item.cantidad_devuelta;
+        }
+      }
+    }
+
+    const parseDatos = (datos) => {
+      if (!datos) return [];
+      if (typeof datos === "string") {
+        try { return JSON.parse(datos); } catch { return []; }
+      }
+      if (Array.isArray(datos)) return datos;
+      return [];
+    };
+
+    const pagos = [];
+    let localMonto = 0;
+    let localCount = 0;
+    let repartoMonto = 0;
+    let repartoCount = 0;
+
+    for (const venta of ventasHoy) {
+      const monto = parseFloat(venta.total) || 0;
+      if (venta.tipo_venta === "local") {
+        localMonto += monto;
+        localCount++;
+      } else {
+        repartoMonto += monto;
+        repartoCount++;
+      }
+
+      const proveedor = venta.Proveedor;
+      const proveedorInfo = proveedor ? { id: proveedor.id, nombre: proveedor.nombre, alias: proveedor.alias } : null;
+
+      for (const t of parseDatos(venta.datos_transferencia)) {
+        pagos.push({
+          tipo: "Transferencia",
+          fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
+          nombre_cuenta: t.nombre_cuenta || "-",
+          monto: parseFloat(t.monto || 0),
+          banco: t.banco || "-",
+          proveedor: proveedorInfo,
+        });
+      }
+
+      for (const t of parseDatos(venta.datos_tarjeta)) {
+        pagos.push({
+          tipo: "Tarjeta",
+          fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
+          nombre_cuenta: t.nombre_cuenta || "-",
+          monto: parseFloat(t.monto || 0),
+          banco: t.banco || "-",
+          proveedor: proveedorInfo,
+        });
+      }
+
+      if (venta.medio_pago === "efectivo" && (!venta.datos_transferencia || parseDatos(venta.datos_transferencia).length === 0) && (!venta.datos_tarjeta || parseDatos(venta.datos_tarjeta).length === 0)) {
+        pagos.push({
+          tipo: "Efectivo",
+          fecha_hora: `${venta.fecha} ${venta.hora}`,
+          nombre_cuenta: "-",
+          monto: monto,
+          banco: "-",
+          proveedor: proveedorInfo,
+        });
+      }
+    }
+
+    res.json({
+      fecha: cierre.fecha,
+      hora: cierre.hora,
+      usuario_cierre: cierre.usuario_cierre,
+      salidas_count: cierre.salidas_count,
+      mercaderia_enviada: cierre.mercaderia_enviada,
+      mercaderia_devuelta: cierre.mercaderia_devuelta,
+      ventas_netas: cierre.ventas_netas,
+      total_ventas: cierre.total_ventas,
+      local_monto: localMonto.toFixed(2),
+      local_count: localCount,
+      reparto_monto: repartoMonto.toFixed(2),
+      reparto_count: repartoCount,
+      kg_pollos: kg_enviados,
+      kg_devueltos: kg_devueltos,
+      pagos,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener detalle del cierre", error: error.message });
+  }
+};
+
+export const getPagosHoy = async (req, res) => {
+  try {
+    const fecha = req.query.fecha || getFechaLocal();
+
+    const ventasHoy = await Venta.findAll({
+      where: { fecha, estado: "completada" },
+      attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "medio_pago", "total", "proveedorId"],
+      include: [{ model: Proveedor, attributes: ["id", "nombre", "alias"] }],
     });
 
     const pagos = [];
@@ -220,6 +343,9 @@ export const getPagosHoy = async (req, res) => {
     };
 
     for (const venta of ventasHoy) {
+      const proveedor = venta.Proveedor;
+      const proveedorInfo = proveedor ? { id: proveedor.id, nombre: proveedor.nombre, alias: proveedor.alias } : null;
+
       for (const t of parseDatos(venta.datos_transferencia)) {
         pagos.push({
           tipo: "Transferencia",
@@ -227,6 +353,7 @@ export const getPagosHoy = async (req, res) => {
           nombre_cuenta: t.nombre_cuenta || "-",
           monto: parseFloat(t.monto || 0),
           banco: t.banco || "-",
+          proveedor: proveedorInfo,
         });
       }
 
@@ -237,6 +364,18 @@ export const getPagosHoy = async (req, res) => {
           nombre_cuenta: t.nombre_cuenta || "-",
           monto: parseFloat(t.monto || 0),
           banco: t.banco || "-",
+          proveedor: proveedorInfo,
+        });
+      }
+
+      if (venta.medio_pago === "efectivo" && (!venta.datos_transferencia || parseDatos(venta.datos_transferencia).length === 0) && (!venta.datos_tarjeta || parseDatos(venta.datos_tarjeta).length === 0)) {
+        pagos.push({
+          tipo: "Efectivo",
+          fecha_hora: `${venta.fecha} ${venta.hora}`,
+          nombre_cuenta: "-",
+          monto: parseFloat(venta.total || 0),
+          banco: "-",
+          proveedor: proveedorInfo,
         });
       }
     }

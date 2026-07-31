@@ -22,7 +22,7 @@
 
 body {
   font-family: 'Segoe UI', system-ui, sans-serif;
-  background: linear-gradient(180deg, #f4f8e6 0.000%, #e3cbba 20.000%, #ceb08a 40.000%, #b9a777 60.000%, #a8b190 80.000%, #9ccec3 100.000%);
+  background: linear-gradient(180deg, #cedefd 0.000%, #b1d7f5 20.000%, #8fc6ed 40.000%, #6daae4 60.000%, #4b87dc 80.000%, #2e5ed4 100.000%);
   background-attachment: fixed;
   min-height: 100vh;
   color: var(--text);
@@ -52,6 +52,13 @@ body {
   margin-bottom: 2rem;
 }
 
+.login-logo {
+  width: 200px;
+  height: auto;
+  margin-bottom: 0.8rem;
+  object-fit: contain;
+}
+
 .login-header h1 {
   font-size: 1.8rem;
   color: var(--primary);
@@ -77,6 +84,15 @@ body {
   font-size: 1.3rem;
   font-weight: bold;
   color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.nav-logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
 }
 
 .nav-links {

@@ -24,7 +24,8 @@ export default function LoginPage() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>🍗 Los Pollos Hermanos</h1>
+          <img src="/logo-marazul.jpeg" alt="Mar Azul" className="login-logo" />
+          <h1>Mar Azul</h1>
           <p>Sistema de Reparto</p>
         </div>
         <form onSubmit={handleSubmit}>

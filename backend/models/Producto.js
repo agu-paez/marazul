@@ -33,6 +33,15 @@ const Producto = sequelize.define("Producto", {
     allowNull: true,
     defaultValue: "pieza",
   },
+  codigo_barras: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+  },
+  marcaId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
   activo: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

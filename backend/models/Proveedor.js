@@ -23,6 +23,11 @@ const Proveedor = sequelize.define("Proveedor", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  alias: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: "Alias de transferencia bancaria",
+  },
   tipo_producto: {
     type: DataTypes.STRING,
     allowNull: true,

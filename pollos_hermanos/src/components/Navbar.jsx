@@ -25,7 +25,10 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <div className="nav-brand">Los Pollos Hermanos</div>
+      <div className="nav-brand">
+        <img src="/logo-marazul.jpeg" alt="Mar Azul" className="nav-logo" />
+        <span>Mar Azul</span>
+      </div>
       <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
         <span className={`hamburger-line ${menuOpen ? "open" : ""}`}></span>
         <span className={`hamburger-line ${menuOpen ? "open" : ""}`}></span>

@@ -1,5 +1,6 @@
 import { Op } from "sequelize";
 import { Reparto, RepartoItem, Producto, User } from "../models/index.js";
+import { getFechaLocal } from "../utils/fecha.js";
 
 export const getRepartosByDate = async (req, res) => {
   try {
@@ -9,7 +10,7 @@ export const getRepartosByDate = async (req, res) => {
     if (fecha) {
       where.fecha = fecha;
     } else {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getFechaLocal();
       where.fecha = today;
     }
 
@@ -96,7 +97,7 @@ export const createReparto = async (req, res) => {
     }
 
     const reparto = await Reparto.create({
-      fecha: fecha || new Date().toISOString().split("T")[0],
+      fecha: fecha || getFechaLocal(),
       cliente_nombre,
       cliente_direccion,
       cliente_telefono,
@@ -188,7 +189,7 @@ export const deleteReparto = async (req, res) => {
 
 export const getRepartosStats = async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getFechaLocal();
 
     const totalHoy = await Reparto.count({ where: { fecha: today } });
     const pendientes = await Reparto.count({

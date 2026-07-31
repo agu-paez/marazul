@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { productosAPI, ventasAPI, clientesAPI, salidasAPI, bancosAPI } from "../api";
+import { productosAPI, ventasAPI, clientesAPI, salidasAPI, bancosAPI, proveedoresAPI } from "../api";
 import BancoAutocomplete from "../components/BancoAutocomplete";
 
 export default function VentasPage() {
@@ -32,6 +32,9 @@ export default function VentasPage() {
   const [datosTransferencia, setDatosTransferencia] = useState([]);
   const [datosTarjeta, setDatosTarjeta] = useState([]);
   const [bancos, setBancos] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
+  const [proveedorId, setProveedorId] = useState("");
+  const [porcentajeAumento, setPorcentajeAumento] = useState(0);
 
   useEffect(() => {
     productosAPI.getAll().then((res) => {
@@ -42,6 +45,7 @@ export default function VentasPage() {
     }).catch(console.error);
     clientesAPI.getAll().then((res) => setClientes(res.data)).catch(console.error);
     bancosAPI.getAll().then((res) => setBancos(res.data.map((b) => b.nombre))).catch(console.error);
+    proveedoresAPI.getAll().then((res) => setProveedores(res.data)).catch(console.error);
     if (form.tipo_venta === "reparto") {
       salidasAPI.getCamionesActivos().then((res) => {
         setCamionesActivos(res.data);
@@ -235,15 +239,20 @@ export default function VentasPage() {
       }))
     : productos;
 
-  const productosFiltrados = productosBase.filter((p) =>
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  const productosFiltrados = productosBase.filter((p) => {
+    const termino = busqueda.toLowerCase();
+    return (
+      p.nombre.toLowerCase().includes(termino) ||
+      (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino))
+    );
+  });
 
   const productosSeleccionados = productosBase.filter((p) => (cantidades[p.id] || 0) > 0);
 
   const calcularSubtotal = () => {
     return productosSeleccionados.reduce((sum, p) => {
-      return sum + p.precio * (cantidades[p.id] || 0);
+      const precioAumentado = p.precio * (1 + porcentajeAumento / 100);
+      return sum + precioAumentado * (cantidades[p.id] || 0);
     }, 0);
   };
 
@@ -352,12 +361,16 @@ export default function VentasPage() {
         clienteId: parseInt(form.clienteId),
         medio_pago: form.medio_pago,
         notas: form.notas,
+        porcentaje_aumento: porcentajeAumento,
         items: productosSeleccionados.map((p) => ({
           productoId: p.id,
           cantidad: cantidades[p.id],
-          precio_unitario: p.precio,
+          precio_unitario: p.precio * (1 + porcentajeAumento / 100),
         })),
       };
+      if (proveedorId) {
+        data.proveedorId = parseInt(proveedorId);
+      }
       if (esReparto && camionSeleccionado) {
         data.salidaCamionId = parseInt(camionSeleccionado);
       }
@@ -410,6 +423,8 @@ export default function VentasPage() {
       setCamionSeleccionado("");
       setStockCamion([]);
       setBusqueda("");
+      setProveedorId("");
+      setPorcentajeAumento(0);
 
       if (esRepartidor) {
         const camionesRes = await salidasAPI.getCamionesActivos();
@@ -442,6 +457,38 @@ export default function VentasPage() {
   return (
     <div>
       <h2>Nueva Venta</h2>
+
+      <div className="form-card" style={{ marginBottom: "1rem", background: porcentajeAumento > 0 ? "#fff3cd" : "var(--bg-card)", borderLeft: porcentajeAumento > 0 ? "3px solid #ffc107" : "none" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+          <label style={{ margin: 0, fontWeight: "bold", whiteSpace: "nowrap" }}>
+            Aumento de precio (%):
+          </label>
+          <input
+            type="number"
+            value={porcentajeAumento}
+            onChange={(e) => setPorcentajeAumento(parseFloat(e.target.value) || 0)}
+            min="0"
+            step="0.01"
+            placeholder="0"
+            style={{ width: "100px", padding: "0.5rem" }}
+          />
+          {porcentajeAumento > 0 && (
+            <span style={{ color: "#856404", fontSize: "0.85rem" }}>
+              Precios aumentados un {porcentajeAumento}% para esta venta
+            </span>
+          )}
+          {porcentajeAumento > 0 && (
+            <button
+              type="button"
+              className="btn btn-sm btn-secondary"
+              onClick={() => setPorcentajeAumento(0)}
+              style={{ fontSize: "0.8rem" }}
+            >
+              Quitar aumento
+            </button>
+          )}
+        </div>
+      </div>
 
       {success && ultimaVenta && (
         <div className="success-msg">
@@ -502,13 +549,21 @@ export default function VentasPage() {
               {productosFiltrados.map((p) => {
                 const qty = cantidades[p.id] || 0;
                 const seleccionado = qty > 0;
+                const precioAumentado = p.precio * (1 + porcentajeAumento / 100);
                 return (
                   <div
                     key={p.id}
                     className={`producto-card ${seleccionado ? "selected" : ""}`}
                   >
                     <div className="producto-card-name">{p.nombre}</div>
-                    <div className="producto-card-price">${p.precio}</div>
+                    <div className="producto-card-price">
+                      ${precioAumentado.toFixed(2)}
+                      {porcentajeAumento > 0 && (
+                        <span style={{ fontSize: "0.7rem", color: "#888", textDecoration: "line-through", marginLeft: "0.25rem" }}>
+                          ${p.precio.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
                     <div className={`producto-card-stock ${p.stock <= (p.stock_minimo || 10) ? "bajo" : ""}`}>
                       Stock: {p.stock}
                       {esReparto && p.devuelto > 0 && (
@@ -702,12 +757,22 @@ export default function VentasPage() {
                     )}
                   </div>
                   {esTrans && (
-                    <div className="pago-detalle-row" style={{ display: "flex", gap: "0.5rem", marginTop: "0.4rem", padding: "0.4rem", background: "#f0f7ff", borderRadius: "6px", borderLeft: "3px solid #3498db" }}>
+                    <div className="pago-detalle-row" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.4rem", padding: "0.4rem", background: "#f0f7ff", borderRadius: "6px", borderLeft: "3px solid #3498db" }}>
+                      <select
+                        value={proveedorId}
+                        onChange={(e) => setProveedorId(e.target.value)}
+                        style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
+                      >
+                        <option value="">Seleccionar proveedor destino...</option>
+                        {proveedores.filter(p => p.alias).map((p) => (
+                          <option key={p.id} value={p.id}>{p.nombre} ({p.alias})</option>
+                        ))}
+                      </select>
                       <input
                         value={datosTransferencia[index]?.nombre_cuenta || ""}
                         onChange={(e) => handleDatoBancarioRapido("transferencia", index, "nombre_cuenta", e.target.value)}
                         placeholder="Nombre de la cuenta"
-                        style={{ flex: 1, padding: "4px 8px", fontSize: "0.85rem" }}
+                        style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
                       />
                       <BancoAutocomplete
                         value={datosTransferencia[index]?.banco || ""}
@@ -728,12 +793,22 @@ export default function VentasPage() {
                     </div>
                   )}
                   {esTarj && (
-                    <div className="pago-detalle-row" style={{ display: "flex", gap: "0.5rem", marginTop: "0.4rem", padding: "0.4rem", background: "#f5f0ff", borderRadius: "6px", borderLeft: "3px solid #9b59b6" }}>
+                    <div className="pago-detalle-row" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.4rem", padding: "0.4rem", background: "#f5f0ff", borderRadius: "6px", borderLeft: "3px solid #9b59b6" }}>
+                      <select
+                        value={proveedorId}
+                        onChange={(e) => setProveedorId(e.target.value)}
+                        style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
+                      >
+                        <option value="">Seleccionar proveedor destino...</option>
+                        {proveedores.filter(p => p.alias).map((p) => (
+                          <option key={p.id} value={p.id}>{p.nombre} ({p.alias})</option>
+                        ))}
+                      </select>
                       <input
                         value={datosTarjeta[index]?.nombre_cuenta || ""}
                         onChange={(e) => handleDatoBancarioRapido("tarjeta", index, "nombre_cuenta", e.target.value)}
                         placeholder="Nombre de la cuenta"
-                        style={{ flex: 1, padding: "4px 8px", fontSize: "0.85rem" }}
+                        style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
                       />
                       <BancoAutocomplete
                         value={datosTarjeta[index]?.banco || ""}
@@ -781,23 +856,23 @@ export default function VentasPage() {
             </div>
           )}
 
-          <div className="form-group">
-            <label>Observaciones</label>
-            <input
-              name="notas"
-              value={form.notas}
-              onChange={handleChange}
-              placeholder="Observaciones"
-            />
-          </div>
-
           {esTransferencia && !pagoDividido && (
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f0f7ff", borderRadius: "6px", borderLeft: "3px solid #3498db" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f0f7ff", borderRadius: "6px", borderLeft: "3px solid #3498db" }}>
+              <select
+                value={proveedorId}
+                onChange={(e) => setProveedorId(e.target.value)}
+                style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
+              >
+                <option value="">Seleccionar proveedor destino...</option>
+                {proveedores.filter(p => p.alias).map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre} ({p.alias})</option>
+                ))}
+              </select>
               <input
                 value={datosTransferencia[0]?.nombre_cuenta || ""}
                 onChange={(e) => handleDatoBancarioRapido("transferencia", 0, "nombre_cuenta", e.target.value)}
                 placeholder="Nombre de la cuenta"
-                style={{ flex: 1, padding: "4px 8px", fontSize: "0.85rem" }}
+                style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
               />
               <BancoAutocomplete
                 value={datosTransferencia[0]?.banco || ""}
@@ -816,12 +891,22 @@ export default function VentasPage() {
           )}
 
           {esTarjeta && !pagoDividido && (
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f5f0ff", borderRadius: "6px", borderLeft: "3px solid #9b59b6" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f5f0ff", borderRadius: "6px", borderLeft: "3px solid #9b59b6" }}>
+              <select
+                value={proveedorId}
+                onChange={(e) => setProveedorId(e.target.value)}
+                style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
+              >
+                <option value="">Seleccionar proveedor destino...</option>
+                {proveedores.filter(p => p.alias).map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre} ({p.alias})</option>
+                ))}
+              </select>
               <input
                 value={datosTarjeta[0]?.nombre_cuenta || ""}
                 onChange={(e) => handleDatoBancarioRapido("tarjeta", 0, "nombre_cuenta", e.target.value)}
                 placeholder="Nombre de la cuenta"
-                style={{ flex: 1, padding: "4px 8px", fontSize: "0.85rem" }}
+                style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
               />
               <BancoAutocomplete
                 value={datosTarjeta[0]?.banco || ""}
@@ -838,17 +923,30 @@ export default function VentasPage() {
               />
             </div>
           )}
+
+          <div className="form-group">
+            <label>Observaciones</label>
+            <input
+              name="notas"
+              value={form.notas}
+              onChange={handleChange}
+              placeholder="Observaciones"
+            />
+          </div>
         </div>
 
         <div className="form-card resumen-card">
           {productosSeleccionados.length > 0 && (
             <div style={{ marginBottom: "0.5rem" }}>
-              {productosSeleccionados.map((p) => (
-                <div key={p.id} className="resumen-row">
-                  <span>{cantidades[p.id]}x {p.nombre}</span>
-                  <strong>${(p.precio * cantidades[p.id]).toFixed(2)}</strong>
-                </div>
-              ))}
+              {productosSeleccionados.map((p) => {
+                const precioAumentado = p.precio * (1 + porcentajeAumento / 100);
+                return (
+                  <div key={p.id} className="resumen-row">
+                    <span>{cantidades[p.id]}x {p.nombre}</span>
+                    <strong>${(precioAumentado * cantidades[p.id]).toFixed(2)}</strong>
+                  </div>
+                );
+              })}
               <div className="cierre-separator"></div>
             </div>
           )}

@@ -93,6 +93,17 @@ const Venta = sequelize.define("Venta", {
     defaultValue: null,
     comment: "Monto pagado de deuda incluido en esta venta",
   },
+  proveedorId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: "Proveedor al que se transfiere el pago",
+  },
+  porcentaje_aumento: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    defaultValue: 0,
+    comment: "Porcentaje de aumento aplicado a los precios",
+  },
 });
 
 export default Venta;

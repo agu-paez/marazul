@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { proveedoresAPI } from "../api";
+import { proveedoresAPI, marcasAPI } from "../api";
 
 export default function ProveedoresPage() {
   const [proveedores, setProveedores] = useState([]);
@@ -10,6 +10,7 @@ export default function ProveedoresPage() {
     telefono: "",
     direccion: "",
     email: "",
+    alias: "",
     tipo_producto: "",
   });
   const [saldosModal, setSaldosModal] = useState(null);
@@ -38,7 +39,7 @@ export default function ProveedoresPage() {
       }
       setShowForm(false);
       setEditing(null);
-      setForm({ nombre: "", telefono: "", direccion: "", email: "", tipo_producto: "" });
+      setForm({ nombre: "", telefono: "", direccion: "", email: "", alias: "", tipo_producto: "" });
       loadProveedores();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -52,6 +53,7 @@ export default function ProveedoresPage() {
       telefono: proveedor.telefono || "",
       direccion: proveedor.direccion || "",
       email: proveedor.email || "",
+      alias: proveedor.alias || "",
       tipo_producto: proveedor.tipo_producto || "",
     });
     setShowForm(true);
@@ -86,20 +88,41 @@ export default function ProveedoresPage() {
     }
   };
 
+  const descargarPDF = async () => {
+    try {
+      const response = await marcasAPI.descargarPDF();
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "marcas_productos.pdf");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert("Error al descargar PDF: " + (error.response?.data?.message || error.message));
+    }
+  };
+
   return (
     <div>
       <div className="page-header">
         <h2>Proveedores</h2>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            setShowForm(!showForm);
-            setEditing(null);
-            setForm({ nombre: "", telefono: "", direccion: "", email: "", tipo_producto: "" });
-          }}
-        >
-          {showForm ? "Cancelar" : "+ Nuevo Proveedor"}
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button className="btn btn-secondary" onClick={descargarPDF}>
+            Descargar PDF
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setShowForm(!showForm);
+              setEditing(null);
+              setForm({ nombre: "", telefono: "", direccion: "", email: "", alias: "", tipo_producto: "" });
+            }}
+          >
+            {showForm ? "Cancelar" : "+ Nuevo Proveedor"}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -138,6 +161,16 @@ export default function ProveedoresPage() {
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
             </div>
+            <div className="form-group">
+              <label>Alias de Transferencia</label>
+              <input
+                value={form.alias}
+                onChange={(e) => setForm({ ...form, alias: e.target.value })}
+                placeholder="Ej: marazul@mp"
+              />
+            </div>
+          </div>
+          <div className="form-row">
             <div className="form-group">
               <label>Tipo de Producto</label>
               <input
@@ -220,6 +253,7 @@ export default function ProveedoresPage() {
           <thead>
             <tr>
               <th>Nombre</th>
+              <th>Alias</th>
               <th>Diferencias</th>
               <th>Teléfono</th>
               <th>Dirección</th>
@@ -235,6 +269,7 @@ export default function ProveedoresPage() {
               return (
                 <tr key={p.id}>
                   <td><strong>{p.nombre}</strong></td>
+                  <td>{p.alias || "-"}</td>
                   <td>
                     <strong style={{ color: diferencia >= 0 ? "var(--success)" : "var(--danger)" }}>
                       ${diferencia.toFixed(2)}

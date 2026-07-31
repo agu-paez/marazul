@@ -39,6 +39,16 @@ export const proveedoresAPI = {
   delete: (id) => API.delete(`/proveedores/${id}`),
 };
 
+export const marcasAPI = {
+  getAll: () => API.get("/marcas"),
+  getByProveedor: (proveedorId) => API.get(`/marcas/proveedor/${proveedorId}`),
+  getById: (id) => API.get(`/marcas/${id}`),
+  create: (data) => API.post("/marcas", data),
+  update: (id, data) => API.put(`/marcas/${id}`, data),
+  delete: (id) => API.delete(`/marcas/${id}`),
+  descargarPDF: () => API.get("/marcas/pdf", { responseType: "blob" }),
+};
+
 export const productosAPI = {
   getAll: () => API.get("/productos"),
   getLowStock: () => API.get("/productos/low-stock"),
@@ -77,6 +87,7 @@ export const cierreCajaAPI = {
   cerrar: () => API.post("/cierre-caja/cerrar"),
   getHistorial: () => API.get("/cierre-caja/historial"),
   getPagosHoy: (fecha) => API.get("/cierre-caja/pagos-hoy", { params: fecha ? { fecha } : {} }),
+  getDetalleCierre: (fecha) => API.get("/cierre-caja/detalle-cierre", { params: fecha ? { fecha } : {} }),
 };
 
 export const ventasAPI = {

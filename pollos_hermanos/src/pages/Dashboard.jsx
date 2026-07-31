@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { salidasAPI, cierreCajaAPI, productosAPI, ventasAPI } from "../api";
-import { generarResumenPagosPDF } from "../utils/generarPDF";
+import { generarTransferenciaIndividualPDF } from "../utils/generarPDF";
+import { getFechaLocal } from "../utils/fecha";
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -142,8 +143,10 @@ export default function Dashboard() {
       await cierreCajaAPI.cerrar();
       const res = await cierreCajaAPI.getPagosHoy();
       if (res.data && res.data.length > 0) {
-        const hoy = new Date().toISOString().split("T")[0];
-        generarResumenPagosPDF(res.data, hoy);
+        const hoy = getFechaLocal();
+        for (const pago of res.data) {
+          generarTransferenciaIndividualPDF(pago, hoy);
+        }
       }
       setCierreExitoso(true);
       setSalidas([]);

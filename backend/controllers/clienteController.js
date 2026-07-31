@@ -1,4 +1,5 @@
 import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto } from "../models/index.js";
+import { getFechaLocal } from "../utils/fecha.js";
 
 export const getAllClientes = async (req, res) => {
   try {
@@ -121,7 +122,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
 
     const now = new Date();
     const hora = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    const fecha = now.toISOString().split("T")[0];
+    const fecha = getFechaLocal(now);
 
     for (const pago of pagos) {
       await ClientePago.create({

@@ -53,11 +53,14 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { nombre, password } = req.body;
+    console.log("Login attempt:", nombre);
 
     const user = await User.findOne({
       where: { nombre },
       include: [{ model: Role, attributes: ["nombre"] }],
     });
+
+    console.log("User found:", user ? "yes" : "no");
 
     if (!user) {
       return res.status(401).json({ message: "Credenciales inválidas" });
@@ -68,6 +71,7 @@ export const login = async (req, res) => {
     }
 
     const validPassword = await user.validPassword(password);
+    console.log("Password valid:", validPassword);
     if (!validPassword) {
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
@@ -85,6 +89,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({ message: "Error al iniciar sesión", error: error.message });
   }
 };

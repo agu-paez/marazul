@@ -1,8 +1,9 @@
 import { Venta, VentaItem, VentaPago, Producto, User, Cliente, ClientePago, SalidaCamion, SalidaCamionItem } from "../models/index.js";
 import { Op } from "sequelize";
+import { getFechaLocal } from "../utils/fecha.js";
 
 const generarNumeroComprobante = async () => {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getFechaLocal();
   const count = await Venta.count({
     where: { fecha: today },
   });
@@ -27,6 +28,8 @@ export const crearVenta = async (req, res) => {
       salidaCamionId,
       datos_transferencia,
       datos_tarjeta,
+      proveedorId,
+      porcentaje_aumento,
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -165,7 +168,7 @@ export const crearVenta = async (req, res) => {
         clienteId: cliente.id,
         monto: deudaPagar.toFixed(2),
         medio_pago: medio_pago || "efectivo",
-        fecha: nowPago.toISOString().split("T")[0],
+        fecha: getFechaLocal(nowPago),
         hora: horaPago,
         notas: `Pago de deuda incluido en venta`,
       });
@@ -177,7 +180,7 @@ export const crearVenta = async (req, res) => {
 
     const venta = await Venta.create({
       numero_comprobante: numeroComprobante,
-      fecha: now.toISOString().split("T")[0],
+      fecha: getFechaLocal(now),
       hora,
       tipo_venta: tipo_venta || "local",
       cliente_nombre: cliente.nombre,
@@ -194,6 +197,8 @@ export const crearVenta = async (req, res) => {
       datos_transferencia: datos_transferencia || null,
       datos_tarjeta: datos_tarjeta || null,
       monto_deuda_pagado: pagar_deuda && monto_deuda ? parseFloat(monto_deuda) : null,
+      proveedorId: proveedorId || null,
+      porcentaje_aumento: porcentaje_aumento || 0,
     });
 
     if (esPagoDividido) {
@@ -328,7 +333,7 @@ export const getVentaById = async (req, res) => {
 
 export const getVentasStats = async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getFechaLocal();
 
     const where = { fecha: today, estado: "completada" };
 

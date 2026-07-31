@@ -50,9 +50,13 @@ export default function NuevaSalida() {
     });
   };
 
-  const productosFiltrados = productos.filter((p) =>
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  const productosFiltrados = productos.filter((p) => {
+    const termino = busqueda.toLowerCase();
+    return (
+      p.nombre.toLowerCase().includes(termino) ||
+      (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino))
+    );
+  });
 
   const productosSeleccionados = productos.filter((p) => (cantidades[p.id] || 0) > 0);
 

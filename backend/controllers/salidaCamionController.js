@@ -1,5 +1,6 @@
 import { SalidaCamion, SalidaCamionItem, Producto, User, Cliente, CierreCaja, Venta, VentaItem } from "../models/index.js";
 import { Op } from "sequelize";
+import { getFechaLocal } from "../utils/fecha.js";
 
 const checkDayClosed = async (fecha) => {
   const cierre = await CierreCaja.findOne({ where: { fecha } });
@@ -109,7 +110,7 @@ export const createSalida = async (req, res) => {
       clienteIdVal = cliente.id;
     }
 
-    const salidaFecha = fecha || new Date().toISOString().split("T")[0];
+    const salidaFecha = fecha || getFechaLocal();
 
     if (await checkDayClosed(salidaFecha)) {
       return res.status(400).json({ message: "No se pueden crear salidas, la caja del día ya fue cerrada" });
@@ -465,7 +466,7 @@ export const deleteSalida = async (req, res) => {
 
 export const getSalidasStats = async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getFechaLocal();
     const where = { fecha: today };
 
     if (req.userRole === "repartidor") {
