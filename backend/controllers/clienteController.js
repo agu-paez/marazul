@@ -58,6 +58,31 @@ export const updateCliente = async (req, res) => {
   }
 };
 
+export const updateMontosCliente = async (req, res) => {
+  try {
+    const cliente = await Cliente.findByPk(req.params.id);
+    if (!cliente) {
+      return res.status(404).json({ message: "Cliente no encontrado" });
+    }
+
+    const saldoPendiente = Number(req.body.saldo_pendiente);
+    const limiteCredito = Number(req.body.limite_credito);
+
+    if (!Number.isFinite(saldoPendiente) || !Number.isFinite(limiteCredito) || limiteCredito < 0) {
+      return res.status(400).json({ message: "Los montos no son validos" });
+    }
+
+    await cliente.update({
+      saldo_pendiente: saldoPendiente.toFixed(2),
+      limite_credito: limiteCredito.toFixed(2),
+    });
+
+    res.json({ message: "Montos del cliente actualizados", cliente });
+  } catch (error) {
+    res.status(500).json({ message: "Error al actualizar montos", error: error.message });
+  }
+};
+
 export const getHistorialCuentaCorriente = async (req, res) => {
   try {
     const cliente = await Cliente.findByPk(req.params.id);

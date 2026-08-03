@@ -189,11 +189,18 @@ export default function NuevaSalida() {
           <h3>Mercaderia del Camion</h3>
 
           <div className="producto-search">
-            <input
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar producto..."
-            />
+            <div className="search-with-clear">
+              <input
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar producto..."
+              />
+              {busqueda && (
+                <button type="button" className="search-clear" onClick={() => setBusqueda("")} aria-label="Borrar búsqueda">
+                  X
+                </button>
+              )}
+            </div>
           </div>
 
           {productosFiltrados.length === 0 ? (

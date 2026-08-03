@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { salidasAPI, cierreCajaAPI, productosAPI, ventasAPI } from "../api";
-import { generarTransferenciaIndividualPDF } from "../utils/generarPDF";
-import { getFechaLocal } from "../utils/fecha";
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -141,13 +139,6 @@ export default function Dashboard() {
     setCerrando(true);
     try {
       await cierreCajaAPI.cerrar();
-      const res = await cierreCajaAPI.getPagosHoy();
-      if (res.data && res.data.length > 0) {
-        const hoy = getFechaLocal();
-        for (const pago of res.data) {
-          generarTransferenciaIndividualPDF(pago, hoy);
-        }
-      }
       setCierreExitoso(true);
       setSalidas([]);
       setStats(null);

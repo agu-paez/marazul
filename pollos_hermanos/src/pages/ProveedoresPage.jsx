@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { proveedoresAPI, marcasAPI } from "../api";
+import { useAuth } from "../context/AuthContext";
 
 export default function ProveedoresPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [proveedores, setProveedores] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -12,7 +15,9 @@ export default function ProveedoresPage() {
     email: "",
     alias: "",
     tipo_producto: "",
+    marcaNombre: "",
   });
+  const [marcasNuevas, setMarcasNuevas] = useState([]);
   const [saldosModal, setSaldosModal] = useState(null);
   const [saldosForm, setSaldosForm] = useState({ mercaderias_compradas: 0, dinero_ventas: 0 });
 
@@ -32,14 +37,25 @@ export default function ProveedoresPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      let proveedorGuardado;
       if (editing) {
-        await proveedoresAPI.update(editing.id, form);
+        const res = await proveedoresAPI.update(editing.id, form);
+        proveedorGuardado = res.data.proveedor;
       } else {
-        await proveedoresAPI.create(form);
+        const res = await proveedoresAPI.create(form);
+        proveedorGuardado = res.data.proveedor;
+      }
+
+      const marcasParaCrear = [...marcasNuevas, form.marcaNombre.trim()]
+        .filter(Boolean)
+        .filter((nombre, index, marcas) => marcas.indexOf(nombre) === index);
+      for (const nombre of marcasParaCrear) {
+        await marcasAPI.create({ nombre, proveedorId: proveedorGuardado.id });
       }
       setShowForm(false);
       setEditing(null);
-      setForm({ nombre: "", telefono: "", direccion: "", email: "", alias: "", tipo_producto: "" });
+      setForm({ nombre: "", telefono: "", direccion: "", email: "", alias: "", tipo_producto: "", marcaNombre: "" });
+      setMarcasNuevas([]);
       loadProveedores();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -55,8 +71,28 @@ export default function ProveedoresPage() {
       email: proveedor.email || "",
       alias: proveedor.alias || "",
       tipo_producto: proveedor.tipo_producto || "",
+      marcaNombre: "",
     });
+    setMarcasNuevas([]);
     setShowForm(true);
+  };
+
+  const agregarMarca = () => {
+    const nombre = form.marcaNombre.trim();
+    if (!nombre || marcasNuevas.includes(nombre)) return;
+    setMarcasNuevas([...marcasNuevas, nombre]);
+    setForm({ ...form, marcaNombre: "" });
+  };
+
+  const eliminarMarca = async (marca) => {
+    if (!confirm(`¿Eliminar la marca "${marca.nombre}"?`)) return;
+    try {
+      await marcasAPI.delete(marca.id);
+      setEditing({ ...editing, Marcas: editing.Marcas.filter((item) => item.id !== marca.id) });
+      loadProveedores();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    }
   };
 
   const handleDelete = async (id) => {
@@ -80,7 +116,12 @@ export default function ProveedoresPage() {
   const saveSaldos = async () => {
     if (!saldosModal) return;
     try {
-      await proveedoresAPI.update(saldosModal.id, saldosForm);
+      const movimiento = (parseFloat(saldosForm.dinero_ventas) || 0) + (parseFloat(saldosForm.mercaderias_compradas) || 0);
+      await proveedoresAPI.update(saldosModal.id, {
+        mercaderias_compradas: 0,
+        dinero_ventas: 0,
+        diferencia_acumulada: (parseFloat(saldosModal.diferencia_acumulada) || 0) + movimiento,
+      });
       setSaldosModal(null);
       loadProveedores();
     } catch (error) {
@@ -116,8 +157,9 @@ export default function ProveedoresPage() {
             className="btn btn-primary"
             onClick={() => {
               setShowForm(!showForm);
-              setEditing(null);
-              setForm({ nombre: "", telefono: "", direccion: "", email: "", alias: "", tipo_producto: "" });
+               setEditing(null);
+               setForm({ nombre: "", telefono: "", direccion: "", email: "", alias: "", tipo_producto: "", marcaNombre: "" });
+               setMarcasNuevas([]);
             }}
           >
             {showForm ? "Cancelar" : "+ Nuevo Proveedor"}
@@ -180,6 +222,43 @@ export default function ProveedoresPage() {
               />
             </div>
           </div>
+          <div className="form-group">
+            <label>Agregar marcas</label>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <input
+                value={form.marcaNombre}
+                onChange={(e) => setForm({ ...form, marcaNombre: e.target.value })}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); agregarMarca(); } }}
+                placeholder="Nombre de la marca"
+              />
+              <button type="button" className="btn btn-secondary" onClick={agregarMarca}>+ Agregar</button>
+            </div>
+            {marcasNuevas.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.5rem" }}>
+                {marcasNuevas.map((marca) => (
+                  <span key={marca} style={{ padding: "0.3rem 0.55rem", borderRadius: "999px", background: "var(--bg-input)", border: "1px solid var(--border)" }}>
+                    {marca}
+                    <button type="button" onClick={() => setMarcasNuevas(marcasNuevas.filter((item) => item !== marca))} style={{ border: 0, background: "transparent", color: "var(--text-muted)", cursor: "pointer", marginLeft: "0.3rem" }}>X</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {editing?.Marcas?.length > 0 && (
+              <div style={{ marginTop: "0.5rem" }}>
+                <small style={{ display: "block", color: "var(--text-muted)", marginBottom: "0.35rem" }}>Marcas actuales:</small>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  {editing.Marcas.map((marca) => (
+                    <span key={marca.id} style={{ padding: "0.3rem 0.55rem", borderRadius: "999px", background: "var(--bg-input)", border: "1px solid var(--border)" }}>
+                      {marca.nombre}
+                      {isAdmin && (
+                        <button type="button" onClick={() => eliminarMarca(marca)} style={{ border: 0, background: "transparent", color: "var(--danger)", cursor: "pointer", marginLeft: "0.3rem" }}>X</button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button type="submit" className="btn btn-primary">
             {editing ? "Actualizar" : "Crear"}
           </button>
@@ -237,7 +316,13 @@ export default function ProveedoresPage() {
                 fontWeight: "bold", fontSize: "1.1rem",
                 color: (saldosForm.dinero_ventas + saldosForm.mercaderias_compradas) >= 0 ? "var(--success)" : "var(--danger)"
               }}>
-                ${(saldosForm.dinero_ventas + saldosForm.mercaderias_compradas).toFixed(2)}
+                ${(saldosForm.dinero_ventas + saldosForm.mercaderias_compradas + (saldosModal.diferencia_acumulada || 0) + (saldosModal.transferencias_historial || 0)).toFixed(2)}
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Transferencias del historial</label>
+              <div style={{ padding: "0.6rem 0.75rem", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                ${(saldosModal.transferencias_historial || 0).toFixed(2)}
               </div>
             </div>
             <div className="modal-actions">
@@ -253,8 +338,9 @@ export default function ProveedoresPage() {
           <thead>
             <tr>
               <th>Nombre</th>
-              <th>Alias</th>
-              <th>Diferencias</th>
+               <th>Alias</th>
+               <th>Marcas</th>
+               <th>Diferencias</th>
               <th>Teléfono</th>
               <th>Dirección</th>
               <th>Email</th>
@@ -265,11 +351,12 @@ export default function ProveedoresPage() {
           </thead>
           <tbody>
             {proveedores.map((p) => {
-              const diferencia = (p.dinero_ventas || 0) + (p.mercaderias_compradas || 0);
+              const diferencia = (p.dinero_ventas || 0) + (p.mercaderias_compradas || 0) + (p.diferencia_acumulada || 0) + (p.transferencias_historial || 0);
               return (
                 <tr key={p.id}>
                   <td><strong>{p.nombre}</strong></td>
                   <td>{p.alias || "-"}</td>
+                  <td>{p.Marcas?.map((marca) => marca.nombre).join(", ") || "-"}</td>
                   <td>
                     <strong style={{ color: diferencia >= 0 ? "var(--success)" : "var(--danger)" }}>
                       ${diferencia.toFixed(2)}
@@ -279,7 +366,7 @@ export default function ProveedoresPage() {
                   <td>{p.direccion || "-"}</td>
                   <td>{p.email || "-"}</td>
                   <td>{p.tipo_producto || "-"}</td>
-                  <td>{p.Productos?.length || 0}</td>
+                   <td>{p.Marcas?.reduce((total, marca) => total + (marca.Productos?.length || 0), 0) || 0}</td>
                   <td>
                     <button className="btn btn-sm btn-camino" onClick={() => handleEdit(p)}>
                       Editar

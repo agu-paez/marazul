@@ -41,7 +41,13 @@ export default function ProductosPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const data = { ...form, precio: parseFloat(form.precio), stock: parseInt(form.stock) || 0 };
+      const data = {
+        ...form,
+        precio: parseFloat(form.precio),
+        stock: parseInt(form.stock) || 0,
+        marcaId: form.marcaId ? parseInt(form.marcaId) : null,
+        codigo_barras: form.codigo_barras.trim() || null,
+      };
       if (editing) {
         await productosAPI.update(editing.id, data);
       } else {

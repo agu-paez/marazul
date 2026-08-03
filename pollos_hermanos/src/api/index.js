@@ -114,6 +114,7 @@ export const clientesAPI = {
   getById: (id) => API.get(`/clientes/${id}`),
   create: (data) => API.post("/clientes", data),
   update: (id, data) => API.put(`/clientes/${id}`, data),
+  updateMontos: (id, data) => API.put(`/clientes/${id}/montos`, data),
   delete: (id) => API.delete(`/clientes/${id}`),
   getHistorialCC: (id) => API.get(`/clientes/${id}/historial-cc`),
   registrarPagoCC: (id, data) => API.post(`/clientes/${id}/pago-cc`, data),

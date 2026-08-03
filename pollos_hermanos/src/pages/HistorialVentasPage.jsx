@@ -81,7 +81,14 @@ export default function HistorialVentasPage() {
           </div>
           <div className="form-group">
             <label>Camion / Repartidor</label>
-            <input name="buscar" value={filtros.buscar} onChange={handleFiltro} placeholder="Camion o repartidor..." />
+            <div className="search-with-clear">
+              <input name="buscar" value={filtros.buscar} onChange={handleFiltro} placeholder="Camion o repartidor..." />
+              {filtros.buscar && (
+                <button type="button" className="search-clear" onClick={() => setFiltros({ ...filtros, buscar: "" })} aria-label="Borrar búsqueda">
+                  X
+                </button>
+              )}
+            </div>
           </div>
           <div className="form-group" style={{ display: "none" }}>
             <label>Nro Comprobante</label>

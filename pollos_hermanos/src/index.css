@@ -862,7 +862,7 @@ h2 {
 
 .producto-search input {
   width: 100%;
-  padding: 0.7rem 1rem;
+  padding: 0.7rem 2.5rem 0.7rem 1rem;
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -874,6 +874,32 @@ h2 {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(74, 107, 90, 0.15);
+}
+
+.search-with-clear {
+  position: relative;
+}
+
+.search-with-clear > input {
+  padding-right: 2.5rem;
+}
+
+.search-clear {
+  position: absolute;
+  top: 50%;
+  right: 0.65rem;
+  transform: translateY(-50%);
+  border: 0;
+  padding: 0.15rem 0.3rem;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.search-clear:hover {
+  color: var(--text);
 }
 
 .producto-grid {

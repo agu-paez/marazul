@@ -22,6 +22,7 @@ export default function VentasPage() {
   const [pagos, setPagos] = useState([
     { medio_pago: "efectivo", monto: 0 },
   ]);
+  const [montosEditando, setMontosEditando] = useState({});
   const [showNewCliente, setShowNewCliente] = useState(false);
   const [newClienteNombre, setNewClienteNombre] = useState("");
   const [pagarDeuda, setPagarDeuda] = useState(false);
@@ -33,7 +34,8 @@ export default function VentasPage() {
   const [datosTarjeta, setDatosTarjeta] = useState([]);
   const [bancos, setBancos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
-  const [proveedorId, setProveedorId] = useState("");
+  const [proveedorTransferenciaId, setProveedorTransferenciaId] = useState("");
+  const [proveedorTarjetaId, setProveedorTarjetaId] = useState("");
   const [porcentajeAumento, setPorcentajeAumento] = useState(0);
 
   useEffect(() => {
@@ -110,6 +112,11 @@ export default function VentasPage() {
   };
 
   const handlePagoChange = (index, e) => {
+    if (e.target.name === "monto") {
+      setMontosEditando((prev) => ({ ...prev, [index]: e.target.value }));
+      return;
+    }
+
     const newPagos = [...pagos];
     newPagos[index][e.target.name] = e.target.value;
     setPagos(newPagos);
@@ -130,17 +137,34 @@ export default function VentasPage() {
       }
       setDatosTransferencia(newDatosT);
       setDatosTarjeta(newDatosJ);
-    } else if (e.target.name === "monto") {
-      const newDatosT = [...datosTransferencia];
-      const newDatosJ = [...datosTarjeta];
-      if (newPagos[index].medio_pago === "transferencia" && newDatosT[index]) {
-        newDatosT[index] = { ...newDatosT[index], monto: e.target.value };
-        setDatosTransferencia(newDatosT);
-      } else if (newPagos[index].medio_pago === "tarjeta" && newDatosJ[index]) {
-        newDatosJ[index] = { ...newDatosJ[index], monto: e.target.value };
-        setDatosTarjeta(newDatosJ);
-      }
+      setMontosEditando((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
     }
+  };
+
+  const confirmarMontoPago = (index, value) => {
+    const newPagos = [...pagos];
+    newPagos[index] = { ...newPagos[index], monto: value };
+    setPagos(newPagos);
+
+    if (newPagos[index].medio_pago === "transferencia" && datosTransferencia[index]) {
+      const newDatos = [...datosTransferencia];
+      newDatos[index] = { ...newDatos[index], monto: value };
+      setDatosTransferencia(newDatos);
+    } else if (newPagos[index].medio_pago === "tarjeta" && datosTarjeta[index]) {
+      const newDatos = [...datosTarjeta];
+      newDatos[index] = { ...newDatos[index], monto: value };
+      setDatosTarjeta(newDatos);
+    }
+
+    setMontosEditando((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
   };
 
   const addPago = () => {
@@ -154,6 +178,14 @@ export default function VentasPage() {
       setPagos(pagos.filter((_, i) => i !== index));
       setDatosTransferencia(datosTransferencia.filter((_, i) => i !== index));
       setDatosTarjeta(datosTarjeta.filter((_, i) => i !== index));
+      setMontosEditando((prev) => {
+        const next = {};
+        Object.entries(prev).forEach(([key, value]) => {
+          if (Number(key) < index) next[key] = value;
+          if (Number(key) > index) next[Number(key) - 1] = value;
+        });
+        return next;
+      });
     }
   };
 
@@ -312,12 +344,14 @@ export default function VentasPage() {
     if (pagoDividido) {
       setPagoDividido(false);
       setPagos([{ medio_pago: "efectivo", monto: 0 }]);
+      setMontosEditando({});
     } else {
       setPagoDividido(true);
       setPagos([{ medio_pago: "efectivo", monto: 0 }]);
     }
     setDatosTransferencia([]);
-    setDatosTarjeta([]);
+       setDatosTarjeta([]);
+       setMontosEditando({});
   };
 
   const handleSubmit = async (e) => {
@@ -340,6 +374,14 @@ export default function VentasPage() {
     }
     if (pagoDividido && !sumaPagosValida) {
       alert(`La suma de los pagos ($${totalPagosDivididos.toFixed(2)}) no coincide con el total ($${totalConDeuda.toFixed(2)})`);
+      return;
+    }
+    if (transferenciaIndices.length > 0 && !proveedorTransferenciaId) {
+      alert("Debe seleccionar una cuenta de proveedor para la transferencia");
+      return;
+    }
+    if (tarjetaIndices.length > 0 && !proveedorTarjetaId) {
+      alert("Debe seleccionar una cuenta de proveedor para la tarjeta");
       return;
     }
     for (let i = 0; i < transferenciaIndices.length; i++) {
@@ -368,8 +410,13 @@ export default function VentasPage() {
           precio_unitario: p.precio * (1 + porcentajeAumento / 100),
         })),
       };
-      if (proveedorId) {
-        data.proveedorId = parseInt(proveedorId);
+      const proveedorSeleccionado = esTransferencia
+        ? proveedorTransferenciaId
+        : esTarjeta
+          ? proveedorTarjetaId
+          : "";
+      if (proveedorSeleccionado) {
+        data.proveedorId = parseInt(proveedorSeleccionado);
       }
       if (esReparto && camionSeleccionado) {
         data.salidaCamionId = parseInt(camionSeleccionado);
@@ -390,8 +437,9 @@ export default function VentasPage() {
           .map((d) => ({
             nombre_cuenta: d.nombre_cuenta,
             fecha_hora: d.fecha_hora,
-            banco: d.banco,
-            monto: parseFloat(d.monto) || 0,
+             banco: d.banco,
+             monto: parseFloat(d.monto) || 0,
+            proveedorId: proveedorTransferenciaId ? parseInt(proveedorTransferenciaId) : null,
           }));
       }
       if (esTarjeta) {
@@ -400,8 +448,9 @@ export default function VentasPage() {
           .map((d) => ({
             nombre_cuenta: d.nombre_cuenta,
             fecha_hora: d.fecha_hora,
-            banco: d.banco,
-            monto: parseFloat(d.monto) || 0,
+             banco: d.banco,
+             monto: parseFloat(d.monto) || 0,
+            proveedorId: proveedorTarjetaId ? parseInt(proveedorTarjetaId) : null,
           }));
       }
       const res = await ventasAPI.create(data);
@@ -423,7 +472,8 @@ export default function VentasPage() {
       setCamionSeleccionado("");
       setStockCamion([]);
       setBusqueda("");
-      setProveedorId("");
+       setProveedorTransferenciaId("");
+       setProveedorTarjetaId("");
       setPorcentajeAumento(0);
 
       if (esRepartidor) {
@@ -534,12 +584,19 @@ export default function VentasPage() {
           )}
 
           <div className="producto-search">
-            <input
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar producto..."
-              disabled={esReparto && !camionSeleccionado}
-            />
+            <div className="search-with-clear">
+              <input
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar producto..."
+                disabled={esReparto && !camionSeleccionado}
+              />
+              {busqueda && (
+                <button type="button" className="search-clear" onClick={() => setBusqueda("")} aria-label="Borrar búsqueda">
+                  X
+                </button>
+              )}
+            </div>
           </div>
 
           {productosFiltrados.length === 0 ? (
@@ -745,8 +802,9 @@ export default function VentasPage() {
                     <input
                       type="number"
                       name="monto"
-                      value={pago.monto}
+                      value={montosEditando[index] ?? pago.monto}
                       onChange={(e) => handlePagoChange(index, e)}
+                      onBlur={(e) => confirmarMontoPago(index, e.currentTarget.value)}
                       min="0"
                       step="0.01"
                       placeholder="Monto"
@@ -759,13 +817,14 @@ export default function VentasPage() {
                   {esTrans && (
                     <div className="pago-detalle-row" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.4rem", padding: "0.4rem", background: "#f0f7ff", borderRadius: "6px", borderLeft: "3px solid #3498db" }}>
                       <select
-                        value={proveedorId}
-                        onChange={(e) => setProveedorId(e.target.value)}
+                         value={proveedorTransferenciaId}
+                         onChange={(e) => setProveedorTransferenciaId(e.target.value)}
+                         required
                         style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
                       >
                         <option value="">Seleccionar proveedor destino...</option>
-                        {proveedores.filter(p => p.alias).map((p) => (
-                          <option key={p.id} value={p.id}>{p.nombre} ({p.alias})</option>
+                        {proveedores.map((p) => (
+                          <option key={p.id} value={p.id}>{p.nombre}{p.alias ? ` (${p.alias})` : ""}</option>
                         ))}
                       </select>
                       <input
@@ -795,13 +854,14 @@ export default function VentasPage() {
                   {esTarj && (
                     <div className="pago-detalle-row" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.4rem", padding: "0.4rem", background: "#f5f0ff", borderRadius: "6px", borderLeft: "3px solid #9b59b6" }}>
                       <select
-                        value={proveedorId}
-                        onChange={(e) => setProveedorId(e.target.value)}
+                         value={proveedorTarjetaId}
+                         onChange={(e) => setProveedorTarjetaId(e.target.value)}
+                         required
                         style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
                       >
                         <option value="">Seleccionar proveedor destino...</option>
-                        {proveedores.filter(p => p.alias).map((p) => (
-                          <option key={p.id} value={p.id}>{p.nombre} ({p.alias})</option>
+                        {proveedores.map((p) => (
+                          <option key={p.id} value={p.id}>{p.nombre}{p.alias ? ` (${p.alias})` : ""}</option>
                         ))}
                       </select>
                       <input
@@ -859,13 +919,14 @@ export default function VentasPage() {
           {esTransferencia && !pagoDividido && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f0f7ff", borderRadius: "6px", borderLeft: "3px solid #3498db" }}>
               <select
-                value={proveedorId}
-                onChange={(e) => setProveedorId(e.target.value)}
+                 value={proveedorTransferenciaId}
+                 onChange={(e) => setProveedorTransferenciaId(e.target.value)}
+                 required
                 style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
               >
                 <option value="">Seleccionar proveedor destino...</option>
-                {proveedores.filter(p => p.alias).map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre} ({p.alias})</option>
+                {proveedores.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre}{p.alias ? ` (${p.alias})` : ""}</option>
                 ))}
               </select>
               <input
@@ -893,13 +954,14 @@ export default function VentasPage() {
           {esTarjeta && !pagoDividido && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f5f0ff", borderRadius: "6px", borderLeft: "3px solid #9b59b6" }}>
               <select
-                value={proveedorId}
-                onChange={(e) => setProveedorId(e.target.value)}
+                 value={proveedorTarjetaId}
+                 onChange={(e) => setProveedorTarjetaId(e.target.value)}
+                 required
                 style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
               >
                 <option value="">Seleccionar proveedor destino...</option>
-                {proveedores.filter(p => p.alias).map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre} ({p.alias})</option>
+                {proveedores.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre}{p.alias ? ` (${p.alias})` : ""}</option>
                 ))}
               </select>
               <input

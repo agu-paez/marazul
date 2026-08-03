@@ -75,12 +75,19 @@ export default function HistorialSalidas() {
         <div className="filtros-grid">
           <div className="form-group">
             <label>Camion / Repartidor</label>
-            <input
-              name="buscar"
-              value={filtros.buscar}
-              onChange={(e) => setFiltros({ ...filtros, buscar: e.target.value })}
-              placeholder="Buscar por camion o repartidor..."
-            />
+            <div className="search-with-clear">
+              <input
+                name="buscar"
+                value={filtros.buscar}
+                onChange={(e) => setFiltros({ ...filtros, buscar: e.target.value })}
+                placeholder="Buscar por camion o repartidor..."
+              />
+              {filtros.buscar && (
+                <button type="button" className="search-clear" onClick={() => setFiltros({ ...filtros, buscar: "" })} aria-label="Borrar búsqueda">
+                  X
+                </button>
+              )}
+            </div>
           </div>
           <div className="form-group">
             <label>Fecha</label>

@@ -77,6 +77,13 @@ const start = async () => {
       console.log("Columna porcentaje_aumento agregada a Venta");
     }
 
+    const [productoCols] = await sequelize.query("PRAGMA table_info(Productos)");
+    const hasMarcaId = productoCols.some((c) => c.name === "marcaId");
+    if (!hasMarcaId) {
+      await sequelize.query("ALTER TABLE Productos ADD COLUMN marcaId INTEGER REFERENCES Marcas(id)");
+      console.log("Columna marcaId agregada a Productos");
+    }
+
     const [proveedorCols] = await sequelize.query("PRAGMA table_info(Proveedors)");
     const hasMercaderias = proveedorCols.some((c) => c.name === "mercaderias_compradas");
     if (!hasMercaderias) {
@@ -87,6 +94,11 @@ const start = async () => {
     if (!hasDineroVentas) {
       await sequelize.query("ALTER TABLE Proveedors ADD COLUMN dinero_ventas FLOAT DEFAULT 0");
       console.log("Columna dinero_ventas agregada a Proveedors");
+    }
+    const hasDiferenciaAcumulada = proveedorCols.some((c) => c.name === "diferencia_acumulada");
+    if (!hasDiferenciaAcumulada) {
+      await sequelize.query("ALTER TABLE Proveedors ADD COLUMN diferencia_acumulada FLOAT DEFAULT 0");
+      console.log("Columna diferencia_acumulada agregada a Proveedors");
     }
 
     const bancosDefault = ["Banco Nación", "Banco Provincia", "Banco Galicia", "Banco Santander", "Banco BBVA", "Banco Macro", "Banco Ciudad", "Banco Patagonia", "Banco Supervielle", "Banco Hipotecario"];

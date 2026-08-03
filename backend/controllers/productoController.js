@@ -40,14 +40,23 @@ export const createProducto = async (req, res) => {
   try {
     const { nombre, descripcion, precio, stock, unidad, marcaId, codigo_barras } = req.body;
 
+    if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio))) {
+      return res.status(400).json({ message: "Nombre y precio son requeridos" });
+    }
+
+    const marca = marcaId ? await Marca.findByPk(marcaId) : null;
+    if (marcaId && !marca) {
+      return res.status(400).json({ message: "La marca seleccionada no existe" });
+    }
+
     const producto = await Producto.create({
-      nombre,
+      nombre: nombre.trim(),
       descripcion,
-      precio,
-      stock,
+      precio: Number(precio),
+      stock: Number.isFinite(Number(stock)) ? Number(stock) : 0,
       unidad,
-      marcaId,
-      codigo_barras,
+      marcaId: marca ? marca.id : null,
+      codigo_barras: codigo_barras?.trim() || null,
     });
 
     res.status(201).json({ message: "Producto creado", producto });
@@ -63,7 +72,19 @@ export const updateProducto = async (req, res) => {
       return res.status(404).json({ message: "Producto no encontrado" });
     }
 
-    await producto.update(req.body);
+    const data = { ...req.body };
+    if (data.marcaId !== undefined) {
+      const marca = data.marcaId ? await Marca.findByPk(data.marcaId) : null;
+      if (data.marcaId && !marca) {
+        return res.status(400).json({ message: "La marca seleccionada no existe" });
+      }
+      data.marcaId = marca ? marca.id : null;
+    }
+    if (data.codigo_barras !== undefined) {
+      data.codigo_barras = data.codigo_barras?.trim() || null;
+    }
+
+    await producto.update(data);
     res.json({ message: "Producto actualizado", producto });
   } catch (error) {
     res.status(500).json({ message: "Error al actualizar producto", error: error.message });

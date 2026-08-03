@@ -161,12 +161,13 @@ export const generarPDFMarcasProductos = async (req, res) => {
     }
 
     marcas.forEach((marca) => {
-      if (doc.y > 700) {
+      if (!Number.isFinite(doc.y) || doc.y > 700) {
         doc.addPage();
       }
 
+      const marcaY = Number.isFinite(doc.y) ? doc.y : 50;
       doc.fontSize(14).font("Helvetica-Bold").fillColor("#2563eb")
-        .text(marca.nombre.toUpperCase(), { underline: true });
+        .text(String(marca.nombre || "Sin nombre").toUpperCase(), 50, marcaY, { underline: true });
       doc.moveDown(0.3);
       
       if (marca.Proveedor) {
@@ -176,12 +177,13 @@ export const generarPDFMarcasProductos = async (req, res) => {
       }
 
       if (marca.Productos && marca.Productos.length > 0) {
-        const tableTop = doc.y;
-        const colWidths = { nombre: 200, descripcion: 150, precio: 80, stock: 70, unidad: 80 };
+        const tableTop = Number.isFinite(doc.y) ? doc.y : 50;
+        const colWidths = { nombre: 160, descripcion: 125, precio: 75, stock: 60, unidad: 75 };
+        const tableWidth = Object.values(colWidths).reduce((total, width) => total + width, 0);
         const startX = 50;
         
         doc.fontSize(9).font("Helvetica-Bold").fillColor("#fff");
-        doc.rect(startX, tableTop, 580, 20).fill("#3b82f6");
+        doc.rect(startX, tableTop, tableWidth, 20).fill("#3b82f6");
         
         let x = startX;
         doc.fillColor("#fff")
@@ -199,26 +201,27 @@ export const generarPDFMarcasProductos = async (req, res) => {
         let rowY = tableTop + 20;
 
         marca.Productos.forEach((producto) => {
-          if (doc.y > 750) {
+          if (!Number.isFinite(doc.y) || doc.y > 750) {
             doc.addPage();
-            rowY = doc.y;
+            rowY = Number.isFinite(doc.y) ? doc.y : 50;
           }
 
           const rowHeight = 25;
           const bgColor = marca.Productos.indexOf(producto) % 2 === 0 ? "#f9fafb" : "#ffffff";
-          doc.rect(startX, rowY, 580, rowHeight).fill(bgColor);
+          doc.rect(startX, rowY, tableWidth, rowHeight).fill(bgColor);
 
           x = startX;
           doc.fillColor("#000")
-            .text(producto.nombre, x + 5, rowY + 7, { width: colWidths.nombre - 10, align: "left" });
+            .text(String(producto.nombre || "Sin nombre"), x + 5, rowY + 7, { width: colWidths.nombre - 10, align: "left" });
           x += colWidths.nombre;
-          doc.text(producto.descripcion || "-", x + 5, rowY + 7, { width: colWidths.descripcion - 10, align: "left" });
+          doc.text(String(producto.descripcion || "-"), x + 5, rowY + 7, { width: colWidths.descripcion - 10, align: "left" });
           x += colWidths.descripcion;
-          doc.text(`$${parseFloat(producto.precio).toFixed(2)}`, x + 5, rowY + 7, { width: colWidths.precio - 10, align: "right" });
+          const precio = Number.isFinite(parseFloat(producto.precio)) ? parseFloat(producto.precio) : 0;
+          doc.text(`$${precio.toFixed(2)}`, x + 5, rowY + 7, { width: colWidths.precio - 10, align: "right" });
           x += colWidths.precio;
-          doc.text(producto.stock.toString(), x + 5, rowY + 7, { width: colWidths.stock - 10, align: "right" });
+          doc.text(String(Number.isFinite(Number(producto.stock)) ? producto.stock : 0), x + 5, rowY + 7, { width: colWidths.stock - 10, align: "right" });
           x += colWidths.stock;
-          doc.text(producto.unidad, x + 5, rowY + 7, { width: colWidths.unidad - 10, align: "center" });
+          doc.text(String(producto.unidad || "-"), x + 5, rowY + 7, { width: colWidths.unidad - 10, align: "center" });
 
           rowY += rowHeight;
         });
@@ -236,6 +239,10 @@ export const generarPDFMarcasProductos = async (req, res) => {
     doc.end();
   } catch (error) {
     console.error("Error al generar PDF:", error);
-    res.status(500).json({ message: "Error al generar PDF", error: error.message });
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Error al generar PDF", error: error.message });
+    } else {
+      res.destroy(error);
+    }
   }
 };

@@ -43,6 +43,12 @@ const Proveedor = sequelize.define("Proveedor", {
     defaultValue: 0,
     allowNull: true,
   },
+  diferencia_acumulada: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0,
+    allowNull: true,
+    comment: "Diferencia acumulada de movimientos guardados",
+  },
   activo: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

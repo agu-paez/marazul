@@ -224,6 +224,8 @@ export const getDetalleCierre = async (req, res) => {
       attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "medio_pago", "total", "tipo_venta", "proveedorId"],
       include: [{ model: Proveedor, attributes: ["id", "nombre", "alias"] }],
     });
+    const proveedores = await Proveedor.findAll({ attributes: ["id", "nombre", "alias"] });
+    const proveedoresPorId = new Map(proveedores.map((p) => [p.id, { id: p.id, nombre: p.nombre, alias: p.alias }]));
 
     let kg_enviados = 0;
     let kg_devueltos = 0;
@@ -266,24 +268,26 @@ export const getDetalleCierre = async (req, res) => {
       const proveedorInfo = proveedor ? { id: proveedor.id, nombre: proveedor.nombre, alias: proveedor.alias } : null;
 
       for (const t of parseDatos(venta.datos_transferencia)) {
+        const proveedorPago = t.proveedorId ? proveedoresPorId.get(Number(t.proveedorId)) : proveedorInfo;
         pagos.push({
           tipo: "Transferencia",
           fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
           nombre_cuenta: t.nombre_cuenta || "-",
           monto: parseFloat(t.monto || 0),
           banco: t.banco || "-",
-          proveedor: proveedorInfo,
+          proveedor: proveedorPago || null,
         });
       }
 
       for (const t of parseDatos(venta.datos_tarjeta)) {
+        const proveedorPago = t.proveedorId ? proveedoresPorId.get(Number(t.proveedorId)) : proveedorInfo;
         pagos.push({
           tipo: "Tarjeta",
           fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
           nombre_cuenta: t.nombre_cuenta || "-",
           monto: parseFloat(t.monto || 0),
           banco: t.banco || "-",
-          proveedor: proveedorInfo,
+          proveedor: proveedorPago || null,
         });
       }
 
@@ -294,7 +298,7 @@ export const getDetalleCierre = async (req, res) => {
           nombre_cuenta: "-",
           monto: monto,
           banco: "-",
-          proveedor: proveedorInfo,
+          proveedor: null,
         });
       }
     }
@@ -330,6 +334,8 @@ export const getPagosHoy = async (req, res) => {
       attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "medio_pago", "total", "proveedorId"],
       include: [{ model: Proveedor, attributes: ["id", "nombre", "alias"] }],
     });
+    const proveedores = await Proveedor.findAll({ attributes: ["id", "nombre", "alias"] });
+    const proveedoresPorId = new Map(proveedores.map((p) => [p.id, { id: p.id, nombre: p.nombre, alias: p.alias }]));
 
     const pagos = [];
 
@@ -347,37 +353,29 @@ export const getPagosHoy = async (req, res) => {
       const proveedorInfo = proveedor ? { id: proveedor.id, nombre: proveedor.nombre, alias: proveedor.alias } : null;
 
       for (const t of parseDatos(venta.datos_transferencia)) {
+        const proveedorPago = t.proveedorId ? proveedoresPorId.get(Number(t.proveedorId)) : proveedorInfo;
         pagos.push({
           tipo: "Transferencia",
           fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
           nombre_cuenta: t.nombre_cuenta || "-",
           monto: parseFloat(t.monto || 0),
           banco: t.banco || "-",
-          proveedor: proveedorInfo,
+          proveedor: proveedorPago || null,
         });
       }
 
       for (const t of parseDatos(venta.datos_tarjeta)) {
+        const proveedorPago = t.proveedorId ? proveedoresPorId.get(Number(t.proveedorId)) : proveedorInfo;
         pagos.push({
           tipo: "Tarjeta",
           fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
           nombre_cuenta: t.nombre_cuenta || "-",
           monto: parseFloat(t.monto || 0),
           banco: t.banco || "-",
-          proveedor: proveedorInfo,
+          proveedor: proveedorPago || null,
         });
       }
 
-      if (venta.medio_pago === "efectivo" && (!venta.datos_transferencia || parseDatos(venta.datos_transferencia).length === 0) && (!venta.datos_tarjeta || parseDatos(venta.datos_tarjeta).length === 0)) {
-        pagos.push({
-          tipo: "Efectivo",
-          fecha_hora: `${venta.fecha} ${venta.hora}`,
-          nombre_cuenta: "-",
-          monto: parseFloat(venta.total || 0),
-          banco: "-",
-          proveedor: proveedorInfo,
-        });
-      }
     }
 
     res.json(pagos);
