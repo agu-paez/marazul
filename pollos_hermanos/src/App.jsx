@@ -13,6 +13,7 @@ import HistorialPage from "./pages/HistorialPage";
 import UsuariosPage from "./pages/UsuariosPage";
 import ProveedoresPage from "./pages/ProveedoresPage";
 import ProductosPage from "./pages/ProductosPage";
+import ProduccionPage from "./pages/ProduccionPage";
 
 function PrivateRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
@@ -125,6 +126,15 @@ function AppRoutes() {
           <div className="app">
             <Navbar />
             <main className="main-content"><ProductosPage /></main>
+          </div>
+        </PrivateRoute>
+      } />
+
+      <Route path="/produccion" element={
+        <PrivateRoute>
+          <div className="app">
+            <Navbar />
+            <main className="main-content"><ProduccionPage /></main>
           </div>
         </PrivateRoute>
       } />

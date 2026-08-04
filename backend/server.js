@@ -17,6 +17,7 @@ import ventaRoutes from "./routes/ventaRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import clienteRoutes from "./routes/clienteRoutes.js";
 import bancoRoutes from "./routes/bancoRoutes.js";
+import produccionRoutes from "./routes/produccionRoutes.js";
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use("/api/ventas", ventaRoutes);
 app.use("/api/usuarios", userRoutes);
 app.use("/api/clientes", clienteRoutes);
 app.use("/api/bancos", bancoRoutes);
+app.use("/api/produccion", produccionRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ message: "Mar Azul API - Funcionando!" });

@@ -126,4 +126,9 @@ export const bancosAPI = {
   delete: (id) => API.delete(`/bancos/${id}`),
 };
 
+export const produccionAPI = {
+  getEstadisticas: () => API.get("/produccion"),
+  create: (data) => API.post("/produccion", data),
+};
+
 export default API;

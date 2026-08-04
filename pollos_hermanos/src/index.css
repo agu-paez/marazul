@@ -1415,3 +1415,64 @@ input[type="number"] {
     padding: 1rem;
   }
 }
+
+/* ========== ESTADISTICAS DE PRODUCCION ========== */
+.produccion-form-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.75rem;
+}
+
+.produccion-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.produccion-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.produccion-card h4 {
+  color: var(--primary);
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.produccion-card .table-container {
+  box-shadow: none;
+  border: none;
+  border-radius: 8px;
+}
+
+.produccion-card table {
+  font-size: 0.82rem;
+}
+
+.produccion-card th,
+.produccion-card td {
+  padding: 0.5rem 0.6rem;
+}
+
+.produccion-card .empty {
+  padding: 1.5rem 0.5rem;
+  border: 1px dashed var(--border);
+  background: transparent;
+}
+
+@media (max-width: 1024px) {
+  .produccion-form-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .produccion-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

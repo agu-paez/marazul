@@ -51,6 +51,7 @@ export default function Navbar() {
             <Link to="/historial" className={isActive("/historial")}>Historial</Link>
             <Link to="/proveedores" className={isActive("/proveedores")}>Proveedores</Link>
             <Link to="/productos" className={isActive("/productos")}>Productos</Link>
+            <Link to="/produccion" className={isActive("/produccion")}>Producción</Link>
             {isAdmin && (
               <Link to="/usuarios" className={isActive("/usuarios")}>Usuarios</Link>
             )}
