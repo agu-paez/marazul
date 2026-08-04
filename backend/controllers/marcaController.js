@@ -1,5 +1,11 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { Marca, Proveedor, Producto } from "../models/index.js";
 import PDFDocument from "pdfkit";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOGO_PATH = path.resolve(__dirname, "../../pollos_hermanos/public/logo-marazul.jpeg");
 
 export const getMarcas = async (req, res) => {
   try {
@@ -128,113 +134,196 @@ export const deleteMarca = async (req, res) => {
 
 export const generarPDFMarcasProductos = async (req, res) => {
   try {
-    const marcas = await Marca.findAll({
+    const marcas = (await Marca.findAll({
       include: [
-        { 
-          model: Proveedor, 
-          attributes: ["id", "nombre"] 
-        },
         { 
           model: Producto,
           where: { activo: true },
           required: false,
-          attributes: ["id", "nombre", "descripcion", "precio", "stock", "unidad"]
+          attributes: ["id", "nombre", "descripcion", "precio", "stock", "unidad", "kg_por_caja"]
         }
       ],
       where: { activo: true },
       order: [["nombre", "ASC"]],
-    });
+    })).filter((m) => (m.Productos || []).length > 0);
 
     const doc = new PDFDocument({ margin: 50, size: "A4" });
-    
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", 'attachment; filename="marcas_productos.pdf"');
     doc.pipe(res);
 
-    doc.fontSize(20).font("Helvetica-Bold").text("Marcas y Productos", { align: "center" });
-    doc.moveDown(1.5);
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const startX = 50;
+    const tableWidth = pageWidth - 100;
+    const headerH = 60;
+    const contentTop = 88;
+    const limitY = pageHeight - 95;
+
+    const NAVY_DARK = "#0d1b33";
+    const NAVY = "#14284b";
+    const ACCENT = "#c9a227";
+    const TEXT = "#1f2937";
+    const MUTED = "#64748b";
+    const ROW_ALT = "#f6f8fb";
+    const BORDER = "#e3e8ef";
+    const TABLE_HEAD_BG = "#e9eef5";
+    const MARCA_BAND_BG = "#dde6f5";
+    const logoOk = fs.existsSync(LOGO_PATH);
+
+    const colWidths = [200, 65, 115, 115];
+    const headers = ["Producto", "Kg/Caja", "Precio/Kg", "Precio Caja"];
+    const colAlign = (i) => (i === 1 ? "center" : i === 2 || i === 3 ? "right" : "left");
+
+    const drawHeader = () => {
+      doc.rect(0, 0, pageWidth, headerH).fill(NAVY_DARK);
+      if (logoOk) {
+        doc.image(LOGO_PATH, 40, 10, { width: 44, height: 44 });
+      }
+      doc.fillColor(ACCENT).fontSize(20).font("Helvetica-Bold")
+        .text("MAR AZUL", 96, 14, { lineBreak: false });
+      doc.fillColor("#9fb0c9").fontSize(8).font("Helvetica")
+        .text("Sistema de Gestion de Repartos", 96, 39, { lineBreak: false });
+      doc.rect(0, headerH, pageWidth, 3).fill(ACCENT);
+      doc.fillColor(NAVY).fontSize(11).font("Helvetica-Bold")
+        .text("Marcas y Productos", pageWidth / 2, 72, { align: "center" });
+    };
+
+    const drawFooter = () => {
+      doc.fontSize(7).font("Helvetica").fillColor("#94a3b8")
+        .text(
+          "Documento generado automaticamente por el Sistema de Gestion Mar Azul",
+          pageWidth / 2,
+          pageHeight - 60,
+          { align: "center" }
+        );
+    };
+
+    const drawTableHead = (top) => {
+      doc.rect(startX, top, tableWidth, 20).fill(TABLE_HEAD_BG);
+      doc.rect(startX, top + 19, tableWidth, 1).fill(BORDER);
+      doc.fontSize(9).font("Helvetica-Bold").fillColor(NAVY);
+      let hx = startX;
+      for (let i = 0; i < headers.length; i++) {
+        doc.text(headers[i], hx + 10, top + 5, { width: colWidths[i] - 20, align: colAlign(i) });
+        hx += colWidths[i];
+      }
+    };
+
+    const newPage = () => {
+      doc.addPage();
+      drawHeader();
+      drawFooter();
+      doc.y = contentTop;
+    };
+
+    drawHeader();
+    drawFooter();
+    doc.y = contentTop;
 
     if (marcas.length === 0) {
-      doc.fontSize(12).text("No hay marcas registradas", { align: "center" });
+      doc.fontSize(12).font("Helvetica").fillColor(TEXT)
+        .text("No hay marcas con productos registrados", { align: "center" });
       doc.end();
       return;
     }
 
-    marcas.forEach((marca) => {
-      if (!Number.isFinite(doc.y) || doc.y > 700) {
-        doc.addPage();
+    const rowHeight = 26;
+    const marcaBandH = 22;
+    const marcaGap = 4;
+    const tableHeadGap = 4;
+    const marcaSpacing = 8;
+
+    const fmtNumero = (valor) => {
+      if (valor === null || valor === undefined || valor === "") return "-";
+      const n = Number(valor);
+      return Number.isFinite(n) ? n.toFixed(2) : "-";
+    };
+    const fmtPrecio = (valor) => {
+      if (valor === null || valor === undefined || valor === "") return "-";
+      const n = Number(valor);
+      return Number.isFinite(n) ? `$${n.toFixed(2)}` : "-";
+    };
+
+    const precioPorKg = (producto) => {
+      const precio = Number(producto.precio);
+      const kg = Number(producto.kg_por_caja);
+      if (Number.isFinite(precio) && precio > 0 && Number.isFinite(kg) && kg > 0) {
+        return precio / kg;
+      }
+      return null;
+    };
+
+    const precioCaja = (producto) => {
+      const kg = Number(producto.kg_por_caja);
+      const pkg = precioPorKg(producto);
+      if (pkg !== null && Number.isFinite(kg) && kg > 0) {
+        return pkg * kg;
+      }
+      return null;
+    };
+
+    const drawMarcaBand = (nombre, top) => {
+      doc.rect(startX, top, tableWidth, marcaBandH).fill(MARCA_BAND_BG);
+      doc.rect(startX, top, tableWidth, marcaBandH).strokeColor(BORDER).lineWidth(0.5).stroke();
+      doc.fontSize(9).font("Helvetica-Bold").fillColor(NAVY)
+        .text(`Marca: ${String(nombre || "Sin nombre")}`, startX, top + marcaBandH / 2 - 5, { width: colWidths[0], align: "center" });
+    };
+
+    for (const marca of marcas) {
+      const productos = marca.Productos || [];
+      const bloqueH = marcaBandH + marcaGap + 20 + tableHeadGap + productos.length * rowHeight + marcaSpacing;
+      if (doc.y + bloqueH > limitY && bloqueH <= limitY - contentTop) {
+        newPage();
       }
 
-      const marcaY = Number.isFinite(doc.y) ? doc.y : 50;
-      doc.fontSize(14).font("Helvetica-Bold").fillColor("#2563eb")
-        .text(String(marca.nombre || "Sin nombre").toUpperCase(), 50, marcaY, { underline: true });
-      doc.moveDown(0.3);
-      
-      if (marca.Proveedor) {
-        doc.fontSize(10).font("Helvetica").fillColor("#666")
-          .text(`Proveedor: ${marca.Proveedor.nombre}`);
-        doc.moveDown(0.5);
+      let rowY = doc.y;
+
+      if (rowY + marcaBandH + marcaGap + 20 + tableHeadGap + rowHeight + 6 > limitY) {
+        newPage();
+        rowY = contentTop;
       }
 
-      if (marca.Productos && marca.Productos.length > 0) {
-        const tableTop = Number.isFinite(doc.y) ? doc.y : 50;
-        const colWidths = { nombre: 160, descripcion: 125, precio: 75, stock: 60, unidad: 75 };
-        const tableWidth = Object.values(colWidths).reduce((total, width) => total + width, 0);
-        const startX = 50;
-        
-        doc.fontSize(9).font("Helvetica-Bold").fillColor("#fff");
-        doc.rect(startX, tableTop, tableWidth, 20).fill("#3b82f6");
-        
-        let x = startX;
-        doc.fillColor("#fff")
-          .text("Producto", x + 5, tableTop + 5, { width: colWidths.nombre - 10, align: "left" });
-        x += colWidths.nombre;
-        doc.text("Descripción", x + 5, tableTop + 5, { width: colWidths.descripcion - 10, align: "left" });
-        x += colWidths.descripcion;
-        doc.text("Precio", x + 5, tableTop + 5, { width: colWidths.precio - 10, align: "right" });
-        x += colWidths.precio;
-        doc.text("Stock", x + 5, tableTop + 5, { width: colWidths.stock - 10, align: "right" });
-        x += colWidths.stock;
-        doc.text("Unidad", x + 5, tableTop + 5, { width: colWidths.unidad - 10, align: "center" });
+      drawMarcaBand(String(marca.nombre || "Sin nombre"), rowY);
+      rowY += marcaBandH + marcaGap;
 
-        doc.font("Helvetica").fillColor("#000");
-        let rowY = tableTop + 20;
+      drawTableHead(rowY);
+      rowY += 20 + tableHeadGap;
 
-        marca.Productos.forEach((producto) => {
-          if (!Number.isFinite(doc.y) || doc.y > 750) {
-            doc.addPage();
-            rowY = Number.isFinite(doc.y) ? doc.y : 50;
-          }
+      productos.forEach((producto, idx) => {
+        if (rowY + rowHeight + 6 > limitY) {
+          newPage();
+          rowY = contentTop;
+          drawTableHead(rowY);
+          rowY += 20 + tableHeadGap;
+        }
 
-          const rowHeight = 25;
-          const bgColor = marca.Productos.indexOf(producto) % 2 === 0 ? "#f9fafb" : "#ffffff";
-          doc.rect(startX, rowY, tableWidth, rowHeight).fill(bgColor);
+        const bgColor = idx % 2 === 0 ? ROW_ALT : "#ffffff";
+        doc.rect(startX, rowY, tableWidth, rowHeight).fill(bgColor);
+        doc.rect(startX, rowY, tableWidth, rowHeight).strokeColor(BORDER).lineWidth(0.5).stroke();
 
-          x = startX;
-          doc.fillColor("#000")
-            .text(String(producto.nombre || "Sin nombre"), x + 5, rowY + 7, { width: colWidths.nombre - 10, align: "left" });
-          x += colWidths.nombre;
-          doc.text(String(producto.descripcion || "-"), x + 5, rowY + 7, { width: colWidths.descripcion - 10, align: "left" });
-          x += colWidths.descripcion;
-          const precio = Number.isFinite(parseFloat(producto.precio)) ? parseFloat(producto.precio) : 0;
-          doc.text(`$${precio.toFixed(2)}`, x + 5, rowY + 7, { width: colWidths.precio - 10, align: "right" });
-          x += colWidths.precio;
-          doc.text(String(Number.isFinite(Number(producto.stock)) ? producto.stock : 0), x + 5, rowY + 7, { width: colWidths.stock - 10, align: "right" });
-          x += colWidths.stock;
-          doc.text(String(producto.unidad || "-"), x + 5, rowY + 7, { width: colWidths.unidad - 10, align: "center" });
+        const pkg = precioPorKg(producto);
+        const pcaja = precioCaja(producto);
+        const cells = [
+          String(producto.nombre || "Sin nombre"),
+          fmtNumero(producto.kg_por_caja),
+          fmtPrecio(pkg),
+          fmtPrecio(pcaja),
+        ];
 
-          rowY += rowHeight;
-        });
+        doc.fontSize(9).font("Helvetica").fillColor(TEXT);
+        let cx = startX;
+        for (let j = 0; j < cells.length; j++) {
+          doc.text(cells[j], cx + 10, rowY + 8, { width: colWidths[j] - 20, align: colAlign(j) });
+          cx += colWidths[j];
+        }
 
-        doc.y = rowY + 10;
-      } else {
-        doc.fontSize(10).font("Helvetica-Oblique").fillColor("#999")
-          .text("Sin productos registrados");
-        doc.moveDown(0.5);
-      }
+        rowY += rowHeight;
+      });
 
-      doc.moveDown(1);
-    });
+      doc.y = rowY + marcaSpacing;
+    }
 
     doc.end();
   } catch (error) {

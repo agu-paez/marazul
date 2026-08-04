@@ -53,4 +53,35 @@ try {
     console.error('Error:', e.message);
   }
 }
+
+const nuevasColumnasProductos = [
+  ['kg_por_caja', 'DECIMAL(10,2)'],
+];
+for (const [columna, tipo] of nuevasColumnasProductos) {
+  try {
+    await sequelize.query(`ALTER TABLE Productos ADD COLUMN ${columna} ${tipo}`);
+    console.log(`Columna ${columna} agregada a Productos correctamente`);
+  } catch (e) {
+    if (e.message.includes('duplicate column')) {
+      console.log(`La columna ${columna} ya existe`);
+    } else {
+      console.error('Error:', e.message);
+    }
+  }
+}
+
+const columnasAEliminar = ['precio_por_kg', 'precio_caja'];
+for (const columna of columnasAEliminar) {
+  try {
+    await sequelize.query(`ALTER TABLE Productos DROP COLUMN ${columna}`);
+    console.log(`Columna ${columna} eliminada de Productos correctamente`);
+  } catch (e) {
+    if (e.message.includes('no such column') || e.message.includes('duplicate column')) {
+      console.log(`La columna ${columna} no existe o ya fue eliminada`);
+    } else {
+      console.error('Error:', e.message);
+    }
+  }
+}
+
 await sequelize.close();

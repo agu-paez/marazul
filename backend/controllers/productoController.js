@@ -38,7 +38,7 @@ export const getLowStock = async (req, res) => {
 
 export const createProducto = async (req, res) => {
   try {
-    const { nombre, descripcion, precio, stock, unidad, marcaId, codigo_barras } = req.body;
+    const { nombre, descripcion, precio, stock, unidad, marcaId, codigo_barras, kg_por_caja } = req.body;
 
     if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio))) {
       return res.status(400).json({ message: "Nombre y precio son requeridos" });
@@ -57,6 +57,7 @@ export const createProducto = async (req, res) => {
       unidad,
       marcaId: marca ? marca.id : null,
       codigo_barras: codigo_barras?.trim() || null,
+      kg_por_caja: Number.isFinite(Number(kg_por_caja)) ? Number(kg_por_caja) : null,
     });
 
     res.status(201).json({ message: "Producto creado", producto });

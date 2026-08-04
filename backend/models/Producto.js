@@ -33,6 +33,10 @@ const Producto = sequelize.define("Producto", {
     allowNull: true,
     defaultValue: "pieza",
   },
+  kg_por_caja: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
   codigo_barras: {
     type: DataTypes.STRING,
     allowNull: true,

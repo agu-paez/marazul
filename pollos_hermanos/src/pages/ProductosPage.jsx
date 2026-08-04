@@ -17,6 +17,7 @@ export default function ProductosPage() {
     unidad: "pieza",
     marcaId: "",
     codigo_barras: "",
+    kg_por_caja: "",
   });
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function ProductosPage() {
         stock: parseInt(form.stock) || 0,
         marcaId: form.marcaId ? parseInt(form.marcaId) : null,
         codigo_barras: form.codigo_barras.trim() || null,
+        kg_por_caja: form.kg_por_caja === "" ? null : parseFloat(form.kg_por_caja),
       };
       if (editing) {
         await productosAPI.update(editing.id, data);
@@ -55,7 +57,7 @@ export default function ProductosPage() {
       }
       setShowForm(false);
       setEditing(null);
-      setForm({ nombre: "", descripcion: "", precio: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "" });
+      setForm({ nombre: "", descripcion: "", precio: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -72,6 +74,7 @@ export default function ProductosPage() {
       unidad: producto.unidad || "pieza",
       marcaId: producto.Marca?.id || "",
       codigo_barras: producto.codigo_barras || "",
+      kg_por_caja: producto.kg_por_caja ?? "",
     });
     setShowForm(true);
   };
@@ -102,7 +105,7 @@ export default function ProductosPage() {
             onClick={() => {
               setShowForm(!showForm);
               setEditing(null);
-              setForm({ nombre: "", descripcion: "", precio: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "" });
+              setForm({ nombre: "", descripcion: "", precio: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
             }}
           >
             {showForm ? "Cancelar" : "+ Nuevo Producto"}
@@ -221,6 +224,19 @@ export default function ProductosPage() {
                 <option value="litro">Litro</option>
                 <option value="caja">Caja</option>
               </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Kg por Caja</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.kg_por_caja}
+                onChange={(e) => setForm({ ...form, kg_por_caja: e.target.value })}
+                placeholder="Ej: 15"
+              />
             </div>
           </div>
           <button type="submit" className="btn btn-primary">
