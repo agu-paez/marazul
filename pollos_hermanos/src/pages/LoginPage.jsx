@@ -6,17 +6,22 @@ export default function LoginPage() {
   const [nombre, setNombre] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     setError("");
+    setSubmitting(true);
     try {
       await login(nombre, password);
       navigate("/");
     } catch (err) {
       setError(err.response?.data?.message || "Error al iniciar sesión");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -50,8 +55,8 @@ export default function LoginPage() {
               required
             />
           </div>
-          <button type="submit" className="btn btn-primary btn-full">
-            Iniciar Sesión
+          <button type="submit" className="btn btn-primary btn-full" disabled={submitting}>
+            {submitting ? "Ingresando..." : "Iniciar Sesión"}
           </button>
         </form>
       </div>

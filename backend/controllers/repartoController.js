@@ -215,7 +215,7 @@ export const getRepartosStats = async (req, res) => {
       fecha: today,
       total: totalHoy,
       pendientes,
-      en_camino,
+       en_camino: enCamino,
       entregados,
       total_ventas: totalVentas.toFixed(2),
     });

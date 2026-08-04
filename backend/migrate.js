@@ -1,6 +1,7 @@
 import { Sequelize } from 'sequelize';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import logger from './utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -17,7 +18,7 @@ try {
   if (e.message.includes('duplicate column')) {
     console.log('La columna proveedorId ya existe');
   } else {
-    console.error('Error:', e.message);
+    logger.error('Error en migración', { error: e.stack || e.message });
   }
 }
 
@@ -28,7 +29,7 @@ try {
   if (e.message.includes('duplicate column')) {
     console.log('La columna alias ya existe');
   } else {
-    console.error('Error:', e.message);
+    logger.error('Error en migración', { error: e.stack || e.message });
   }
 }
 
@@ -39,7 +40,7 @@ try {
   if (e.message.includes('duplicate column')) {
     console.log('La columna codigo_barras ya existe');
   } else {
-    console.error('Error:', e.message);
+    logger.error('Error en migración', { error: e.stack || e.message });
   }
 }
 
@@ -50,7 +51,7 @@ try {
   if (e.message.includes('duplicate column')) {
     console.log('La columna ya existe');
   } else {
-    console.error('Error:', e.message);
+    logger.error('Error en migración', { error: e.stack || e.message });
   }
 }
 await sequelize.close();

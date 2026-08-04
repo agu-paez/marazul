@@ -1,13 +1,16 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import HistorialVentasPage from "./HistorialVentasPage";
 import HistorialSalidas from "./HistorialSalidas";
 import HistorialCierres from "./HistorialCierres";
+import ProduccionHistorialPage from "./ProduccionHistorialPage";
 
 export default function HistorialPage() {
   const { user } = useAuth();
   const isAdminOrOperador = user?.role === "admin" || user?.role === "operador";
-  const [activeTab, setActiveTab] = useState("ventas");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "ventas");
 
   const tabs = [
     { key: "ventas", label: "Historial de Ventas" },
@@ -15,6 +18,7 @@ export default function HistorialPage() {
   if (isAdminOrOperador) {
     tabs.push({ key: "salidas", label: "Historial de Salidas" });
     tabs.push({ key: "cierres", label: "Historial de Cierres de Caja" });
+    tabs.push({ key: "promedios", label: "Historial de Promedios" });
   }
 
   return (
@@ -26,7 +30,10 @@ export default function HistorialPage() {
           <button
             key={t.key}
             className={`tab-btn ${activeTab === t.key ? "active" : ""}`}
-            onClick={() => setActiveTab(t.key)}
+            onClick={() => {
+              setActiveTab(t.key);
+              setSearchParams(t.key === "ventas" ? {} : { tab: t.key });
+            }}
           >
             {t.label}
           </button>
@@ -37,6 +44,7 @@ export default function HistorialPage() {
         {activeTab === "ventas" && <HistorialVentasPage />}
         {activeTab === "salidas" && isAdminOrOperador && <HistorialSalidas />}
         {activeTab === "cierres" && isAdminOrOperador && <HistorialCierres />}
+        {activeTab === "promedios" && isAdminOrOperador && <ProduccionHistorialPage />}
       </div>
     </div>
   );

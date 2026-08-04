@@ -163,7 +163,7 @@ export const crearVenta = async (req, res) => {
       await cliente.update({ saldo_pendiente: nuevoSaldo.toFixed(2) });
 
       const nowPago = new Date();
-      const horaPago = nowPago.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+       const horaPago = nowPago.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
       await ClientePago.create({
         clienteId: cliente.id,
         monto: deudaPagar.toFixed(2),
@@ -175,7 +175,7 @@ export const crearVenta = async (req, res) => {
     }
 
     const now = new Date();
-    const hora = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const numeroComprobante = await generarNumeroComprobante();
 
     const venta = await Venta.create({

@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "oxlint",
+    "lint": "oxlint && eslint .",
+    "lint:oxlint": "oxlint",
+    "lint:eslint": "eslint .",
+    "format": "prettier --write \"src/**/*.{js,jsx}\" \"*.{js,json}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx}\" \"*.{js,json}\"",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -17,10 +21,14 @@
     "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^10.8.0",
+    "globals": "^17.9.0",
     "oxlint": "^1.71.0",
+    "prettier": "^3.9.6",
     "vite": "^8.1.1"
   }
 }

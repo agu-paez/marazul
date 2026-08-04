@@ -1,5 +1,6 @@
 import { Marca, Proveedor, Producto } from "../models/index.js";
 import PDFDocument from "pdfkit";
+import logger from "../utils/logger.js";
 
 export const getMarcas = async (req, res) => {
   try {
@@ -238,7 +239,7 @@ export const generarPDFMarcasProductos = async (req, res) => {
 
     doc.end();
   } catch (error) {
-    console.error("Error al generar PDF:", error);
+    logger.error("Error al generar PDF", { error: error.stack || error.message });
     if (!res.headersSent) {
       res.status(500).json({ message: "Error al generar PDF", error: error.message });
     } else {

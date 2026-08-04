@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { User, Role } from "../models/index.js";
+import logger from "../utils/logger.js";
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -89,7 +90,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    logger.error("Login error", { error: error.stack || error.message });
     res.status(500).json({ message: "Error al iniciar sesión", error: error.message });
   }
 };

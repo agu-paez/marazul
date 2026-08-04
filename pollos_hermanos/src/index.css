@@ -1423,6 +1423,10 @@ input[type="number"] {
   gap: 0.75rem;
 }
 
+.produccion-page .form-card > .btn {
+  margin-top: 0.25rem;
+}
+
 .produccion-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -1435,6 +1439,8 @@ input[type="number"] {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 1rem;
+  min-width: 0;
+  overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
@@ -1445,13 +1451,32 @@ input[type="number"] {
 }
 
 .produccion-card .table-container {
-  box-shadow: none;
-  border: none;
+  box-shadow: inset 0 0 0 1px rgba(212, 220, 198, 0.35);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 360px;
+  overflow: auto;
+  scrollbar-color: var(--primary) var(--bg-input);
+  scrollbar-width: thin;
+}
+
+.produccion-card .table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.produccion-card .table-container::-webkit-scrollbar-track {
+  background: var(--bg-input);
+  border-radius: 8px;
+}
+
+.produccion-card .table-container::-webkit-scrollbar-thumb {
+  background: var(--primary);
   border-radius: 8px;
 }
 
 .produccion-card table {
   font-size: 0.82rem;
+  min-width: 560px;
 }
 
 .produccion-card th,
@@ -1459,10 +1484,117 @@ input[type="number"] {
   padding: 0.5rem 0.6rem;
 }
 
+.produccion-card th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-shadow: 0 1px 0 var(--border);
+}
+
 .produccion-card .empty {
   padding: 1.5rem 0.5rem;
   border: 1px dashed var(--border);
   background: transparent;
+}
+
+.produccion-history-header {
+  align-items: flex-start;
+}
+
+.produccion-history-header .text-muted,
+.produccion-page .text-muted {
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.produccion-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.produccion-history-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.produccion-history-card h3 {
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+.produccion-history-card p,
+.produccion-history-card small {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.produccion-history-card .btn {
+  flex-shrink: 0;
+}
+
+.productos-header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.proveedores-header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.proveedores-marcas-input {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.proveedores-marcas-input input {
+  min-width: 0;
+}
+
+.proveedores-table-container {
+  max-height: 560px;
+  overflow: auto;
+  scrollbar-color: var(--primary) var(--bg-input);
+  scrollbar-width: thin;
+}
+
+.proveedores-table-container table {
+  min-width: 1050px;
+}
+
+.proveedores-table-container th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.proveedores-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 265px;
+  text-align: center;
+  white-space: normal;
+}
+
+.proveedores-actions .btn {
+  width: 120px;
+  min-height: 34px;
+  margin: 0.15rem;
+  text-align: center;
 }
 
 @media (max-width: 1024px) {
@@ -1472,7 +1604,236 @@ input[type="number"] {
 }
 
 @media (max-width: 768px) {
+  .produccion-page .page-header {
+    margin-bottom: 1rem;
+  }
+
+  .produccion-page .form-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
   .produccion-form-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .produccion-page .form-card > .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .produccion-card {
+    padding: 0.8rem;
+  }
+
+  .produccion-history-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .produccion-history-card .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .produccion-card .table-container {
+    margin: 0;
+    padding-bottom: 0.25rem;
+    max-height: 300px;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 480px) {
+  .produccion-form-grid {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .produccion-page .form-card h3 {
+    font-size: 1.05rem;
+  }
+
+  .produccion-card table {
+    min-width: 520px;
+  }
+
+  .productos-header-actions {
+    gap: 0.3rem;
+  }
+
+  .productos-header-actions .btn {
+    padding: 0.42rem 0.55rem;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .proveedores-header-actions {
+    gap: 0.3rem;
+  }
+
+  .proveedores-header-actions .btn {
+    padding: 0.42rem 0.55rem;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .proveedores-marcas-input {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .proveedores-marcas-input .btn {
+    width: 100%;
+  }
+
+  .proveedores-table-container {
+    max-height: 440px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .proveedores-table-container th,
+  .proveedores-table-container td {
+    padding: 0.5rem 0.6rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .proveedores-table-container {
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .proveedores-table-container table {
+    min-width: 0;
+    display: block;
+  }
+
+  .proveedores-table-container thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .proveedores-table-container tbody,
+  .proveedores-table-container tr,
+  .proveedores-table-container td {
+    display: block;
+    width: 100%;
+  }
+
+  .proveedores-table-container tr {
+    padding: 0.7rem;
+    margin-bottom: 0.8rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--primary);
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .proveedores-table-container td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.45rem 0;
+    text-align: right;
+    white-space: normal;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .proveedores-table-container td::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .proveedores-table-container .proveedores-actions {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    border-bottom: 0;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .proveedores-table-container .proveedores-actions::before {
+    width: 100%;
+    margin-bottom: 0.35rem;
+  }
+
+  .proveedores-table-container .proveedores-actions .btn {
+    flex: 0 0 auto;
+    width: 120px;
+    margin: 0;
+  }
+}
+
+/* Increase readability on notebook-sized desktop screens. */
+@media (min-width: 900px) and (max-width: 1600px) {
+  .main-content {
+    max-width: 1280px;
+    padding: 0 2.25rem;
+  }
+
+  .navbar {
+    padding: 0.95rem 2.25rem;
+  }
+
+  .nav-link {
+    padding: 0.58rem 1rem;
+    font-size: 0.98rem;
+  }
+
+  .page-header {
+    margin-bottom: 1.8rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  .btn {
+    padding: 0.68rem 1.3rem;
+    font-size: 0.98rem;
+  }
+
+  .btn-sm {
+    padding: 0.36rem 0.78rem;
+    font-size: 0.86rem;
+  }
+
+  .form-card,
+  .section,
+  .produccion-card {
+    padding: 1.6rem;
+  }
+
+  .form-group label {
+    font-size: 0.92rem;
+  }
+
+  .form-group input,
+  .form-group select {
+    padding: 0.76rem 1rem;
+    font-size: 0.98rem;
+  }
+
+  table {
+    font-size: 0.92rem;
+  }
+
+  th,
+  td {
+    padding: 0.88rem 1rem;
   }
 }

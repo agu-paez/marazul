@@ -128,6 +128,8 @@ export const bancosAPI = {
 
 export const produccionAPI = {
   getEstadisticas: () => API.get("/produccion"),
+  getHistorial: () => API.get("/produccion/historial"),
+  descargarHistorialPDF: (semana) => API.get(`/produccion/historial/${semana}/pdf`, { responseType: "blob" }),
   create: (data) => API.post("/produccion", data),
 };
 

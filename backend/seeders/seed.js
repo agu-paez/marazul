@@ -1,5 +1,6 @@
 import sequelize from "../config/database.js";
 import { Role, User, Proveedor, Producto } from "../models/index.js";
+import logger from "../utils/logger.js";
 
 const seed = async () => {
   try {
@@ -43,7 +44,7 @@ const seed = async () => {
 
     process.exit(0);
   } catch (error) {
-    console.error("Error en seed:", error);
+    logger.error("Error en seed", { error: error.stack || error.message });
     process.exit(1);
   }
 };

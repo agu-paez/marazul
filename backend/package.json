@@ -7,19 +7,29 @@
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
-    "seed": "node seeders/seed.js"
+    "seed": "node seeders/seed.js",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{js,json}\"",
+    "format:check": "prettier --check \"**/*.{js,json}\""
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
+    "express-rate-limit": "^8.6.1",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "pdfkit": "^0.19.1",
     "sequelize": "^6.37.3",
-    "sqlite3": "^6.0.1"
+    "sqlite3": "^6.0.1",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.0",
+    "globals": "^17.9.0",
+    "nodemon": "^3.1.4",
+    "prettier": "^3.9.6"
   }
 }

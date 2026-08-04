@@ -90,7 +90,7 @@ export default function ProductosPage() {
     <div>
       <div className="page-header">
         <h2>Productos</h2>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <div className="productos-header-actions">
           <button
             className="btn btn-secondary"
             onClick={() => setShowAjuste(true)}

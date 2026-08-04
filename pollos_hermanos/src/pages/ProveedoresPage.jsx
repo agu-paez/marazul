@@ -146,10 +146,10 @@ export default function ProveedoresPage() {
   };
 
   return (
-    <div>
+    <div className="proveedores-page">
       <div className="page-header">
         <h2>Proveedores</h2>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div className="proveedores-header-actions">
           <button className="btn btn-secondary" onClick={descargarPDF}>
             Descargar PDF
           </button>
@@ -224,7 +224,7 @@ export default function ProveedoresPage() {
           </div>
           <div className="form-group">
             <label>Agregar marcas</label>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div className="proveedores-marcas-input">
               <input
                 value={form.marcaNombre}
                 onChange={(e) => setForm({ ...form, marcaNombre: e.target.value })}
@@ -333,7 +333,7 @@ export default function ProveedoresPage() {
         </div>
       )}
 
-      <div className="table-container">
+      <div className="table-container proveedores-table-container">
         <table>
           <thead>
             <tr>
@@ -342,11 +342,11 @@ export default function ProveedoresPage() {
                <th>Marcas</th>
                <th>Diferencias</th>
               <th>Teléfono</th>
-              <th>Dirección</th>
-              <th>Email</th>
-              <th>Tipo Producto</th>
-              <th>Productos</th>
-              <th>Acciones</th>
+               <th>Tipo Producto</th>
+               <th>Productos</th>
+               <th>Acciones</th>
+               <th>Dirección</th>
+               <th>Email</th>
             </tr>
           </thead>
           <tbody>
@@ -354,20 +354,18 @@ export default function ProveedoresPage() {
               const diferencia = (p.dinero_ventas || 0) + (p.mercaderias_compradas || 0) + (p.diferencia_acumulada || 0) + (p.transferencias_historial || 0);
               return (
                 <tr key={p.id}>
-                  <td><strong>{p.nombre}</strong></td>
-                  <td>{p.alias || "-"}</td>
-                  <td>{p.Marcas?.map((marca) => marca.nombre).join(", ") || "-"}</td>
-                  <td>
+                  <td data-label="Nombre"><strong>{p.nombre}</strong></td>
+                  <td data-label="Alias">{p.alias || "-"}</td>
+                  <td data-label="Marcas">{p.Marcas?.map((marca) => marca.nombre).join(", ") || "-"}</td>
+                  <td data-label="Diferencias">
                     <strong style={{ color: diferencia >= 0 ? "var(--success)" : "var(--danger)" }}>
                       ${diferencia.toFixed(2)}
                     </strong>
                   </td>
-                  <td>{p.telefono || "-"}</td>
-                  <td>{p.direccion || "-"}</td>
-                  <td>{p.email || "-"}</td>
-                  <td>{p.tipo_producto || "-"}</td>
-                   <td>{p.Marcas?.reduce((total, marca) => total + (marca.Productos?.length || 0), 0) || 0}</td>
-                  <td>
+                  <td data-label="Teléfono">{p.telefono || "-"}</td>
+                  <td data-label="Tipo Producto">{p.tipo_producto || "-"}</td>
+                   <td data-label="Productos">{p.Marcas?.reduce((total, marca) => total + (marca.Productos?.length || 0), 0) || 0}</td>
+                  <td data-label="Acciones" className="proveedores-actions">
                     <button className="btn btn-sm btn-camino" onClick={() => handleEdit(p)}>
                       Editar
                     </button>
@@ -378,6 +376,8 @@ export default function ProveedoresPage() {
                       Eliminar
                     </button>
                   </td>
+                  <td data-label="Dirección">{p.direccion || "-"}</td>
+                  <td data-label="Email">{p.email || "-"}</td>
                 </tr>
               );
             })}

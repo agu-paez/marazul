@@ -83,12 +83,10 @@ export default function HistorialCierres() {
   };
 
   const handleProveedorPDF = (proveedor, fecha) => {
-    const pagosProveedor = transferencias.filter(t => 
+    const pagosProveedor = transferencias.filter((t) =>
       (t.proveedor?.id || "sin-proveedor") === (proveedor.id || "sin-proveedor")
     );
-    for (const pago of pagosProveedor) {
-      generarTransferenciaIndividualPDF(pago, fecha);
-    }
+    generarResumenPagosPorProveedorPDF(pagosProveedor, fecha);
   };
 
   const agruparPorProveedor = (pagos) => {

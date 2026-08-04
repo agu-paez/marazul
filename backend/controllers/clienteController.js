@@ -146,7 +146,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
     await cliente.update({ saldo_pendiente: nuevoSaldo.toFixed(2) });
 
     const now = new Date();
-    const hora = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const fecha = getFechaLocal(now);
 
     for (const pago of pagos) {
