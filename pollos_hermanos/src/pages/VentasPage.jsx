@@ -3,6 +3,12 @@ import { useAuth } from "../context/AuthContext";
 import { productosAPI, ventasAPI, clientesAPI, salidasAPI, bancosAPI, proveedoresAPI } from "../api";
 import BancoAutocomplete from "../components/BancoAutocomplete";
 
+const fechaHoraLocalInput = () => {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+};
+
 export default function VentasPage() {
   const { user } = useAuth();
   const [productos, setProductos] = useState([]);
@@ -34,8 +40,6 @@ export default function VentasPage() {
   const [datosTarjeta, setDatosTarjeta] = useState([]);
   const [bancos, setBancos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
-  const [proveedorTransferenciaId, setProveedorTransferenciaId] = useState("");
-  const [proveedorTarjetaId, setProveedorTarjetaId] = useState("");
   const [porcentajeAumento, setPorcentajeAumento] = useState(0);
 
   useEffect(() => {
@@ -92,9 +96,9 @@ export default function VentasPage() {
       }
     }
     if (name === "medio_pago" && !pagoDividido) {
-      const now = new Date().toISOString().slice(0, 16);
-      setDatosTransferencia(value === "transferencia" ? [{ nombre_cuenta: "", fecha_hora: now, banco: "", monto: "" }] : []);
-      setDatosTarjeta(value === "tarjeta" ? [{ nombre_cuenta: "", fecha_hora: now, banco: "", monto: "" }] : []);
+       const now = fechaHoraLocalInput();
+       setDatosTransferencia(value === "transferencia" ? [{ nombre_cuenta: "", fecha_hora: now, banco: "", monto: "", proveedorId: "" }] : []);
+       setDatosTarjeta(value === "tarjeta" ? [{ nombre_cuenta: "", fecha_hora: now, banco: "", monto: "", proveedorId: "" }] : []);
     }
   };
 
@@ -122,16 +126,16 @@ export default function VentasPage() {
     setPagos(newPagos);
     if (e.target.name === "medio_pago") {
       newPagos[index].monto = 0;
-      const now = new Date().toISOString().slice(0, 16);
+       const now = fechaHoraLocalInput();
       const newDatosT = [...datosTransferencia];
       const newDatosJ = [...datosTarjeta];
       if (e.target.value === "transferencia") {
-        newDatosT[index] = { nombre_cuenta: "", fecha_hora: now, banco: "", monto: "0" };
+         newDatosT[index] = { nombre_cuenta: "", fecha_hora: now, banco: "", monto: "0", proveedorId: "" };
       } else {
         newDatosT[index] = null;
       }
       if (e.target.value === "tarjeta") {
-        newDatosJ[index] = { nombre_cuenta: "", fecha_hora: now, banco: "", monto: "0" };
+         newDatosJ[index] = { nombre_cuenta: "", fecha_hora: now, banco: "", monto: "0", proveedorId: "" };
       } else {
         newDatosJ[index] = null;
       }
@@ -251,13 +255,21 @@ export default function VentasPage() {
     const newDatos = [...datos];
     newDatos[index] = { ...newDatos[index], [campo]: valor };
     if (newDatos[index].nombre_cuenta && newDatos[index].banco && !newDatos[index].fecha_hora) {
-      newDatos[index] = { ...newDatos[index], fecha_hora: new Date().toISOString().slice(0, 16) };
+       newDatos[index] = { ...newDatos[index], fecha_hora: fechaHoraLocalInput() };
     }
     if (pagoDividido && pagos[index]) {
       newDatos[index] = { ...newDatos[index], monto: String(pagos[index].monto || 0) };
     } else {
       newDatos[index] = { ...newDatos[index], monto: String(subtotal || 0) };
     }
+    setDatos(newDatos);
+  };
+
+  const handleProveedorChange = (tipo, index, value) => {
+    const setDatos = tipo === "transferencia" ? setDatosTransferencia : setDatosTarjeta;
+    const datos = tipo === "transferencia" ? datosTransferencia : datosTarjeta;
+    const newDatos = [...datos];
+    newDatos[index] = { ...newDatos[index], proveedorId: value };
     setDatos(newDatos);
   };
   const productosBase = esReparto
@@ -376,13 +388,17 @@ export default function VentasPage() {
       alert(`La suma de los pagos ($${totalPagosDivididos.toFixed(2)}) no coincide con el total ($${totalConDeuda.toFixed(2)})`);
       return;
     }
-    if (transferenciaIndices.length > 0 && !proveedorTransferenciaId) {
-      alert("Debe seleccionar una cuenta de proveedor para la transferencia");
-      return;
+    for (let i = 0; i < transferenciaIndices.length; i++) {
+      if (!datosTransferencia[transferenciaIndices[i]]?.proveedorId) {
+        alert(`Debe seleccionar una cuenta de proveedor para la Transferencia ${i + 1}`);
+        return;
+      }
     }
-    if (tarjetaIndices.length > 0 && !proveedorTarjetaId) {
-      alert("Debe seleccionar una cuenta de proveedor para la tarjeta");
-      return;
+    for (let i = 0; i < tarjetaIndices.length; i++) {
+      if (!datosTarjeta[tarjetaIndices[i]]?.proveedorId) {
+        alert(`Debe seleccionar una cuenta de proveedor para la Tarjeta ${i + 1}`);
+        return;
+      }
     }
     for (let i = 0; i < transferenciaIndices.length; i++) {
       if (!isDatosBancariosCompleto(datosTransferencia[transferenciaIndices[i]])) {
@@ -411,11 +427,11 @@ export default function VentasPage() {
         })),
       };
       const proveedorSeleccionado = esTransferencia
-        ? proveedorTransferenciaId
+        ? datosTransferencia[0]?.proveedorId
         : esTarjeta
-          ? proveedorTarjetaId
+          ? datosTarjeta[0]?.proveedorId
           : "";
-      if (proveedorSeleccionado) {
+      if (proveedorSeleccionado && !pagoDividido) {
         data.proveedorId = parseInt(proveedorSeleccionado);
       }
       if (esReparto && camionSeleccionado) {
@@ -439,7 +455,7 @@ export default function VentasPage() {
             fecha_hora: d.fecha_hora,
              banco: d.banco,
              monto: parseFloat(d.monto) || 0,
-            proveedorId: proveedorTransferenciaId ? parseInt(proveedorTransferenciaId) : null,
+             proveedorId: d.proveedorId ? parseInt(d.proveedorId) : null,
           }));
       }
       if (esTarjeta) {
@@ -450,7 +466,7 @@ export default function VentasPage() {
             fecha_hora: d.fecha_hora,
              banco: d.banco,
              monto: parseFloat(d.monto) || 0,
-            proveedorId: proveedorTarjetaId ? parseInt(proveedorTarjetaId) : null,
+             proveedorId: d.proveedorId ? parseInt(d.proveedorId) : null,
           }));
       }
       const res = await ventasAPI.create(data);
@@ -472,8 +488,6 @@ export default function VentasPage() {
       setCamionSeleccionado("");
       setStockCamion([]);
       setBusqueda("");
-       setProveedorTransferenciaId("");
-       setProveedorTarjetaId("");
       setPorcentajeAumento(0);
 
       if (esRepartidor) {
@@ -817,14 +831,16 @@ export default function VentasPage() {
                   {esTrans && (
                     <div className="pago-detalle-row" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.4rem", padding: "0.4rem", background: "#f0f7ff", borderRadius: "6px", borderLeft: "3px solid #3498db" }}>
                       <select
-                         value={proveedorTransferenciaId}
-                         onChange={(e) => setProveedorTransferenciaId(e.target.value)}
+                         value={datosTransferencia[index]?.proveedorId || ""}
+                         onChange={(e) => handleProveedorChange("transferencia", index, e.target.value)}
                          required
                         style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
                       >
                         <option value="">Seleccionar proveedor destino...</option>
                         {proveedores.map((p) => (
-                          <option key={p.id} value={p.id}>{p.nombre}{p.alias ? ` (${p.alias})` : ""}</option>
+                           <option key={p.id} value={p.id}>
+                             {p.nombre} - Alias a transferir: {p.alias || "Sin alias"}
+                           </option>
                         ))}
                       </select>
                       <input
@@ -854,14 +870,16 @@ export default function VentasPage() {
                   {esTarj && (
                     <div className="pago-detalle-row" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.4rem", padding: "0.4rem", background: "#f5f0ff", borderRadius: "6px", borderLeft: "3px solid #9b59b6" }}>
                       <select
-                         value={proveedorTarjetaId}
-                         onChange={(e) => setProveedorTarjetaId(e.target.value)}
+                         value={datosTarjeta[index]?.proveedorId || ""}
+                         onChange={(e) => handleProveedorChange("tarjeta", index, e.target.value)}
                          required
                         style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
                       >
                         <option value="">Seleccionar proveedor destino...</option>
                         {proveedores.map((p) => (
-                          <option key={p.id} value={p.id}>{p.nombre}{p.alias ? ` (${p.alias})` : ""}</option>
+                           <option key={p.id} value={p.id}>
+                             {p.nombre} - Alias a transferir: {p.alias || "Sin alias"}
+                           </option>
                         ))}
                       </select>
                       <input
@@ -919,8 +937,8 @@ export default function VentasPage() {
           {esTransferencia && !pagoDividido && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f0f7ff", borderRadius: "6px", borderLeft: "3px solid #3498db" }}>
               <select
-                 value={proveedorTransferenciaId}
-                 onChange={(e) => setProveedorTransferenciaId(e.target.value)}
+                  value={datosTransferencia[0]?.proveedorId || ""}
+                  onChange={(e) => handleProveedorChange("transferencia", 0, e.target.value)}
                  required
                 style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
               >
@@ -954,8 +972,8 @@ export default function VentasPage() {
           {esTarjeta && !pagoDividido && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f5f0ff", borderRadius: "6px", borderLeft: "3px solid #9b59b6" }}>
               <select
-                 value={proveedorTarjetaId}
-                 onChange={(e) => setProveedorTarjetaId(e.target.value)}
+                  value={datosTarjeta[0]?.proveedorId || ""}
+                  onChange={(e) => handleProveedorChange("tarjeta", 0, e.target.value)}
                  required
                 style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
               >

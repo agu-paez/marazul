@@ -163,7 +163,7 @@ export const cerrarCaja = async (req, res) => {
     const totalGeneral = localMonto + repartoMonto;
     const ventas_netas = mercaderia_enviada - mercaderia_devuelta;
     const now = new Date();
-    const hora = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
     const cierre = await CierreCaja.create({
       fecha: today,

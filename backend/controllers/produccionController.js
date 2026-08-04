@@ -1,4 +1,6 @@
 import { Produccion } from "../models/index.js";
+import PDFDocument from "pdfkit";
+import { getFechaLocal } from "../utils/fecha.js";
 
 const ratio = (total, cajones) => {
   if (!cajones || cajones <= 0) return 0;
@@ -14,66 +16,134 @@ const isoWeekKey = (fecha) => {
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 };
 
+const fechaLocalHoy = () => {
+  return getFechaLocal();
+};
+
+const currentWeekKey = () => isoWeekKey(fechaLocalHoy());
+
+const buildStats = (registros) => {
+  const byDate = {};
+  for (const r of registros) {
+    if (!byDate[r.fecha]) {
+      byDate[r.fecha] = { fecha: r.fecha, cajones: 0, alitas: 0, pechugas: 0, pata_muslo: 0, menudos: 0 };
+    }
+    byDate[r.fecha].cajones += r.cajones || 0;
+    byDate[r.fecha].alitas += r.alitas || 0;
+    byDate[r.fecha].pechugas += r.pechugas || 0;
+    byDate[r.fecha].pata_muslo += r.pata_muslo || 0;
+    byDate[r.fecha].menudos += r.menudos || 0;
+  }
+
+  const promedioDiario = Object.values(byDate).map((d) => ({
+    fecha: d.fecha,
+    alitas: ratio(d.alitas, d.cajones),
+    pechugas: ratio(d.pechugas, d.cajones),
+    pata_muslo: ratio(d.pata_muslo, d.cajones),
+    menudos: ratio(d.menudos, d.cajones),
+  }));
+
+  const weekly = {};
+  for (const r of registros) {
+    const key = isoWeekKey(r.fecha);
+    if (!weekly[key]) {
+      weekly[key] = { cajones: 0, alitas: 0, pechugas: 0, pata_muslo: 0, menudos: 0 };
+    }
+    weekly[key].cajones += r.cajones || 0;
+    weekly[key].alitas += r.alitas || 0;
+    weekly[key].pechugas += r.pechugas || 0;
+    weekly[key].pata_muslo += r.pata_muslo || 0;
+    weekly[key].menudos += r.menudos || 0;
+  }
+
+  const promedioSemanal = Object.keys(weekly).sort().map((key) => {
+    const w = weekly[key];
+    const [year, weekNo] = key.split("-W");
+    return {
+      key,
+      semana: `Semana ${weekNo}/${year}`,
+      alitas: ratio(w.alitas, w.cajones),
+      pechugas: ratio(w.pechugas, w.cajones),
+      pata_muslo: ratio(w.pata_muslo, w.cajones),
+      menudos: ratio(w.menudos, w.cajones),
+    };
+  });
+
+  return { registros, promedioDiario, promedioSemanal };
+};
+
+const getAllRegistros = () => Produccion.findAll({ order: [["fecha", "ASC"], ["id", "ASC"]] });
+
+const getStatsForWeek = (registros, semana) => buildStats(
+  registros.filter((registro) => isoWeekKey(registro.fecha) === semana)
+);
+
 export const getEstadisticasProduccion = async (req, res) => {
   try {
-    const registros = await Produccion.findAll({
-      order: [
-        ["fecha", "ASC"],
-        ["id", "ASC"],
-      ],
-    });
-
-    const byDate = {};
-    for (const r of registros) {
-      if (!byDate[r.fecha]) {
-        byDate[r.fecha] = { fecha: r.fecha, cajones: 0, alitas: 0, pechugas: 0, pata_muslo: 0, menudos: 0 };
-      }
-      byDate[r.fecha].cajones += r.cajones || 0;
-      byDate[r.fecha].alitas += r.alitas || 0;
-      byDate[r.fecha].pechugas += r.pechugas || 0;
-      byDate[r.fecha].pata_muslo += r.pata_muslo || 0;
-      byDate[r.fecha].menudos += r.menudos || 0;
-    }
-
-    const promedioDiario = Object.values(byDate).map((d) => ({
-      fecha: d.fecha,
-      alitas: ratio(d.alitas, d.cajones),
-      pechugas: ratio(d.pechugas, d.cajones),
-      pata_muslo: ratio(d.pata_muslo, d.cajones),
-      menudos: ratio(d.menudos, d.cajones),
-    }));
-
-    const weekly = {};
-    for (const r of registros) {
-      const key = isoWeekKey(r.fecha);
-      if (!weekly[key]) {
-        weekly[key] = { cajones: 0, alitas: 0, pechugas: 0, pata_muslo: 0, menudos: 0 };
-      }
-      weekly[key].cajones += r.cajones || 0;
-      weekly[key].alitas += r.alitas || 0;
-      weekly[key].pechugas += r.pechugas || 0;
-      weekly[key].pata_muslo += r.pata_muslo || 0;
-      weekly[key].menudos += r.menudos || 0;
-    }
-
-    const promedioSemanal = Object.keys(weekly)
-      .sort()
-      .map((key) => {
-        const w = weekly[key];
-        const year = key.split("-W")[0];
-        const weekNo = parseInt(key.split("-W")[1], 10);
-        return {
-          semana: `Semana ${weekNo}/${year}`,
-          alitas: ratio(w.alitas, w.cajones),
-          pechugas: ratio(w.pechugas, w.cajones),
-          pata_muslo: ratio(w.pata_muslo, w.cajones),
-          menudos: ratio(w.menudos, w.cajones),
-        };
-      });
-
-    res.json({ registros, promedioDiario, promedioSemanal });
+    const registros = await getAllRegistros();
+    res.json({ ...getStatsForWeek(registros, currentWeekKey()), semanaActual: currentWeekKey() });
   } catch (error) {
     res.status(500).json({ message: "Error al obtener estadísticas de producción", error: error.message });
+  }
+};
+
+export const getHistorialProduccion = async (req, res) => {
+  try {
+    const registros = await getAllRegistros();
+    const semanas = [...new Set(registros.map((registro) => isoWeekKey(registro.fecha)))].sort().reverse();
+    res.json({
+      semanas: semanas.map((semana) => ({
+        semana,
+        etiqueta: `Semana ${semana.split("-W")[1]}/${semana.split("-W")[0]}`,
+        ...getStatsForWeek(registros, semana),
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener historial de producción", error: error.message });
+  }
+};
+
+const drawTable = (doc, title, columns, rows) => {
+  doc.fontSize(13).fillColor("#3a5a4a").text(title, { underline: true });
+  doc.moveDown(0.3).fontSize(9).fillColor("#222").text(columns.join("    "));
+  doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#b9a777").stroke();
+  doc.moveDown(0.25);
+  rows.forEach((row) => doc.text(row.join("    ")));
+  doc.moveDown(1);
+};
+
+export const descargarHistorialProduccionPdf = async (req, res) => {
+  try {
+    const { semana } = req.params;
+    if (!/^\d{4}-W\d{2}$/.test(semana)) {
+      return res.status(400).json({ message: "Semana no válida" });
+    }
+
+    const registros = await getAllRegistros();
+    const stats = getStatsForWeek(registros, semana);
+    if (stats.registros.length === 0) {
+      return res.status(404).json({ message: "No hay registros para esa semana" });
+    }
+
+    const doc = new PDFDocument({ margin: 50 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=produccion-${semana}.pdf`);
+    doc.pipe(res);
+    doc.fontSize(20).fillColor("#3a5a4a").text("Historial de Producción");
+    doc.fontSize(13).fillColor("#555").text(`Semana ${semana.split("-W")[1]}/${semana.split("-W")[0]}`);
+    doc.moveDown(1);
+    drawTable(doc, "Registros", ["Fecha", "Cajones", "Alitas", "Pechugas", "Pata Muslo", "Menudos"], stats.registros.map((r) => [
+      r.fecha, r.cajones, r.alitas, r.pechugas, r.pata_muslo, r.menudos,
+    ]));
+    drawTable(doc, "Promedio diario", ["Fecha", "Alitas", "Pechugas", "Pata Muslo", "Menudos"], stats.promedioDiario.map((r) => [
+      r.fecha, r.alitas, r.pechugas, r.pata_muslo, r.menudos,
+    ]));
+    drawTable(doc, "Promedio semanal", ["Semana", "Alitas", "Pechugas", "Pata Muslo", "Menudos"], stats.promedioSemanal.map((r) => [
+      r.semana, r.alitas, r.pechugas, r.pata_muslo, r.menudos,
+    ]));
+    doc.end();
+  } catch (error) {
+    res.status(500).json({ message: "Error al generar historial PDF", error: error.message });
   }
 };
 

@@ -139,6 +139,12 @@ function AppRoutes() {
         </PrivateRoute>
       } />
 
+      <Route path="/produccion/historial" element={
+        <PrivateRoute>
+          <Navigate to="/historial?tab=promedios" replace />
+        </PrivateRoute>
+      } />
+
       <Route path="/usuarios" element={
         <PrivateRoute>
           {isAdmin ? (

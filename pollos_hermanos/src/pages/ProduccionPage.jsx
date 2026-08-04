@@ -84,9 +84,12 @@ export default function ProduccionPage() {
   if (loading) return <div className="loading">Cargando...</div>;
 
   return (
-    <div>
+    <div className="produccion-page">
       <div className="page-header">
-        <h2>Estadísticas de Producción</h2>
+        <div>
+          <h2>Estadísticas de Producción</h2>
+          <p className="text-muted">Semana actual</p>
+        </div>
       </div>
 
       <form className="form-card" onSubmit={handleSubmit}>

@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { Marca, Proveedor, Producto } from "../models/index.js";
 import PDFDocument from "pdfkit";
+import logger from "../utils/logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOGO_PATH = path.resolve(__dirname, "../../pollos_hermanos/public/logo-marazul.jpeg");
@@ -327,7 +328,7 @@ export const generarPDFMarcasProductos = async (req, res) => {
 
     doc.end();
   } catch (error) {
-    console.error("Error al generar PDF:", error);
+    logger.error("Error al generar PDF", { error: error.stack || error.message });
     if (!res.headersSent) {
       res.status(500).json({ message: "Error al generar PDF", error: error.message });
     } else {
