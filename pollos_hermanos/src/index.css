@@ -1423,6 +1423,13 @@ input[type="number"] {
   gap: 0.75rem;
 }
 
+.form-help {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
 .produccion-page .form-card > .btn {
   margin-top: 0.25rem;
 }
@@ -1547,6 +1554,11 @@ input[type="number"] {
 .productos-header-actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.productos-header-actions .btn {
+  flex: 1 1 auto;
 }
 
 .proveedores-header-actions {
@@ -1604,6 +1616,25 @@ input[type="number"] {
 }
 
 @media (max-width: 768px) {
+  .productos-page .page-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .productos-header-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .productos-header-actions .btn {
+    min-width: 0;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.55rem 0.45rem;
+  }
+
   .produccion-page .page-header {
     margin-bottom: 1rem;
   }
@@ -1659,13 +1690,13 @@ input[type="number"] {
   }
 
   .productos-header-actions {
-    gap: 0.3rem;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
   }
 
   .productos-header-actions .btn {
-    padding: 0.42rem 0.55rem;
-    font-size: 0.72rem;
-    white-space: nowrap;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.85rem;
   }
 
   .proveedores-header-actions {

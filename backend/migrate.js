@@ -1,15 +1,5 @@
-import { Sequelize } from 'sequelize';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import sequelize from './config/database.js';
 import logger from './utils/logger.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: path.join(__dirname, 'database.sqlite'),
-  logging: false,
-});
 
 try {
   await sequelize.query("ALTER TABLE Venta ADD COLUMN proveedorId INTEGER REFERENCES Proveedors(id)");

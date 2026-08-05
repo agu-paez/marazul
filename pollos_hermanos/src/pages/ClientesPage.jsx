@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import { clientesAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 
+const zonas = [
+  ...Array.from({ length: 7 }, (_, index) => `Zona ${index + 1}`),
+  "Zona Carlos Paz",
+];
+
 export default function ClientesPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -11,6 +16,7 @@ export default function ClientesPage() {
   const [editando, setEditando] = useState(null);
   const [historial, setHistorial] = useState(null);
   const [nombre, setNombre] = useState("");
+  const [zona, setZona] = useState("");
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [clientePago, setClientePago] = useState(null);
   const [pagosCC, setPagosCC] = useState([{ medio_pago: "efectivo", monto: 0 }]);
@@ -39,13 +45,14 @@ export default function ClientesPage() {
     e.preventDefault();
     try {
       if (editando) {
-        await clientesAPI.update(editando.id, { nombre });
+        await clientesAPI.update(editando.id, { nombre, zona });
       } else {
-        await clientesAPI.create({ nombre });
+        await clientesAPI.create({ nombre, zona });
       }
       setShowForm(false);
       setEditando(null);
       setNombre("");
+      setZona("");
       loadClientes();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -55,12 +62,14 @@ export default function ClientesPage() {
   const openEdit = (c) => {
     setEditando(c);
     setNombre(c.nombre);
+    setZona(c.zona || "");
     setShowForm(true);
   };
 
   const openCreate = () => {
     setEditando(null);
     setNombre("");
+    setZona("");
     setShowForm(true);
   };
 
@@ -201,6 +210,13 @@ export default function ClientesPage() {
                   onChange={(e) => setMontos({ ...montos, saldo_pendiente: e.target.value })}
                   required
                 />
+              </div>
+              <div className="form-group">
+                <label>Zona de reparto *</label>
+                <select value={zona} onChange={(e) => setZona(e.target.value)} required>
+                  <option value="">Seleccionar zona...</option>
+                  {zonas.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
               </div>
               <div className="form-group">
                 <label>Limite de credito</label>
@@ -427,6 +443,7 @@ export default function ClientesPage() {
             <thead>
               <tr>
                 <th>Nombre</th>
+                <th>Zona</th>
                 <th>Saldo Pendiente</th>
                 <th>Limite Credito</th>
                 <th>Credito Disponible</th>
@@ -441,6 +458,7 @@ export default function ClientesPage() {
                 return (
                   <tr key={c.id}>
                     <td><strong>{c.nombre}</strong></td>
+                    <td>{c.zona || "Sin zona"}</td>
                     <td
                       className={saldo !== 0 ? "monto-salida" : ""}
                       style={{ cursor: saldo > 0 ? "pointer" : "default" }}

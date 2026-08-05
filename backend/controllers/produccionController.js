@@ -22,6 +22,8 @@ const fechaLocalHoy = () => {
 
 const currentWeekKey = () => isoWeekKey(fechaLocalHoy());
 
+const currentMonthPrefix = () => fechaLocalHoy().slice(0, 7);
+
 const buildStats = (registros) => {
   const byDate = {};
   for (const r of registros) {
@@ -81,7 +83,14 @@ const getStatsForWeek = (registros, semana) => buildStats(
 export const getEstadisticasProduccion = async (req, res) => {
   try {
     const registros = await getAllRegistros();
-    res.json({ ...getStatsForWeek(registros, currentWeekKey()), semanaActual: currentWeekKey() });
+    const semanaActual = currentWeekKey();
+    const statsSemana = getStatsForWeek(registros, semanaActual);
+    const statsMes = buildStats(registros.filter((registro) => registro.fecha.startsWith(currentMonthPrefix())));
+    res.json({
+      ...statsSemana,
+      promedioSemanal: statsMes.promedioSemanal,
+      semanaActual,
+    });
   } catch (error) {
     res.status(500).json({ message: "Error al obtener estadísticas de producción", error: error.message });
   }

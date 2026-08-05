@@ -46,7 +46,7 @@ export const marcasAPI = {
   create: (data) => API.post("/marcas", data),
   update: (id, data) => API.put(`/marcas/${id}`, data),
   delete: (id) => API.delete(`/marcas/${id}`),
-  descargarPDF: () => API.get("/marcas/pdf", { responseType: "blob" }),
+  descargarPDF: (params) => API.get("/marcas/pdf", { params, responseType: "blob" }),
 };
 
 export const productosAPI = {

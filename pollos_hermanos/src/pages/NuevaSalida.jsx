@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { salidasAPI, productosAPI, usuariosAPI } from "../api";
+import { clientesAPI } from "../api";
+
+const zonas = [
+  ...Array.from({ length: 7 }, (_, index) => `Zona ${index + 1}`),
+  "Zona Carlos Paz",
+];
 
 export default function NuevaSalida() {
   const { user } = useAuth();
@@ -9,10 +15,12 @@ export default function NuevaSalida() {
   const [busqueda, setBusqueda] = useState("");
   const [cantidades, setCantidades] = useState({});
   const [repartidores, setRepartidores] = useState([]);
+  const [clientes, setClientes] = useState([]);
   const [repartidorSeleccionado, setRepartidorSeleccionado] = useState("");
   const [form, setForm] = useState({
     camion: "",
     destino: "",
+    clienteId: "",
     notas: "",
   });
   const [loading, setLoading] = useState(false);
@@ -30,6 +38,7 @@ export default function NuevaSalida() {
 
   useEffect(() => {
     cargarProductos();
+    clientesAPI.getAll().then((res) => setClientes(res.data)).catch(console.error);
 
     if (!isRepartidor) {
       usuariosAPI.getRepartidores().then((res) => {
@@ -39,7 +48,8 @@ export default function NuevaSalida() {
   }, [isRepartidor]);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value, ...(name === "destino" ? { clienteId: "" } : {}) });
   };
 
   const toggleCantidad = (productoId, delta) => {
@@ -59,6 +69,7 @@ export default function NuevaSalida() {
   });
 
   const productosSeleccionados = productos.filter((p) => (cantidades[p.id] || 0) > 0);
+  const clientesDeLaZona = clientes.filter((cliente) => cliente.zona === form.destino);
 
   const calcularTotal = () => {
     return productosSeleccionados.reduce((sum, p) => {
@@ -77,6 +88,7 @@ export default function NuevaSalida() {
       const data = {
         camion: form.camion,
         destino: form.destino,
+        clienteId: form.clienteId || null,
         notas: form.notas,
         asignadoRepartidorId: isRepartidor ? user.id : (repartidorSeleccionado || user.id),
         items: productosSeleccionados.map((p) => ({
@@ -86,7 +98,7 @@ export default function NuevaSalida() {
       };
       await salidasAPI.create(data);
       setSuccess(true);
-      setForm({ camion: "", destino: "", notas: "" });
+       setForm({ camion: "", destino: "", clienteId: "", notas: "" });
       setRepartidorSeleccionado("");
       setCantidades((prev) => {
         const reset = {};
@@ -133,11 +145,28 @@ export default function NuevaSalida() {
                 required
               >
                 <option value="" disabled hidden>Seleccionar zona...</option>
-                {Array.from({ length: 7 }, (_, i) => (
-                  <option key={i + 1} value={`Zona ${i + 1}`}>Zona {i + 1}</option>
-                ))}
-                <option value="Zona Carlos Paz">Zona Carlos Paz</option>
+                {zonas.map((zona) => <option key={zona} value={zona}>{zona}</option>)}
               </select>
+            </div>
+            <div className="form-group">
+              <label>Cliente de la zona *</label>
+              <select
+                name="clienteId"
+                value={form.clienteId}
+                onChange={handleChange}
+                required
+                disabled={!form.destino}
+              >
+                <option value="">
+                  {form.destino ? "Seleccionar cliente..." : "Primero seleccionar zona"}
+                </option>
+                {clientesDeLaZona.map((cliente) => (
+                  <option key={cliente.id} value={cliente.id}>{cliente.nombre}</option>
+                ))}
+              </select>
+              {form.destino && clientesDeLaZona.length === 0 && (
+                <small className="form-help">No hay clientes asignados a esta zona.</small>
+              )}
             </div>
           </div>
 

@@ -119,15 +119,13 @@ export const deleteMarca = async (req, res) => {
       return res.status(404).json({ message: "Marca no encontrada" });
     }
 
-    const productos = await Producto.findAll({ where: { marcaId: req.params.id } });
-    if (productos.length > 0) {
-      return res.status(400).json({ 
-        message: "No se puede eliminar la marca porque tiene productos asociados" 
-      });
-    }
+    const productosDesvinculados = await Producto.update(
+      { marcaId: null },
+      { where: { marcaId: req.params.id } }
+    );
 
     await marca.destroy();
-    res.json({ message: "Marca eliminada" });
+    res.json({ message: "Marca eliminada", productosDesvinculados: productosDesvinculados[0] });
   } catch (error) {
     res.status(500).json({ message: "Error al eliminar marca", error: error.message });
   }
@@ -135,6 +133,11 @@ export const deleteMarca = async (req, res) => {
 
 export const generarPDFMarcasProductos = async (req, res) => {
   try {
+    const descuento = Number(req.query.descuento || 0);
+    if (!Number.isFinite(descuento) || descuento < 0 || descuento >= 100) {
+      return res.status(400).json({ message: "El descuento debe estar entre 0% y 99%" });
+    }
+
     const marcas = (await Marca.findAll({
       include: [
         { 
@@ -151,7 +154,10 @@ export const generarPDFMarcasProductos = async (req, res) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", 'attachment; filename="marcas_productos.pdf"');
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${descuento > 0 ? "lista-clientes-nuevos" : "lista-precios"}.pdf"`
+    );
     doc.pipe(res);
 
     const pageWidth = doc.page.width;
@@ -188,7 +194,12 @@ export const generarPDFMarcasProductos = async (req, res) => {
         .text("Sistema de Gestion de Repartos", 96, 39, { lineBreak: false });
       doc.rect(0, headerH, pageWidth, 3).fill(ACCENT);
       doc.fillColor(NAVY).fontSize(11).font("Helvetica-Bold")
-        .text("Marcas y Productos", pageWidth / 2, 72, { align: "center" });
+         .text(
+           "Lista de precios",
+           pageWidth / 2,
+           72,
+           { align: "center" }
+         );
     };
 
     const drawFooter = () => {
@@ -247,8 +258,9 @@ export const generarPDFMarcasProductos = async (req, res) => {
       return Number.isFinite(n) ? `$${n.toFixed(2)}` : "-";
     };
 
+    const precioConDescuento = (producto) => Number(producto.precio) * (1 - descuento / 100);
     const precioPorKg = (producto) => {
-      const precio = Number(producto.precio);
+      const precio = precioConDescuento(producto);
       const kg = Number(producto.kg_por_caja);
       if (Number.isFinite(precio) && precio > 0 && Number.isFinite(kg) && kg > 0) {
         return precio / kg;
@@ -328,7 +340,13 @@ export const generarPDFMarcasProductos = async (req, res) => {
 
     doc.end();
   } catch (error) {
-    logger.error("Error al generar PDF", { error: error.stack || error.message });
+    logger.error("Error al generar PDF", {
+      error: error.message,
+      parent: error.parent?.message,
+      original: error.original?.message,
+      sql: error.sql,
+      stack: error.stack,
+    });
     if (!res.headersSent) {
       res.status(500).json({ message: "Error al generar PDF", error: error.message });
     } else {

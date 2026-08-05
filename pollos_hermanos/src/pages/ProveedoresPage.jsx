@@ -19,6 +19,7 @@ export default function ProveedoresPage() {
   });
   const [marcasNuevas, setMarcasNuevas] = useState([]);
   const [saldosModal, setSaldosModal] = useState(null);
+  const [marcaAEliminar, setMarcaAEliminar] = useState(null);
   const [saldosForm, setSaldosForm] = useState({ mercaderias_compradas: 0, dinero_ventas: 0 });
 
   useEffect(() => {
@@ -85,10 +86,15 @@ export default function ProveedoresPage() {
   };
 
   const eliminarMarca = async (marca) => {
-    if (!confirm(`¿Eliminar la marca "${marca.nombre}"?`)) return;
+    setMarcaAEliminar(marca);
+  };
+
+  const confirmarEliminarMarca = async () => {
+    if (!marcaAEliminar) return;
     try {
-      await marcasAPI.delete(marca.id);
-      setEditing({ ...editing, Marcas: editing.Marcas.filter((item) => item.id !== marca.id) });
+      await marcasAPI.delete(marcaAEliminar.id);
+      setEditing({ ...editing, Marcas: editing.Marcas.filter((item) => item.id !== marcaAEliminar.id) });
+      setMarcaAEliminar(null);
       loadProveedores();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -129,30 +135,11 @@ export default function ProveedoresPage() {
     }
   };
 
-  const descargarPDF = async () => {
-    try {
-      const response = await marcasAPI.descargarPDF();
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", "marcas_productos.pdf");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      alert("Error al descargar PDF: " + (error.response?.data?.message || error.message));
-    }
-  };
-
   return (
     <div className="proveedores-page">
       <div className="page-header">
         <h2>Proveedores</h2>
         <div className="proveedores-header-actions">
-          <button className="btn btn-secondary" onClick={descargarPDF}>
-            Descargar PDF
-          </button>
           <button
             className="btn btn-primary"
             onClick={() => {
@@ -263,6 +250,26 @@ export default function ProveedoresPage() {
             {editing ? "Actualizar" : "Crear"}
           </button>
         </form>
+      )}
+
+      {marcaAEliminar && (
+        <div className="modal-overlay" onClick={() => setMarcaAEliminar(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Eliminar marca</h3>
+            {marcaAEliminar.Productos?.length > 0 ? (
+              <div style={{ color: "#991b1b", background: "#fee2e2", border: "1px solid #fca5a5", borderRadius: "6px", padding: "0.85rem", marginBottom: "1rem" }}>
+                <strong>Advertencia:</strong> la marca "{marcaAEliminar.nombre}" tiene {marcaAEliminar.Productos.length} producto(s) asociado(s).
+                Al eliminarla, los productos se conservarán, pero quedarán sin marca.
+              </div>
+            ) : (
+              <p style={{ marginBottom: "1rem" }}>¿Está seguro de eliminar la marca "{marcaAEliminar.nombre}"?</p>
+            )}
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setMarcaAEliminar(null)}>Cancelar</button>
+              <button className="btn btn-cancel" onClick={confirmarEliminarMarca}>Eliminar marca</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {saldosModal && (

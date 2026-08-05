@@ -3,12 +3,13 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
+import { DataTypes } from "sequelize";
 import { errorHandler, sanitizeErrorResponses } from "./middleware/errorHandler.js";
 import logger from "./utils/logger.js";
 
 import sequelize from "./config/database.js";
 import "./models/index.js";
-import { Banco, User, Role } from "./models/index.js";
+import { Banco, User, Role, Venta, Producto, Cliente, Proveedor } from "./models/index.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import proveedorRoutes from "./routes/proveedorRoutes.js";
@@ -116,56 +117,34 @@ const start = async () => {
     await sequelize.sync();
     console.log("Modelos sincronizados");
 
-    const [cols] = await sequelize.query("PRAGMA table_info(Venta)");
-    const hasSalidaCamionId = cols.some((c) => c.name === "salidaCamionId");
-    if (!hasSalidaCamionId) {
-      await sequelize.query("ALTER TABLE Venta ADD COLUMN salidaCamionId INTEGER REFERENCES SalidaCamions(id)");
-      console.log("Columna salidaCamionId agregada a Venta");
-    }
-    const hasDatosTransferencia = cols.some((c) => c.name === "datos_transferencia");
-    if (!hasDatosTransferencia) {
-      await sequelize.query("ALTER TABLE Venta ADD COLUMN datos_transferencia TEXT");
-      console.log("Columna datos_transferencia agregada a Venta");
-    }
-    const hasDatosTarjeta = cols.some((c) => c.name === "datos_tarjeta");
-    if (!hasDatosTarjeta) {
-      await sequelize.query("ALTER TABLE Venta ADD COLUMN datos_tarjeta TEXT");
-      console.log("Columna datos_tarjeta agregada a Venta");
-    }
-    const hasMontoDeudaPagado = cols.some((c) => c.name === "monto_deuda_pagado");
-    if (!hasMontoDeudaPagado) {
-      await sequelize.query("ALTER TABLE Venta ADD COLUMN monto_deuda_pagado DECIMAL(10,2)");
-      console.log("Columna monto_deuda_pagado agregada a Venta");
-    }
-    const hasPorcentajeAumento = cols.some((c) => c.name === "porcentaje_aumento");
-    if (!hasPorcentajeAumento) {
-      await sequelize.query("ALTER TABLE Venta ADD COLUMN porcentaje_aumento DECIMAL(5,2) DEFAULT 0");
-      console.log("Columna porcentaje_aumento agregada a Venta");
-    }
+    const queryInterface = sequelize.getQueryInterface();
+    const ensureColumn = async (model, column, definition) => {
+      const table = model.getTableName();
+      const columns = await queryInterface.describeTable(table);
+      if (!columns[column]) {
+        await queryInterface.addColumn(table, column, definition);
+        console.log(`Columna ${column} agregada a ${table}`);
+      }
+    };
 
-    const [productoCols] = await sequelize.query("PRAGMA table_info(Productos)");
-    const hasMarcaId = productoCols.some((c) => c.name === "marcaId");
-    if (!hasMarcaId) {
-      await sequelize.query("ALTER TABLE Productos ADD COLUMN marcaId INTEGER REFERENCES Marcas(id)");
-      console.log("Columna marcaId agregada a Productos");
-    }
-
-    const [proveedorCols] = await sequelize.query("PRAGMA table_info(Proveedors)");
-    const hasMercaderias = proveedorCols.some((c) => c.name === "mercaderias_compradas");
-    if (!hasMercaderias) {
-      await sequelize.query("ALTER TABLE Proveedors ADD COLUMN mercaderias_compradas FLOAT DEFAULT 0");
-      console.log("Columna mercaderias_compradas agregada a Proveedors");
-    }
-    const hasDineroVentas = proveedorCols.some((c) => c.name === "dinero_ventas");
-    if (!hasDineroVentas) {
-      await sequelize.query("ALTER TABLE Proveedors ADD COLUMN dinero_ventas FLOAT DEFAULT 0");
-      console.log("Columna dinero_ventas agregada a Proveedors");
-    }
-    const hasDiferenciaAcumulada = proveedorCols.some((c) => c.name === "diferencia_acumulada");
-    if (!hasDiferenciaAcumulada) {
-      await sequelize.query("ALTER TABLE Proveedors ADD COLUMN diferencia_acumulada FLOAT DEFAULT 0");
-      console.log("Columna diferencia_acumulada agregada a Proveedors");
-    }
+    await ensureColumn(Venta, "salidaCamionId", {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: "SalidaCamions", key: "id" },
+    });
+    await ensureColumn(Venta, "datos_transferencia", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(Venta, "datos_tarjeta", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(Venta, "monto_deuda_pagado", { type: DataTypes.DECIMAL(10, 2), allowNull: true });
+    await ensureColumn(Venta, "porcentaje_aumento", { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 });
+    await ensureColumn(Producto, "marcaId", {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: "Marcas", key: "id" },
+    });
+    await ensureColumn(Cliente, "zona", { type: DataTypes.STRING, allowNull: true });
+    await ensureColumn(Proveedor, "mercaderias_compradas", { type: DataTypes.FLOAT, defaultValue: 0 });
+    await ensureColumn(Proveedor, "dinero_ventas", { type: DataTypes.FLOAT, defaultValue: 0 });
+    await ensureColumn(Proveedor, "diferencia_acumulada", { type: DataTypes.FLOAT, defaultValue: 0 });
 
     const bancosDefault = ["Banco Nación", "Banco Provincia", "Banco Galicia", "Banco Santander", "Banco BBVA", "Banco Macro", "Banco Ciudad", "Banco Patagonia", "Banco Supervielle", "Banco Hipotecario"];
     for (const nombre of bancosDefault) {

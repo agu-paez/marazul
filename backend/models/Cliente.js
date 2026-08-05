@@ -11,6 +11,11 @@ const Cliente = sequelize.define("Cliente", {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  zona: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: "Zona asignada para el reparto",
+  },
   saldo_pendiente: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,

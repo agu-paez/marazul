@@ -94,14 +94,23 @@ export const updateProducto = async (req, res) => {
 
 export const actualizarPreciosPorcentaje = async (req, res) => {
   try {
-    const { porcentaje } = req.body;
+    const { porcentaje, marcaId } = req.body;
 
     if (porcentaje === undefined || porcentaje === null || isNaN(porcentaje)) {
       return res.status(400).json({ message: "Debe enviar un porcentaje válido" });
     }
 
+    const where = { activo: true };
+    if (marcaId !== undefined && marcaId !== null && marcaId !== "") {
+      const marca = await Marca.findByPk(marcaId);
+      if (!marca) {
+        return res.status(400).json({ message: "La marca seleccionada no existe" });
+      }
+      where.marcaId = marca.id;
+    }
+
     const factor = 1 + porcentaje / 100;
-    const productos = await Producto.findAll({ where: { activo: true } });
+    const productos = await Producto.findAll({ where });
     let actualizados = 0;
 
     for (const producto of productos) {

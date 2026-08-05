@@ -9,6 +9,11 @@ export default function ProductosPage() {
   const [editing, setEditing] = useState(null);
   const [showAjuste, setShowAjuste] = useState(false);
   const [porcentaje, setPorcentaje] = useState("");
+  const [ajusteMarcaId, setAjusteMarcaId] = useState("");
+  const [showListaPrecios, setShowListaPrecios] = useState(false);
+  const [tipoPrecio, setTipoPrecio] = useState("normal");
+  const [descuento, setDescuento] = useState("");
+  const [busqueda, setBusqueda] = useState("");
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
@@ -89,8 +94,40 @@ export default function ProductosPage() {
     }
   };
 
+  const descargarPDF = async () => {
+    const porcentajeDescuento = tipoPrecio === "descuento" ? parseFloat(descuento) : 0;
+    if (tipoPrecio === "descuento" && (!Number.isFinite(porcentajeDescuento) || porcentajeDescuento <= 0 || porcentajeDescuento >= 100)) {
+      alert("Ingrese un descuento entre 1% y 99%");
+      return;
+    }
+
+    try {
+      const response = await marcasAPI.descargarPDF({ descuento: porcentajeDescuento });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", tipoPrecio === "descuento" ? "lista-clientes-nuevos.pdf" : "lista-precios.pdf");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setShowListaPrecios(false);
+      setTipoPrecio("normal");
+      setDescuento("");
+    } catch (error) {
+      alert("Error al descargar PDF: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const terminoBusqueda = busqueda.trim().toLowerCase();
+  const productosFiltrados = productos.filter((producto) => (
+    !terminoBusqueda
+    || producto.nombre.toLowerCase().includes(terminoBusqueda)
+    || String(producto.codigo_barras || "").toLowerCase().includes(terminoBusqueda)
+  ));
+
   return (
-    <div>
+    <div className="productos-page">
       <div className="page-header">
         <h2>Productos</h2>
           <div className="productos-header-actions">
@@ -99,6 +136,9 @@ export default function ProductosPage() {
             onClick={() => setShowAjuste(true)}
           >
             Aumentos
+          </button>
+          <button className="btn btn-secondary" onClick={() => setShowListaPrecios(true)}>
+            Descargar lista de precios
           </button>
           <button
             className="btn btn-primary"
@@ -118,9 +158,18 @@ export default function ProductosPage() {
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <h3>Ajuste de Precios</h3>
             <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "1rem" }}>
-              Ingrese un porcentaje para aumentar o disminuir el precio de todos los productos activos.
+              Ingrese un porcentaje para aumentar o disminuir el precio de los productos activos.
               Use valores negativos para disminuir (ej: -10).
             </p>
+            <div className="form-group">
+              <label>Aplicar a marca</label>
+              <select value={ajusteMarcaId} onChange={(e) => setAjusteMarcaId(e.target.value)}>
+                <option value="">Todas las marcas</option>
+                {marcas.map((marca) => (
+                  <option key={marca.id} value={marca.id}>{marca.nombre}</option>
+                ))}
+              </select>
+            </div>
             <div className="form-group">
               <label>Porcentaje (%)</label>
               <input
@@ -133,7 +182,7 @@ export default function ProductosPage() {
               />
             </div>
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => { setShowAjuste(false); setPorcentaje(""); }}>
+              <button className="btn btn-secondary" onClick={() => { setShowAjuste(false); setPorcentaje(""); setAjusteMarcaId(""); }}>
                 Cancelar
               </button>
               <button
@@ -141,9 +190,13 @@ export default function ProductosPage() {
                 disabled={porcentaje === "" || isNaN(parseFloat(porcentaje))}
                 onClick={async () => {
                   try {
-                    await productosAPI.actualizarPrecios({ porcentaje: parseFloat(porcentaje) });
+                    await productosAPI.actualizarPrecios({
+                      porcentaje: parseFloat(porcentaje),
+                      marcaId: ajusteMarcaId ? parseInt(ajusteMarcaId) : null,
+                    });
                     setShowAjuste(false);
                     setPorcentaje("");
+                    setAjusteMarcaId("");
                     loadData();
                   } catch (error) {
                     alert("Error: " + (error.response?.data?.message || error.message));
@@ -151,6 +204,54 @@ export default function ProductosPage() {
                 }}
               >
                 Aplicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showListaPrecios && (
+        <div className="modal-overlay" onClick={() => setShowListaPrecios(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Descargar lista de precios</h3>
+            <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "1rem" }}>
+              Elija qué precio desea mostrar en la lista para clientes.
+            </p>
+            <div className="form-group">
+              <label>Tipo de precio</label>
+              <select value={tipoPrecio} onChange={(e) => setTipoPrecio(e.target.value)}>
+                <option value="normal">Precio normal</option>
+                <option value="descuento">Descuento para clientes nuevos</option>
+              </select>
+            </div>
+            {tipoPrecio === "descuento" && (
+              <div className="form-group">
+                <label>Descuento (%)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  step="0.1"
+                  value={descuento}
+                  onChange={(e) => setDescuento(e.target.value)}
+                  placeholder="Ej: 10"
+                  autoFocus
+                />
+              </div>
+            )}
+            <div className="modal-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setShowListaPrecios(false); setTipoPrecio("normal"); setDescuento(""); }}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={descargarPDF}
+                disabled={tipoPrecio === "descuento" && !descuento}
+              >
+                Descargar
               </button>
             </div>
           </div>
@@ -245,6 +346,22 @@ export default function ProductosPage() {
         </form>
       )}
 
+      <div className="producto-search">
+        <div className="search-with-clear">
+          <input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre o código de barras..."
+            aria-label="Buscar producto por nombre o código de barras"
+          />
+          {busqueda && (
+            <button type="button" className="search-clear" onClick={() => setBusqueda("")} aria-label="Limpiar búsqueda">
+              X
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="table-container">
         <table>
           <thead>
@@ -260,7 +377,7 @@ export default function ProductosPage() {
             </tr>
           </thead>
           <tbody>
-            {productos.map((p) => (
+            {productosFiltrados.map((p) => (
               <tr key={p.id}>
                 <td><strong>{p.nombre}</strong></td>
                 <td>{p.descripcion || "-"}</td>
@@ -281,6 +398,9 @@ export default function ProductosPage() {
             ))}
           </tbody>
         </table>
+        {productosFiltrados.length === 0 && (
+          <p className="empty">No se encontraron productos con esa búsqueda.</p>
+        )}
       </div>
     </div>
   );
