@@ -183,8 +183,14 @@ export const registrarRegreso = async (req, res) => {
       }
     }
 
-    if (salida.estado !== "en_camino") {
+    const esEdicion = salida.estado === "sobrante";
+
+    if (salida.estado !== "en_camino" && !esEdicion) {
       return res.status(400).json({ message: "Solo se puede registrar regreso de salidas en camino" });
+    }
+
+    if (esEdicion && req.userRole !== "admin") {
+      return res.status(403).json({ message: "Solo un administrador puede editar el regreso de una salida sobrante" });
     }
 
     if (await checkDayClosed(salida.fecha)) {
@@ -207,6 +213,19 @@ export const registrarRegreso = async (req, res) => {
     }
 
     const { items_regreso } = req.body;
+
+    if (esEdicion) {
+      for (const salidaItem of salida.SalidaCamionItems) {
+        const devueltoPrevio = salidaItem.cantidad_devuelta || 0;
+        if (devueltoPrevio > 0) {
+          const prod = await Producto.findByPk(salidaItem.productoId);
+          if (prod) {
+            await prod.update({ stock: Math.max(0, prod.stock - devueltoPrevio) });
+          }
+        }
+        await salidaItem.update({ cantidad_devuelta: 0 });
+      }
+    }
 
     let montoRegreso = 0;
     if (items_regreso && items_regreso.length > 0) {

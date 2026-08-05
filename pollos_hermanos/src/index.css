@@ -167,6 +167,7 @@ body {
 .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; margin: 0 2px; }
 .btn-camino { background: var(--info); color: white; }
 .btn-entregado { background: var(--success); color: white; }
+.btn-warning { background: var(--warning); color: white; }
 .btn-cancel { background: var(--danger); color: white; }
 .btn-cierre-pdf { background: #d97706; color: white; }
 .btn-cierre-pdf:hover { background: #b45309; }
@@ -290,6 +291,22 @@ th {
 
 tr:hover {
   background: rgba(74, 107, 90, 0.06);
+}
+
+.fila-sin-stock {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.fila-sin-stock:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.fila-stock-bajo {
+  background: rgba(245, 158, 11, 0.16);
+}
+
+.fila-stock-bajo:hover {
+  background: rgba(245, 158, 11, 0.25);
 }
 
 /* Badges */
@@ -1431,6 +1448,12 @@ input[type="number"] {
 }
 
 .produccion-page .form-card > .btn {
+  margin-top: 0.25rem;
+}
+
+.produccion-form-actions {
+  display: flex;
+  gap: 0.5rem;
   margin-top: 0.25rem;
 }
 

@@ -69,7 +69,7 @@ app.use(express.json());
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 100,
+  limit: Number(process.env.API_RATE_LIMIT_MAX) || (isProduction ? 100 : 1000),
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { message: "Demasiadas solicitudes. Intenta nuevamente más tarde." },

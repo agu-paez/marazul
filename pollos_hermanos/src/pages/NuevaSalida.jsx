@@ -61,6 +61,7 @@ export default function NuevaSalida() {
   };
 
   const productosFiltrados = productos.filter((p) => {
+    if (p.stock <= 0) return false;
     const termino = busqueda.toLowerCase();
     return (
       p.nombre.toLowerCase().includes(termino) ||

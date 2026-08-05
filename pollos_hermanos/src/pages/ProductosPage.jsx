@@ -377,25 +377,29 @@ export default function ProductosPage() {
             </tr>
           </thead>
           <tbody>
-            {productosFiltrados.map((p) => (
-              <tr key={p.id}>
-                <td><strong>{p.nombre}</strong></td>
-                <td>{p.descripcion || "-"}</td>
-                <td>{p.codigo_barras || "-"}</td>
-                <td>${p.precio}</td>
-                <td>{p.stock}</td>
-                <td>{p.unidad}</td>
-                <td>{p.Marca?.nombre || "-"}</td>
-                <td>
-                  <button className="btn btn-sm btn-camino" onClick={() => handleEdit(p)}>
-                    Editar
-                  </button>
-                  <button className="btn btn-sm btn-cancel" onClick={() => handleDelete(p.id)}>
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {productosFiltrados.map((p) => {
+              const sinStock = Number(p.stock) <= 0;
+              const stockBajo = !sinStock && Number(p.stock) <= Number(p.stock_minimo || 10);
+              return (
+                <tr key={p.id} className={sinStock ? "fila-sin-stock" : stockBajo ? "fila-stock-bajo" : ""}>
+                  <td><strong>{p.nombre}</strong></td>
+                  <td>{p.descripcion || "-"}</td>
+                  <td>{p.codigo_barras || "-"}</td>
+                  <td>${p.precio}</td>
+                  <td>{p.stock}</td>
+                  <td>{p.unidad}</td>
+                  <td>{p.Marca?.nombre || "-"}</td>
+                  <td>
+                    <button className="btn btn-sm btn-camino" onClick={() => handleEdit(p)}>
+                      Editar
+                    </button>
+                    <button className="btn btn-sm btn-cancel" onClick={() => handleDelete(p.id)}>
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {productosFiltrados.length === 0 && (

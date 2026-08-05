@@ -6,6 +6,7 @@ import {
   deleteProducto,
   getLowStock,
   actualizarPreciosPorcentaje,
+  descontarStock,
 } from "../controllers/productoController.js";
 import { authenticate } from "../middleware/auth.js";
 
@@ -14,6 +15,7 @@ const router = Router();
 router.use(authenticate);
 
 router.put("/actualizar-precios", actualizarPreciosPorcentaje);
+router.post("/descontar-stock", descontarStock);
 router.get("/low-stock", getLowStock);
 router.get("/", getAllProductos);
 router.post("/", createProducto);

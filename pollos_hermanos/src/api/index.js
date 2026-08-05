@@ -56,6 +56,7 @@ export const productosAPI = {
   update: (id, data) => API.put(`/productos/${id}`, data),
   delete: (id) => API.delete(`/productos/${id}`),
   actualizarPrecios: (data) => API.put("/productos/actualizar-precios", data),
+  descontarStock: (data) => API.post("/productos/descontar-stock", data),
 };
 
 export const repartosAPI = {

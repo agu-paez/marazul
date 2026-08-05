@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { produccionAPI } from "../api";
+import { produccionAPI, productosAPI } from "../api";
 
 const fechaHoy = () => {
   const hoy = new Date();
@@ -33,6 +33,11 @@ export default function ProduccionPage() {
   const [data, setData] = useState({ registros: [], promedioDiario: [], promedioSemanal: [] });
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [productos, setProductos] = useState([]);
+  const [showDescuento, setShowDescuento] = useState(false);
+  const [descuentoForm, setDescuentoForm] = useState({});
+  const [descontando, setDescontando] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
   const [form, setForm] = useState({
     fecha: fechaHoy(),
     cajones: "",
@@ -44,8 +49,9 @@ export default function ProduccionPage() {
 
   const loadData = async () => {
     try {
-      const res = await produccionAPI.getEstadisticas();
+      const [res, prodRes] = await Promise.all([produccionAPI.getEstadisticas(), productosAPI.getAll()]);
       setData(res.data);
+      setProductos(prodRes.data);
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -81,7 +87,42 @@ export default function ProduccionPage() {
 
   const onChange = (campo, valor) => setForm({ ...form, [campo]: valor });
 
+  const abrirDescuento = () => {
+    setDescuentoForm({});
+    setBusqueda("");
+    setShowDescuento(true);
+  };
+
+  const onChangeDescuento = (id, valor) => setDescuentoForm((prev) => ({ ...prev, [id]: valor }));
+
+  const aplicarDescuento = async () => {
+    const items = Object.entries(descuentoForm)
+      .filter(([, cantidad]) => Number(cantidad) > 0)
+      .map(([productoId, cantidad]) => ({ productoId: parseInt(productoId, 10), cantidad: Number(cantidad) }));
+    if (items.length === 0) {
+      alert("Seleccione al menos un producto con cantidad mayor a 0");
+      return;
+    }
+    setDescontando(true);
+    try {
+      await productosAPI.descontarStock({ items });
+      setShowDescuento(false);
+      await loadData();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    } finally {
+      setDescontando(false);
+    }
+  };
+
   if (loading) return <div className="loading">Cargando...</div>;
+
+  const termino = busqueda.trim().toLowerCase();
+  const productosFiltrados = productos.filter((p) => {
+    const coincideNombre = p.nombre?.toLowerCase().includes(termino);
+    const coincideCodigo = p.codigo_barras ? p.codigo_barras.toLowerCase().includes(termino) : false;
+    return termino === "" || coincideNombre || coincideCodigo;
+  });
 
   return (
     <div className="produccion-page">
@@ -108,10 +149,78 @@ export default function ProduccionPage() {
             </div>
           ))}
         </div>
-        <button type="submit" className="btn btn-primary" disabled={guardando}>
-          {guardando ? "Guardando..." : "Guardar Registro"}
-        </button>
+        <div className="produccion-form-actions">
+          <button type="submit" className="btn btn-primary" disabled={guardando}>
+            {guardando ? "Guardando..." : "Guardar Registro"}
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={abrirDescuento}>
+            Descontar Stock
+          </button>
+        </div>
       </form>
+
+      {showDescuento && (
+        <div className="modal-overlay" onClick={() => setShowDescuento(false)}>
+          <div className="modal-card modal-wide" onClick={(e) => e.stopPropagation()}>
+            <h3>Descontar Stock</h3>
+            <p className="subtitle">Selecciona las cantidades a descontar del stock general</p>
+
+            <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+              <input
+                type="text"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre o codigo de barras..."
+              />
+            </div>
+
+            <div className="table-container" style={{ maxHeight: "250px", overflowY: "auto" }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Stock Actual</th>
+                    <th>Cant. a Descontar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productosFiltrados.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="empty">No hay productos que coincidan</td>
+                    </tr>
+                  ) : (
+                    productosFiltrados.map((p) => (
+                      <tr key={p.id}>
+                        <td><strong>{p.nombre}</strong></td>
+                        <td>{p.stock} {p.unidad}</td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            max={p.stock}
+                            value={descuentoForm[p.id] ?? ""}
+                            onChange={(e) => onChangeDescuento(p.id, e.target.value)}
+                            className="input-cantidad"
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setShowDescuento(false)}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={aplicarDescuento} disabled={descontando}>
+                {descontando ? "Descontando..." : "Descontar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="produccion-grid">
         <div className="produccion-card">
