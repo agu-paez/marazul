@@ -27,12 +27,16 @@ export const getClienteById = async (req, res) => {
 
 export const createCliente = async (req, res) => {
   try {
-    const { nombre, zona } = req.body;
+    const { nombre, zona, zona_pendiente } = req.body;
     if (!nombre || nombre.trim() === "") {
       return res.status(400).json({ message: "El nombre del cliente es requerido" });
     }
 
-    const cliente = await Cliente.create({ nombre: nombre.trim(), zona: zona?.trim() || null });
+    const cliente = await Cliente.create({
+      nombre: nombre.trim(),
+      zona: zona?.trim() || null,
+      zona_pendiente: Boolean(zona_pendiente),
+    });
     res.status(201).json({ message: "Cliente creado", cliente });
   } catch (error) {
     res.status(500).json({ message: "Error al crear cliente", error: error.message });
@@ -46,11 +50,12 @@ export const updateCliente = async (req, res) => {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
-    const { nombre, zona, activo } = req.body;
+    const { nombre, zona, activo, zona_pendiente } = req.body;
     await cliente.update({
       nombre: nombre || cliente.nombre,
       zona: zona !== undefined ? (zona?.trim() || null) : cliente.zona,
       activo: activo !== undefined ? activo : cliente.activo,
+      zona_pendiente: zona_pendiente !== undefined ? Boolean(zona_pendiente) : false,
     });
 
     res.json({ message: "Cliente actualizado", cliente });

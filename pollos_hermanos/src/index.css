@@ -245,6 +245,9 @@ body {
 .stat-card h3 {
   font-size: 2rem;
   color: var(--primary);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.2;
 }
 
 .stat-card p {
@@ -307,6 +310,14 @@ tr:hover {
 
 .fila-stock-bajo:hover {
   background: rgba(245, 158, 11, 0.25);
+}
+
+.fila-sin-zona {
+  background: rgba(245, 158, 11, 0.22);
+}
+
+.fila-sin-zona:hover {
+  background: rgba(245, 158, 11, 0.32);
 }
 
 /* Badges */
@@ -1559,7 +1570,8 @@ input[type="number"] {
 
 .produccion-history-card h3 {
   color: var(--primary);
-  font-size: 1rem;
+  font-size: 1.3rem;
+  font-weight: bold;
 }
 
 .produccion-history-card p,

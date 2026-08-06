@@ -30,6 +30,11 @@ const Cliente = sequelize.define("Cliente", {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
   },
+  zona_pendiente: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    comment: "Cliente creado por repartidor, pendiente de revision del admin",
+  },
 });
 
 export default Cliente;

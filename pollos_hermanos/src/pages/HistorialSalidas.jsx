@@ -153,7 +153,7 @@ export default function HistorialSalidas() {
                         Eliminar
                       </button>
                     )}
-                    {s.estado === "entregado" && (
+                    {(s.estado === "entregado" || s.estado === "cancelado") && (
                       <button
                         className="btn btn-sm btn-primary"
                         onClick={() => handleDownloadResumen(s.id)}

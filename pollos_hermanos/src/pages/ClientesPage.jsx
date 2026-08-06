@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { clientesAPI } from "../api";
-import { useAuth } from "../context/AuthContext";
 
 const zonas = [
   ...Array.from({ length: 7 }, (_, index) => `Zona ${index + 1}`),
@@ -8,8 +7,6 @@ const zonas = [
 ];
 
 export default function ClientesPage() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -22,8 +19,6 @@ export default function ClientesPage() {
   const [pagosCC, setPagosCC] = useState([{ medio_pago: "efectivo", monto: 0 }]);
   const [showDeudaModal, setShowDeudaModal] = useState(false);
   const [clienteDeuda, setClienteDeuda] = useState(null);
-  const [showMontosForm, setShowMontosForm] = useState(false);
-  const [clienteMontos, setClienteMontos] = useState(null);
   const [montos, setMontos] = useState({ saldo_pendiente: "0", limite_credito: "0" });
 
   useEffect(() => {
@@ -45,24 +40,53 @@ export default function ClientesPage() {
     e.preventDefault();
     try {
       if (editando) {
-        await clientesAPI.update(editando.id, { nombre, zona });
+        await clientesAPI.update(editando.id, { nombre, zona, zona_pendiente: false });
+        await clientesAPI.updateMontos(editando.id, {
+          saldo_pendiente: parseFloat(montos.saldo_pendiente),
+          limite_credito: parseFloat(montos.limite_credito),
+        });
       } else {
-        await clientesAPI.create({ nombre, zona });
+        const res = await clientesAPI.create({ nombre, zona });
+        await clientesAPI.updateMontos(res.data.cliente.id, {
+          saldo_pendiente: parseFloat(montos.saldo_pendiente),
+          limite_credito: parseFloat(montos.limite_credito),
+        });
       }
       setShowForm(false);
       setEditando(null);
       setNombre("");
       setZona("");
+      setMontos({ saldo_pendiente: "0", limite_credito: "0" });
       loadClientes();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
     }
   };
 
+  const cancelEdit = async () => {
+    if (editando) {
+      try {
+        await clientesAPI.update(editando.id, { zona_pendiente: false });
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    setShowForm(false);
+    setEditando(null);
+    setNombre("");
+    setZona("");
+    setMontos({ saldo_pendiente: "0", limite_credito: "0" });
+    loadClientes();
+  };
+
   const openEdit = (c) => {
     setEditando(c);
     setNombre(c.nombre);
     setZona(c.zona || "");
+    setMontos({
+      saldo_pendiente: parseFloat(c.saldo_pendiente || 0).toFixed(2),
+      limite_credito: parseFloat(c.limite_credito || 0).toFixed(2),
+    });
     setShowForm(true);
   };
 
@@ -70,31 +94,8 @@ export default function ClientesPage() {
     setEditando(null);
     setNombre("");
     setZona("");
+    setMontos({ saldo_pendiente: "0", limite_credito: "0" });
     setShowForm(true);
-  };
-
-  const openMontos = (c) => {
-    setClienteMontos(c);
-    setMontos({
-      saldo_pendiente: parseFloat(c.saldo_pendiente || 0).toFixed(2),
-      limite_credito: parseFloat(c.limite_credito || 0).toFixed(2),
-    });
-    setShowMontosForm(true);
-  };
-
-  const handleMontosSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await clientesAPI.updateMontos(clienteMontos.id, {
-        saldo_pendiente: parseFloat(montos.saldo_pendiente),
-        limite_credito: parseFloat(montos.limite_credito),
-      });
-      setShowMontosForm(false);
-      setClienteMontos(null);
-      loadClientes();
-    } catch (error) {
-      alert("Error: " + (error.response?.data?.message || error.message));
-    }
   };
 
   const verHistorial = async (c) => {
@@ -187,20 +188,13 @@ export default function ClientesPage() {
                   required
                 />
               </div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">{editando ? "Guardar" : "Crear"}</button>
+              <div className="form-group">
+                <label>Zona de reparto *</label>
+                <select value={zona} onChange={(e) => setZona(e.target.value)} required>
+                  <option value="">Seleccionar zona...</option>
+                  {zonas.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showMontosForm && clienteMontos && (
-        <div className="modal-overlay" onClick={() => setShowMontosForm(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Editar montos - {clienteMontos.nombre}</h3>
-            <form onSubmit={handleMontosSubmit}>
               <div className="form-group">
                 <label>Saldo pendiente</label>
                 <input
@@ -210,13 +204,6 @@ export default function ClientesPage() {
                   onChange={(e) => setMontos({ ...montos, saldo_pendiente: e.target.value })}
                   required
                 />
-              </div>
-              <div className="form-group">
-                <label>Zona de reparto *</label>
-                <select value={zona} onChange={(e) => setZona(e.target.value)} required>
-                  <option value="">Seleccionar zona...</option>
-                  {zonas.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
               </div>
               <div className="form-group">
                 <label>Limite de credito</label>
@@ -234,8 +221,8 @@ export default function ClientesPage() {
                 <strong>${(parseFloat(montos.limite_credito || 0) - parseFloat(montos.saldo_pendiente || 0)).toFixed(2)}</strong>
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowMontosForm(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Guardar montos</button>
+                <button type="button" className="btn btn-secondary" onClick={cancelEdit}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">{editando ? "Guardar" : "Crear"}</button>
               </div>
             </form>
           </div>
@@ -456,7 +443,7 @@ export default function ClientesPage() {
                 const limite = parseFloat(c.limite_credito) || 30000;
                 const disponible = limite - saldo;
                 return (
-                  <tr key={c.id}>
+                  <tr key={c.id} className={c.zona_pendiente ? "fila-sin-zona" : ""}>
                     <td><strong>{c.nombre}</strong></td>
                     <td>{c.zona || "Sin zona"}</td>
                     <td
@@ -472,9 +459,6 @@ export default function ClientesPage() {
                     <td>
                       <div className="action-buttons">
                         <button className="btn btn-sm btn-primary" onClick={() => openEdit(c)}>Editar</button>
-                        {isAdmin && (
-                          <button className="btn btn-sm btn-primary" onClick={() => openMontos(c)}>Editar montos</button>
-                        )}
                         <button className="btn btn-sm btn-secondary" onClick={() => verHistorial(c)}>Historial</button>
                         {saldo > 0 && (
                           <button className="btn btn-sm btn-primary" onClick={() => openPagoCC(c)}>Registrar Pago</button>

@@ -13,7 +13,7 @@ router.use(authenticate);
 
 router.get("/", getEstadisticasProduccion);
 router.get("/historial", getHistorialProduccion);
-router.get("/historial/:semana/pdf", descargarHistorialProduccionPdf);
+router.get("/historial/:mes/pdf", descargarHistorialProduccionPdf);
 router.post("/", createProduccion);
 
 export default router;

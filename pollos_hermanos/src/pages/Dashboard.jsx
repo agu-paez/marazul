@@ -2,6 +2,12 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { salidasAPI, cierreCajaAPI, productosAPI, ventasAPI } from "../api";
 
+const formatNumero = (valor) => {
+  const n = parseFloat(valor);
+  if (!Number.isFinite(n)) return "0";
+  return parseFloat(n.toFixed(2)).toString();
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -448,7 +454,7 @@ export default function Dashboard() {
             <p>Entregados</p>
           </div>
           <div className="stat-card stat-ventas">
-            <h3>${stats.total_ventas}</h3>
+            <h3>${formatNumero(stats.total_ventas)}</h3>
             <p>Ventas del Dia</p>
           </div>
         </div>

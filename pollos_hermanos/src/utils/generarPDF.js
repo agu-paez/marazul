@@ -1182,9 +1182,24 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
   doc.text(`Total Ventas: $${totalVentas.toFixed(2)}`, ml + 3, y + 4);
   y += 8;
 
-  // 4. Observaciones de ventas
-  drawSectionTitle("Observaciones de Ventas");
+  // 4. Observaciones de salidas
+  drawSectionTitle("Observaciones de Salidas");
   const ventasConNotas = ventas.filter((v) => v.notas);
+  if (salida.estado === "cancelado") {
+    if (salida.notas) {
+      addPageIfNeeded(20);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(220, 38, 38);
+      doc.text("SALIDA CANCELADA", ml + 3, y + 4);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(60, 60, 70);
+      const motivoLines = doc.splitTextToSize(salida.notas, cw - 10);
+      doc.text(motivoLines, ml + 6, y + 9);
+      y += 10 + motivoLines.length * 5;
+    }
+  }
   if (ventasConNotas.length > 0) {
     for (const v of ventasConNotas) {
       addPageIfNeeded(16);
