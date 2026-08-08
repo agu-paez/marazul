@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { salidasAPI, ventasAPI } from "../api";
+import GastosBoxes from "../components/GastosBoxes";
 
 
 export default function MisSalidas() {
@@ -119,6 +120,8 @@ export default function MisSalidas() {
     <div>
       <h2>Mis Salidas de Camion</h2>
       <p className="subtitle">Solo puedes cambiar el estado de tus salidas</p>
+
+      <GastosBoxes />
 
       {showCancelConfirm && (
         <div className="modal-overlay" style={{ zIndex: 1001 }} onClick={() => { setShowCancelConfirm(false); setCancelMotivo(""); }}>

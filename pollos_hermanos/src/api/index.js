@@ -134,4 +134,9 @@ export const produccionAPI = {
   create: (data) => API.post("/produccion", data),
 };
 
+export const gastosAPI = {
+  getAll: (params) => API.get("/gastos", { params }),
+  create: (data) => API.post("/gastos", data),
+};
+
 export default API;

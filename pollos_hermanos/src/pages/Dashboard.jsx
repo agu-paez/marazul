@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { salidasAPI, cierreCajaAPI, productosAPI, ventasAPI } from "../api";
+import GastosBoxes from "../components/GastosBoxes";
 
 const formatNumero = (valor) => {
   const n = parseFloat(valor);
@@ -508,6 +509,8 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <GastosBoxes />
 
       {resumen && (
         <div className="section">

@@ -63,6 +63,7 @@ export default function HistorialSalidas() {
     en_camino: "#3b82f6",
     entregado: "#10b981",
     cancelado: "#ef4444",
+    sobrante: "#ef4444",
   };
 
   if (loading) return <div className="loading">Cargando...</div>;
@@ -107,6 +108,7 @@ export default function HistorialSalidas() {
               <option value="pendiente">Pendiente</option>
               <option value="en_camino">En Camino</option>
               <option value="entregado">Entregado</option>
+              <option value="sobrante">Sobrante</option>
               <option value="cancelado">Cancelado</option>
             </select>
           </div>
@@ -153,7 +155,7 @@ export default function HistorialSalidas() {
                         Eliminar
                       </button>
                     )}
-                    {(s.estado === "entregado" || s.estado === "cancelado") && (
+                    {(s.estado === "entregado" || s.estado === "cancelado" || s.estado === "sobrante") && (
                       <button
                         className="btn btn-sm btn-primary"
                         onClick={() => handleDownloadResumen(s.id)}

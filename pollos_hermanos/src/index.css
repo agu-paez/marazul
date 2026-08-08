@@ -523,6 +523,96 @@ h2 {
   color: var(--text-muted);
 }
 
+/* Gastos */
+.gastos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.gastos-card {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gastos-card h3 {
+  font-size: 1.05rem;
+}
+
+.gastos-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.8rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
+}
+
+.gastos-total span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.gastos-total-monto {
+  color: var(--danger);
+  font-size: 1.1rem;
+}
+
+.gastos-vacio {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+  padding: 0.3rem 0;
+}
+
+.gastos-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.gasto-item {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.gasto-item:last-child {
+  border-bottom: none;
+}
+
+.gasto-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.gasto-item-descripcion {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.gasto-item-usuario {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.gastos-agregar {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.gastos-agregar .input-cantidad {
+  flex: 1;
+}
+
 /* Resumen grid (cierre de caja) */
 .resumen-grid {
   display: grid;
