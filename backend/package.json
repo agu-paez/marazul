@@ -8,6 +8,8 @@
     "dev": "node --watch server.js",
     "start": "node server.js",
     "seed": "node seeders/seed.js",
+    "seed:data": "node seeders/seedData.js",
+    "seed:transferencias": "node seeders/seedTransferencias.js",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{js,json}\"",
     "format:check": "prettier --check \"**/*.{js,json}\""
