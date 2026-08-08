@@ -63,13 +63,14 @@ export const getProveedorById = async (req, res) => {
 
 export const createProveedor = async (req, res) => {
   try {
-    const { nombre, telefono, direccion, email, tipo_producto } = req.body;
+    const { nombre, telefono, direccion, email, alias, tipo_producto } = req.body;
 
     const proveedor = await Proveedor.create({
       nombre,
       telefono,
       direccion,
       email,
+      alias,
       tipo_producto,
     });
 
