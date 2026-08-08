@@ -36,6 +36,20 @@ export const getRepartidores = async (req, res) => {
   }
 };
 
+export const getUsuariosPago = async (req, res) => {
+  try {
+    const usuarios = await User.findAll({
+      where: { activo: true },
+      include: [{ model: Role, where: { nombre: ["repartidor", "operador"] }, attributes: ["nombre"] }],
+      attributes: ["id", "nombre", "email"],
+      order: [["nombre", "ASC"]],
+    });
+    res.json(usuarios);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener empleados", error: error.message });
+  }
+};
+
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll({

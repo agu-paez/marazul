@@ -18,6 +18,7 @@ export default function ProductosPage() {
     nombre: "",
     descripcion: "",
     precio: "",
+    costo: "",
     stock: "",
     unidad: "pieza",
     marcaId: "",
@@ -50,6 +51,7 @@ export default function ProductosPage() {
       const data = {
         ...form,
         precio: parseFloat(form.precio),
+        costo: parseFloat(form.costo),
         stock: parseInt(form.stock) || 0,
         marcaId: form.marcaId ? parseInt(form.marcaId) : null,
         codigo_barras: form.codigo_barras.trim() || null,
@@ -62,7 +64,7 @@ export default function ProductosPage() {
       }
       setShowForm(false);
       setEditing(null);
-      setForm({ nombre: "", descripcion: "", precio: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
+      setForm({ nombre: "", descripcion: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -75,6 +77,7 @@ export default function ProductosPage() {
       nombre: producto.nombre,
       descripcion: producto.descripcion || "",
       precio: producto.precio,
+      costo: producto.costo ?? "",
       stock: producto.stock,
       unidad: producto.unidad || "pieza",
       marcaId: producto.Marca?.id || "",
@@ -145,7 +148,7 @@ export default function ProductosPage() {
             onClick={() => {
               setShowForm(!showForm);
               setEditing(null);
-              setForm({ nombre: "", descripcion: "", precio: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
+                setForm({ nombre: "", descripcion: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
             }}
           >
             {showForm ? "Cancelar" : "+ Nuevo Producto"}
@@ -310,6 +313,17 @@ export default function ProductosPage() {
               />
             </div>
             <div className="form-group">
+              <label>Costo ($) *</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.costo}
+                onChange={(e) => setForm({ ...form, costo: e.target.value })}
+                required
+              />
+            </div>
+            <div className="form-group">
               <label>Stock</label>
               <input
                 type="number"
@@ -370,6 +384,7 @@ export default function ProductosPage() {
               <th>Descripción</th>
               <th>Código Barras</th>
               <th>Precio</th>
+              <th>Costo</th>
               <th>Stock</th>
               <th>Unidad</th>
               <th>Marca</th>
@@ -383,6 +398,7 @@ export default function ProductosPage() {
                 <td>{p.descripcion || "-"}</td>
                 <td>{p.codigo_barras || "-"}</td>
                 <td>${p.precio}</td>
+                <td>${Number(p.costo || 0).toFixed(2)}</td>
                 <td>{p.stock}</td>
                 <td>{p.unidad}</td>
                 <td>{p.Marca?.nombre || "-"}</td>

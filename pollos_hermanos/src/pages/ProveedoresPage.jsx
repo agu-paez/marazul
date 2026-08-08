@@ -122,11 +122,9 @@ export default function ProveedoresPage() {
   const saveSaldos = async () => {
     if (!saldosModal) return;
     try {
-      const movimiento = (parseFloat(saldosForm.dinero_ventas) || 0) + (parseFloat(saldosForm.mercaderias_compradas) || 0);
-      await proveedoresAPI.update(saldosModal.id, {
-        mercaderias_compradas: 0,
-        dinero_ventas: 0,
-        diferencia_acumulada: (parseFloat(saldosModal.diferencia_acumulada) || 0) + movimiento,
+      await proveedoresAPI.registrarMovimiento(saldosModal.id, {
+        mercaderias_compradas: Math.abs(parseFloat(saldosForm.mercaderias_compradas) || 0),
+        dinero_ventas: parseFloat(saldosForm.dinero_ventas) || 0,
       });
       setSaldosModal(null);
       loadProveedores();

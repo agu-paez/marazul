@@ -1,5 +1,12 @@
 import jsPDF from "jspdf";
 
+const createPdf = (...args) => {
+  const doc = new jsPDF(...args);
+  const setFontSize = doc.setFontSize.bind(doc);
+  doc.setFontSize = (size) => setFontSize(size * 1.2);
+  return doc;
+};
+
 const cargarLogo = () => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -18,7 +25,7 @@ const cargarLogo = () => {
 };
 
 export const generarComprobantePDF = async (venta) => {
-  const doc = new jsPDF();
+  const doc = createPdf();
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const ml = 15, mr = 15;
@@ -325,7 +332,7 @@ export const generarComprobantePDF = async (venta) => {
 };
 
 export const generarResumenPagosPDF = async (pagos, fecha) => {
-  const doc = new jsPDF("landscape");
+  const doc = createPdf("landscape");
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const ml = 18;
@@ -494,7 +501,7 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
   const logo = await cargarLogo();
 
   for (const grupo of proveedores) {
-    const doc = new jsPDF("landscape");
+    const doc = createPdf("landscape");
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const ml = 18;
@@ -646,7 +653,7 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
 };
 
 export const generarCierreCajaPDF = async (datos) => {
-  const doc = new jsPDF();
+  const doc = createPdf();
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const ml = 15, mr = 15;
@@ -801,33 +808,23 @@ export const generarCierreCajaPDF = async (datos) => {
     doc.setTextColor(26, 26, 46);
     doc.text("RESUMEN DE KILOS", ml, y);
     y += 6;
-
     doc.setFillColor(254, 249, 237);
-    doc.rect(ml, y, cw, 16, "F");
     doc.setDrawColor(240, 210, 140);
-    doc.setLineWidth(0.4);
-    doc.rect(ml, y, cw, 16, "S");
-
-    doc.setFont("helvetica", "bold");
+    doc.rect(ml, y, cw, 16, "FD");
     doc.setFontSize(8);
     doc.setTextColor(180, 130, 20);
     doc.text("KG ENVIADOS:", ml + 4, y + 6);
     doc.setFontSize(10);
-    doc.text(`${datos.kg_pollos || 0} kg`, ml + 40, y + 6);
-
-    doc.setFont("helvetica", "bold");
+    doc.text(`${Number(datos.kg_pollos || 0).toFixed(2)} kg`, ml + 40, y + 6);
     doc.setFontSize(8);
     doc.text("KG DEVUELTOS:", ml + 80, y + 6);
     doc.setFontSize(10);
-    doc.text(`${datos.kg_devueltos || 0} kg`, ml + 120, y + 6);
-
-    doc.setFont("helvetica", "bold");
+    doc.text(`${Number(datos.kg_devueltos || 0).toFixed(2)} kg`, ml + 120, y + 6);
     doc.setFontSize(8);
-    doc.text("KG NETOS:", ml + 150, y + 6);
+    doc.text("KG NETOS:", ml + 142, y + 6);
     doc.setFontSize(10);
     doc.setTextColor(16, 185, 129);
-    doc.text(`${(datos.kg_pollos || 0) - (datos.kg_devueltos || 0)} kg`, ml + 180, y + 6);
-
+    doc.text(`${(Number(datos.kg_pollos || 0) - Number(datos.kg_devueltos || 0)).toFixed(2)} kg`, ml + 164, y + 6);
     y += 20;
   }
 
@@ -853,7 +850,7 @@ export const generarCierreCajaPDF = async (datos) => {
 };
 
 export const generarTransferenciaIndividualPDF = async (pago, fecha) => {
-  const doc = new jsPDF();
+  const doc = createPdf();
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const ml = 15, mr = 15;
@@ -965,7 +962,7 @@ export const generarTransferenciaIndividualPDF = async (pago, fecha) => {
 };
 
 export const generarResumenEntregaPDF = async (salida, ventas) => {
-  const doc = new jsPDF();
+  const doc = createPdf();
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const ml = 15, mr = 15;
@@ -1115,6 +1112,20 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
   drawEncabezado();
   drawInfoBox();
 
+  if (salida.sobrantes?.length > 0) {
+    const faltantesTexto = salida.sobrantes.map((item) => `${item.Producto?.nombre || "Producto"}: ${item.faltante}`).join(" | ");
+    const lineas = doc.splitTextToSize(`FALTO DEVOLVER: ${faltantesTexto}`, cw - 10);
+    addPageIfNeeded(14 + lineas.length * 4);
+    doc.setFillColor(254, 226, 226);
+    doc.setDrawColor(220, 38, 38);
+    doc.rect(ml, y - 3, cw, 10 + lineas.length * 4, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(153, 27, 27);
+    doc.text(lineas, ml + 4, y + 4);
+    y += 14 + lineas.length * 4;
+  }
+
   // 1. Mercaderia enviada
   drawSectionTitle("Mercaderia Enviada");
   const enviados = salida.SalidaCamionItems || [];
@@ -1145,7 +1156,42 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
     devueltos
   );
 
-  // 3. Ventas realizadas
+  // 3. Medios de pago
+  drawSectionTitle("Medios de Pago");
+  const pagosResumen = { efectivo: 0, transferencia: 0, debito: 0, credito: 0, tarjeta_sin_tipo: 0, cuenta_corriente: 0, otro: 0 };
+  for (const venta of ventas) {
+    const pagosVenta = venta.VentaPagos?.length
+      ? venta.VentaPagos
+      : [{ medio_pago: venta.medio_pago, monto: venta.total }];
+    for (const pago of pagosVenta) {
+      const monto = parseFloat(pago.monto) || 0;
+      const medio = String(pago.medio_pago || "otro").toLowerCase();
+      if (medio === "efectivo") pagosResumen.efectivo += monto;
+      else if (medio === "transferencia") pagosResumen.transferencia += monto;
+      else if (medio === "debito" || medio === "débito") pagosResumen.debito += monto;
+      else if (medio === "credito" || medio === "crédito") pagosResumen.credito += monto;
+      else if (medio === "tarjeta") pagosResumen.tarjeta_sin_tipo += monto;
+      else if (medio === "cuenta_corriente") pagosResumen.cuenta_corriente += monto;
+      else pagosResumen.otro += monto;
+    }
+  }
+  const pagosFilas = [
+    { medio: "Efectivo", monto: pagosResumen.efectivo },
+    { medio: "Transferencia", monto: pagosResumen.transferencia },
+    { medio: "Débito", monto: pagosResumen.debito },
+    { medio: "Crédito", monto: pagosResumen.credito },
+    { medio: "Tarjeta sin tipo", monto: pagosResumen.tarjeta_sin_tipo },
+    { medio: "Cuenta corriente", monto: pagosResumen.cuenta_corriente },
+    { medio: "Otro", monto: pagosResumen.otro },
+  ];
+  drawSimpleTable(
+    ["Medio", "Monto"],
+    [cw - 45, 45],
+    [(r) => r.medio, (r) => `$${r.monto.toFixed(2)}`],
+    pagosFilas
+  );
+
+  // 4. Ventas realizadas
   drawSectionTitle("Ventas Realizadas");
   const ventasItems = [];
   for (const v of ventas) {
@@ -1182,7 +1228,7 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
   doc.text(`Total Ventas: $${totalVentas.toFixed(2)}`, ml + 3, y + 4);
   y += 8;
 
-  // 4. Observaciones de ventas
+  // 5. Observaciones de ventas
   drawSectionTitle("Observaciones de Ventas");
   const ventasConNotas = ventas.filter((v) => v.notas);
   if (ventasConNotas.length > 0) {
@@ -1232,4 +1278,80 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
   doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, ph - 8, { align: "center" });
 
   doc.save(`resumen-entrega-${salida.camion?.replace(/\s+/g, "-") || salida.id}-${salida.fecha}.pdf`);
+};
+
+export const generarGastosDiaPDF = (gasto) => {
+  const doc = createPdf();
+  const pw = doc.internal.pageSize.getWidth();
+  doc.setFillColor(26, 26, 46);
+  doc.rect(0, 0, pw, 34, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(217, 119, 6);
+  doc.text("MAR AZUL", 15, 14);
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Historial de Gastos del Dia", pw - 15, 14, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(55, 55, 65);
+  doc.text(`Fecha: ${gasto.fecha}`, 15, 50);
+  doc.text(`Cierre realizado por: ${gasto.usuario_cierre || "-"}`, 15, 58);
+  doc.setFillColor(245, 246, 250);
+  doc.roundedRect(15, 70, pw - 30, 62, 3, 3, "F");
+  doc.setFontSize(11);
+  doc.text("Gastos registrados", 22, 82);
+  doc.text(`Combustible: $${parseFloat(gasto.gastos_combustible || 0).toFixed(2)}`, 22, 96);
+  doc.text(`Otros gastos: $${parseFloat(gasto.gastos_otros || 0).toFixed(2)}`, 22, 106);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total: $${parseFloat(gasto.total || 0).toFixed(2)}`, 22, 120);
+  doc.setFont("helvetica", "normal");
+  const descripcion = doc.splitTextToSize(`Descripcion: ${gasto.descripcion_otros_gastos || "Sin descripcion"}`, pw - 44);
+  doc.text(descripcion, 22, 145);
+  doc.setFontSize(8);
+  doc.setTextColor(150, 150, 150);
+  doc.text("Documento generado por el Sistema de Gestion Mar Azul", pw / 2, 280, { align: "center" });
+  doc.save(`gastos-${gasto.fecha}.pdf`);
+};
+
+export const generarPagosEmpleadosPDF = (registro) => {
+  const doc = createPdf();
+  const pw = doc.internal.pageSize.getWidth();
+  doc.setFillColor(26, 26, 46);
+  doc.rect(0, 0, pw, 34, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(217, 119, 6);
+  doc.text("MAR AZUL", 15, 14);
+  doc.setFontSize(11);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Historial de Pagos a Empleados", pw - 15, 14, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(55, 55, 65);
+  doc.text(`Fecha: ${registro.fecha}`, 15, 50);
+  doc.text(`Cierre realizado por: ${registro.usuario_cierre || "-"}`, 15, 58);
+  let y = 76;
+  doc.setFillColor(245, 246, 250);
+  doc.rect(15, y - 8, pw - 30, 12, "F");
+  doc.setFont("helvetica", "bold");
+  doc.text("Empleado", 20, y);
+  doc.text("Rol", 100, y);
+  doc.text("Monto", pw - 20, y, { align: "right" });
+  y += 12;
+  doc.setFont("helvetica", "normal");
+  let total = 0;
+  for (const pago of registro.pagos || []) {
+    const monto = parseFloat(pago.monto || 0);
+    total += monto;
+    doc.text(pago.nombre || "-", 20, y);
+    doc.text(pago.rol || "-", 100, y);
+    doc.text(`$${monto.toFixed(2)}`, pw - 20, y, { align: "right" });
+    y += 9;
+    if (y > 265) { doc.addPage(); y = 20; }
+  }
+  doc.setFont("helvetica", "bold");
+  doc.line(15, y + 2, pw - 15, y + 2);
+  doc.text(`Total pagado: $${total.toFixed(2)}`, pw - 20, y + 11, { align: "right" });
+  doc.save(`pagos-empleados-${registro.fecha}.pdf`);
 };

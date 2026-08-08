@@ -16,6 +16,11 @@ const VentaItem = sequelize.define("VentaItem", {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
   },
+  costo_unitario: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0,
+  },
 });
 
 export default VentaItem;

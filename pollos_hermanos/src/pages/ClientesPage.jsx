@@ -17,13 +17,12 @@ export default function ClientesPage() {
   const [historial, setHistorial] = useState(null);
   const [nombre, setNombre] = useState("");
   const [zona, setZona] = useState("");
+  const [limiteCredito, setLimiteCredito] = useState("30000");
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [clientePago, setClientePago] = useState(null);
   const [pagosCC, setPagosCC] = useState([{ medio_pago: "efectivo", monto: 0 }]);
   const [showDeudaModal, setShowDeudaModal] = useState(false);
   const [clienteDeuda, setClienteDeuda] = useState(null);
-  const [showMontosForm, setShowMontosForm] = useState(false);
-  const [clienteMontos, setClienteMontos] = useState(null);
   const [montos, setMontos] = useState({ saldo_pendiente: "0", limite_credito: "0" });
 
   useEffect(() => {
@@ -46,13 +45,20 @@ export default function ClientesPage() {
     try {
       if (editando) {
         await clientesAPI.update(editando.id, { nombre, zona });
+        if (isAdmin) {
+          await clientesAPI.updateMontos(editando.id, {
+            saldo_pendiente: parseFloat(montos.saldo_pendiente),
+            limite_credito: parseFloat(montos.limite_credito),
+          });
+        }
       } else {
-        await clientesAPI.create({ nombre, zona });
+        await clientesAPI.create({ nombre, zona, limite_credito: parseFloat(limiteCredito) });
       }
       setShowForm(false);
       setEditando(null);
       setNombre("");
       setZona("");
+      setLimiteCredito("30000");
       loadClientes();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -63,6 +69,11 @@ export default function ClientesPage() {
     setEditando(c);
     setNombre(c.nombre);
     setZona(c.zona || "");
+    setLimiteCredito(parseFloat(c.limite_credito || 30000).toFixed(2));
+    setMontos({
+      saldo_pendiente: parseFloat(c.saldo_pendiente || 0).toFixed(2),
+      limite_credito: parseFloat(c.limite_credito || 30000).toFixed(2),
+    });
     setShowForm(true);
   };
 
@@ -70,31 +81,8 @@ export default function ClientesPage() {
     setEditando(null);
     setNombre("");
     setZona("");
+    setLimiteCredito("30000");
     setShowForm(true);
-  };
-
-  const openMontos = (c) => {
-    setClienteMontos(c);
-    setMontos({
-      saldo_pendiente: parseFloat(c.saldo_pendiente || 0).toFixed(2),
-      limite_credito: parseFloat(c.limite_credito || 0).toFixed(2),
-    });
-    setShowMontosForm(true);
-  };
-
-  const handleMontosSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await clientesAPI.updateMontos(clienteMontos.id, {
-        saldo_pendiente: parseFloat(montos.saldo_pendiente),
-        limite_credito: parseFloat(montos.limite_credito),
-      });
-      setShowMontosForm(false);
-      setClienteMontos(null);
-      loadClientes();
-    } catch (error) {
-      alert("Error: " + (error.response?.data?.message || error.message));
-    }
   };
 
   const verHistorial = async (c) => {
@@ -187,30 +175,6 @@ export default function ClientesPage() {
                   required
                 />
               </div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">{editando ? "Guardar" : "Crear"}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showMontosForm && clienteMontos && (
-        <div className="modal-overlay" onClick={() => setShowMontosForm(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Editar montos - {clienteMontos.nombre}</h3>
-            <form onSubmit={handleMontosSubmit}>
-              <div className="form-group">
-                <label>Saldo pendiente</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={montos.saldo_pendiente}
-                  onChange={(e) => setMontos({ ...montos, saldo_pendiente: e.target.value })}
-                  required
-                />
-              </div>
               <div className="form-group">
                 <label>Zona de reparto *</label>
                 <select value={zona} onChange={(e) => setZona(e.target.value)} required>
@@ -218,24 +182,49 @@ export default function ClientesPage() {
                   {zonas.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               </div>
-              <div className="form-group">
-                <label>Limite de credito</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={montos.limite_credito}
-                  onChange={(e) => setMontos({ ...montos, limite_credito: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="resumen-row">
-                <span>Credito disponible:</span>
-                <strong>${(parseFloat(montos.limite_credito || 0) - parseFloat(montos.saldo_pendiente || 0)).toFixed(2)}</strong>
-              </div>
+              {!editando && (
+                <div className="form-group">
+                  <label>Limite de credito</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={limiteCredito}
+                    onChange={(e) => setLimiteCredito(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+              {editando && (
+                <>
+                  <div className="form-group">
+                    <label>Saldo pendiente</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={montos.saldo_pendiente}
+                      onChange={(e) => setMontos({ ...montos, saldo_pendiente: e.target.value })}
+                      disabled={!isAdmin}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Limite de credito</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={montos.limite_credito}
+                      onChange={(e) => setMontos({ ...montos, limite_credito: e.target.value })}
+                      disabled={!isAdmin}
+                      required
+                    />
+                  </div>
+                </>
+              )}
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowMontosForm(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Guardar montos</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">{editando ? "Guardar" : "Crear"}</button>
               </div>
             </form>
           </div>
@@ -471,10 +460,7 @@ export default function ClientesPage() {
                     <td className="monto-regreso">${disponible.toFixed(2)}</td>
                     <td>
                       <div className="action-buttons">
-                        <button className="btn btn-sm btn-primary" onClick={() => openEdit(c)}>Editar</button>
-                        {isAdmin && (
-                          <button className="btn btn-sm btn-primary" onClick={() => openMontos(c)}>Editar montos</button>
-                        )}
+                         <button className="btn btn-sm btn-primary" onClick={() => openEdit(c)}>Editar</button>
                         <button className="btn btn-sm btn-secondary" onClick={() => verHistorial(c)}>Historial</button>
                         {saldo > 0 && (
                           <button className="btn btn-sm btn-primary" onClick={() => openPagoCC(c)}>Registrar Pago</button>

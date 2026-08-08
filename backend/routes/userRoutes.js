@@ -8,6 +8,7 @@ import {
   deleteUser,
   getRoles,
   getRepartidores,
+  getUsuariosPago,
 } from "../controllers/userController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 
@@ -16,6 +17,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/repartidores", getRepartidores);
+router.get("/empleados-pago", authorize("admin", "operador"), getUsuariosPago);
 
 router.use(authorize("admin"));
 

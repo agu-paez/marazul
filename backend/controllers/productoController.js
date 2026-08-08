@@ -38,10 +38,10 @@ export const getLowStock = async (req, res) => {
 
 export const createProducto = async (req, res) => {
   try {
-    const { nombre, descripcion, precio, stock, unidad, marcaId, codigo_barras, kg_por_caja } = req.body;
+    const { nombre, descripcion, precio, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja } = req.body;
 
-    if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio))) {
-      return res.status(400).json({ message: "Nombre y precio son requeridos" });
+    if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio)) || !Number.isFinite(Number(costo)) || Number(costo) < 0) {
+      return res.status(400).json({ message: "Nombre, precio y costo valido son requeridos" });
     }
 
     const marca = marcaId ? await Marca.findByPk(marcaId) : null;
@@ -53,6 +53,7 @@ export const createProducto = async (req, res) => {
       nombre: nombre.trim(),
       descripcion,
       precio: Number(precio),
+      costo: Number(costo),
       stock: Number.isFinite(Number(stock)) ? Number(stock) : 0,
       unidad,
       marcaId: marca ? marca.id : null,
@@ -74,6 +75,9 @@ export const updateProducto = async (req, res) => {
     }
 
     const data = { ...req.body };
+    if (data.costo !== undefined && (!Number.isFinite(Number(data.costo)) || Number(data.costo) < 0)) {
+      return res.status(400).json({ message: "El costo no es valido" });
+    }
     if (data.marcaId !== undefined) {
       const marca = data.marcaId ? await Marca.findByPk(data.marcaId) : null;
       if (data.marcaId && !marca) {

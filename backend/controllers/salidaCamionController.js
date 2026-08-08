@@ -98,6 +98,9 @@ export const createSalida = async (req, res) => {
     if (!items || items.length === 0) {
       return res.status(400).json({ message: "Debe agregar al menos un producto" });
     }
+    if (!destino || !String(destino).trim()) {
+      return res.status(400).json({ message: "Debe seleccionar una zona para la salida" });
+    }
 
     let clienteNombre = null;
     let clienteIdVal = null;
@@ -105,6 +108,9 @@ export const createSalida = async (req, res) => {
       const cliente = await Cliente.findByPk(clienteId);
       if (!cliente) {
         return res.status(400).json({ message: "Cliente no encontrado" });
+      }
+      if (cliente.zona !== destino) {
+        return res.status(400).json({ message: "El cliente no pertenece a la zona seleccionada" });
       }
       clienteNombre = cliente.nombre;
       clienteIdVal = cliente.id;

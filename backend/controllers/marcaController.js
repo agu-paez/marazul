@@ -176,7 +176,8 @@ export const generarPDFMarcasProductos = async (req, res) => {
     const ROW_ALT = "#f6f8fb";
     const BORDER = "#e3e8ef";
     const TABLE_HEAD_BG = "#e9eef5";
-    const MARCA_BAND_BG = "#dde6f5";
+    const MARCA_BAND_BG = "#d9f2e6";
+    const MARCA_TEXT = "#087f5b";
     const logoOk = fs.existsSync(LOGO_PATH);
 
     const colWidths = [200, 65, 115, 115];
@@ -196,9 +197,9 @@ export const generarPDFMarcasProductos = async (req, res) => {
       doc.fillColor(NAVY).fontSize(11).font("Helvetica-Bold")
          .text(
            "Lista de precios",
-           pageWidth / 2,
+           startX,
            72,
-           { align: "center" }
+           { align: "left" }
          );
     };
 
@@ -280,8 +281,8 @@ export const generarPDFMarcasProductos = async (req, res) => {
     const drawMarcaBand = (nombre, top) => {
       doc.rect(startX, top, tableWidth, marcaBandH).fill(MARCA_BAND_BG);
       doc.rect(startX, top, tableWidth, marcaBandH).strokeColor(BORDER).lineWidth(0.5).stroke();
-      doc.fontSize(9).font("Helvetica-Bold").fillColor(NAVY)
-        .text(`Marca: ${String(nombre || "Sin nombre")}`, startX, top + marcaBandH / 2 - 5, { width: colWidths[0], align: "center" });
+      doc.fontSize(10).font("Helvetica-Bold").fillColor(MARCA_TEXT)
+        .text(`Marca: ${String(nombre || "Sin nombre")}`, startX + 10, top + marcaBandH / 2 - 5, { width: tableWidth - 20, align: "left" });
     };
 
     for (const marca of marcas) {

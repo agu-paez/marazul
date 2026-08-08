@@ -37,6 +37,7 @@ export const proveedoresAPI = {
   create: (data) => API.post("/proveedores", data),
   update: (id, data) => API.put(`/proveedores/${id}`, data),
   delete: (id) => API.delete(`/proveedores/${id}`),
+  registrarMovimiento: (id, data) => API.post(`/proveedores/${id}/movimientos`, data),
 };
 
 export const marcasAPI = {
@@ -88,6 +89,9 @@ export const cierreCajaAPI = {
   getHistorial: () => API.get("/cierre-caja/historial"),
   getPagosHoy: (fecha) => API.get("/cierre-caja/pagos-hoy", { params: fecha ? { fecha } : {} }),
   getDetalleCierre: (fecha) => API.get("/cierre-caja/detalle-cierre", { params: fecha ? { fecha } : {} }),
+  getHistorialGastos: () => API.get("/cierre-caja/historial-gastos"),
+  getHistorialPagosEmpleados: () => API.get("/cierre-caja/historial-pagos-empleados"),
+  getIngresosEgresos: (params) => API.get("/cierre-caja/ingresos-egresos", { params }),
 };
 
 export const ventasAPI = {
@@ -107,6 +111,17 @@ export const usuariosAPI = {
   delete: (id) => API.delete(`/usuarios/${id}`),
   getRoles: () => API.get("/usuarios/roles"),
   getRepartidores: () => API.get("/usuarios/repartidores"),
+  getEmpleadosPago: () => API.get("/usuarios/empleados-pago"),
+};
+
+export const gastosAPI = {
+  getHoy: () => API.get("/gastos-dia/hoy"),
+  guardar: (data) => API.put("/gastos-dia/hoy", data),
+};
+
+export const pagosEmpleadosAPI = {
+  getHoy: () => API.get("/pagos-empleados/hoy"),
+  guardar: (pagos) => API.put("/pagos-empleados/hoy", { pagos }),
 };
 
 export const clientesAPI = {

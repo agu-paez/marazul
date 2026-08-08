@@ -13,7 +13,7 @@ import HistorialPage from "./pages/HistorialPage";
 import UsuariosPage from "./pages/UsuariosPage";
 import ProveedoresPage from "./pages/ProveedoresPage";
 import ProductosPage from "./pages/ProductosPage";
-import ProduccionPage from "./pages/ProduccionPage";
+import EstadisticasPage from "./pages/EstadisticasPage";
 
 function PrivateRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
@@ -134,7 +134,7 @@ function AppRoutes() {
         <PrivateRoute>
           <div className="app">
             <Navbar />
-            <main className="main-content"><ProduccionPage /></main>
+            <main className="main-content"><EstadisticasPage /></main>
           </div>
         </PrivateRoute>
       } />

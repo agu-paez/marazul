@@ -39,6 +39,22 @@ const CierreCaja = sequelize.define("CierreCaja", {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  gastos_combustible: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0,
+  },
+  gastos_otros: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0,
+  },
+  descripcion_otros_gastos: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  pagos_empleados: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
 });
 
 export default CierreCaja;

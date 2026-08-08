@@ -63,7 +63,7 @@ export default function HistorialCierres() {
   const handleCierrePDF = async (cierre) => {
     try {
       const res = await cierreCajaAPI.getPagosHoy(cierre.fecha);
-      generarResumenPagosPorProveedorPDF(res.data, cierre.fecha);
+      await generarResumenPagosPorProveedorPDF(res.data, cierre.fecha);
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
     }
@@ -72,7 +72,7 @@ export default function HistorialCierres() {
   const handleCierreCompletoPDF = async (cierre) => {
     try {
       const res = await cierreCajaAPI.getDetalleCierre(cierre.fecha);
-      generarCierreCajaPDF(res.data);
+      await generarCierreCajaPDF(res.data);
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
     }

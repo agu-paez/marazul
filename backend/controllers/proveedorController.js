@@ -1,4 +1,5 @@
-import { Proveedor, Marca, Producto, Venta } from "../models/index.js";
+import { Proveedor, Marca, Producto, Venta, ProveedorMovimiento } from "../models/index.js";
+import { getFechaLocal } from "../utils/fecha.js";
 
 export const getAllProveedores = async (req, res) => {
   try {
@@ -91,6 +92,35 @@ export const updateProveedor = async (req, res) => {
     res.json({ message: "Proveedor actualizado", proveedor });
   } catch (error) {
     res.status(500).json({ message: "Error al actualizar proveedor", error: error.message });
+  }
+};
+
+export const registrarMovimientoProveedor = async (req, res) => {
+  try {
+    const proveedor = await Proveedor.findByPk(req.params.id);
+    if (!proveedor) return res.status(404).json({ message: "Proveedor no encontrado" });
+
+    const compras = Math.abs(Number(req.body.mercaderias_compradas || 0));
+    const ventas = Number(req.body.dinero_ventas || 0);
+    if (!Number.isFinite(compras) || !Number.isFinite(ventas)) {
+      return res.status(400).json({ message: "Los montos no son validos" });
+    }
+    const diferencia = ventas - compras;
+    const movimiento = await ProveedorMovimiento.create({
+      fecha: req.body.fecha || getFechaLocal(),
+      proveedorId: proveedor.id,
+      mercaderias_compradas: compras,
+      dinero_ventas: ventas,
+      diferencia,
+    });
+    await proveedor.update({
+      mercaderias_compradas: 0,
+      dinero_ventas: 0,
+      diferencia_acumulada: (Number(proveedor.diferencia_acumulada) || 0) + diferencia,
+    });
+    res.status(201).json({ message: "Movimiento de proveedor registrado", movimiento });
+  } catch (error) {
+    res.status(500).json({ message: "Error al registrar movimiento del proveedor", error: error.message });
   }
 };
 

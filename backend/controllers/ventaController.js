@@ -58,6 +58,9 @@ export const crearVenta = async (req, res) => {
       if (!salidaCamion) {
         return res.status(400).json({ message: "Salida de camion no encontrada" });
       }
+      if (salidaCamion.destino && cliente.zona !== salidaCamion.destino) {
+        return res.status(400).json({ message: "El cliente no pertenece a la zona del camion seleccionado" });
+      }
       if (!["en_camino", "entregado", "sobrante"].includes(salidaCamion.estado)) {
         return res.status(400).json({ message: "El camion no esta disponible para ventas" });
       }
@@ -225,6 +228,7 @@ export const crearVenta = async (req, res) => {
         productoId: item.productoId,
         cantidad: item.cantidad,
         precio_unitario: precioUnitario,
+        costo_unitario: parseFloat(producto.costo) || 0,
       });
       if (!esReparto) {
         await producto.update({ stock: producto.stock - item.cantidad });
@@ -276,11 +280,17 @@ export const getVentas = async (req, res) => {
         where: { camion: { [Op.like]: term } },
         attributes: ["id"],
       });
+      const clientes = await Cliente.findAll({
+        where: { nombre: { [Op.like]: term } },
+        attributes: ["id"],
+      });
       const userIds = users.map(u => u.id);
       const salidaIds = salidas.map(s => s.id);
+      const clienteIds = clientes.map((cliente) => cliente.id);
       const ors = [];
       if (userIds.length) ors.push({ usuarioId: { [Op.in]: userIds } });
       if (salidaIds.length) ors.push({ salidaCamionId: { [Op.in]: salidaIds } });
+      if (clienteIds.length) ors.push({ clienteId: { [Op.in]: clienteIds } });
       if (ors.length) where[Op.or] = ors;
       else where.id = -1;
     }

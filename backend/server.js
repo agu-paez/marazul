@@ -11,7 +11,7 @@ import logger from "./utils/logger.js";
 
 import sequelize from "./config/database.js";
 import "./models/index.js";
-import { Banco, User, Role, Venta, Producto, Cliente, Proveedor } from "./models/index.js";
+import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, Proveedor, CierreCaja } from "./models/index.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import proveedorRoutes from "./routes/proveedorRoutes.js";
@@ -25,6 +25,8 @@ import userRoutes from "./routes/userRoutes.js";
 import clienteRoutes from "./routes/clienteRoutes.js";
 import bancoRoutes from "./routes/bancoRoutes.js";
 import produccionRoutes from "./routes/produccionRoutes.js";
+import gastoDiaRoutes from "./routes/gastoDiaRoutes.js";
+import pagoEmpleadoRoutes from "./routes/pagoEmpleadoRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,16 +76,16 @@ app.use(express.json());
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 100,
+  limit: Number(process.env.API_RATE_LIMIT_MAX) || 300,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { message: "Demasiadas solicitudes. Intenta nuevamente más tarde." },
-  skip: (req) => req.path === "/health",
+  skip: (req) => ["/health", "/auth/login", "/auth/register"].includes(req.path),
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: Number(process.env.AUTH_RATE_LIMIT_MAX) || (isProduction ? 10 : 50),
+  limit: Number(process.env.AUTH_RATE_LIMIT_MAX) || (isProduction ? 50 : 200),
   standardHeaders: "draft-7",
   legacyHeaders: false,
   skipSuccessfulRequests: true,
@@ -107,6 +109,8 @@ app.use("/api/usuarios", userRoutes);
 app.use("/api/clientes", clienteRoutes);
 app.use("/api/bancos", bancoRoutes);
 app.use("/api/produccion", produccionRoutes);
+app.use("/api/gastos-dia", gastoDiaRoutes);
+app.use("/api/pagos-empleados", pagoEmpleadoRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ message: "Mar Azul API - Funcionando!" });
@@ -150,6 +154,12 @@ const start = async () => {
     await ensureColumn(Proveedor, "mercaderias_compradas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "dinero_ventas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "diferencia_acumulada", { type: DataTypes.FLOAT, defaultValue: 0 });
+    await ensureColumn(Producto, "costo", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(VentaItem, "costo_unitario", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(CierreCaja, "gastos_combustible", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
+    await ensureColumn(CierreCaja, "gastos_otros", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
+    await ensureColumn(CierreCaja, "descripcion_otros_gastos", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(CierreCaja, "pagos_empleados", { type: DataTypes.TEXT, allowNull: true });
 
     const bancosDefault = ["Banco Nación", "Banco Provincia", "Banco Galicia", "Banco Santander", "Banco BBVA", "Banco Macro", "Banco Ciudad", "Banco Patagonia", "Banco Supervielle", "Banco Hipotecario"];
     for (const nombre of bancosDefault) {

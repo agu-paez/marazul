@@ -1,5 +1,6 @@
-import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, Cliente, User, Proveedor } from "../models/index.js";
+import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, Cliente, User, Role, Proveedor, GastoDia, PagoEmpleado, ProveedorMovimiento } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
+import { Op } from "sequelize";
 
 const checkDayClosed = async (fecha) => {
   const cierre = await CierreCaja.findOne({ where: { fecha } });
@@ -15,7 +16,7 @@ export const getResumenDelDia = async (req, res) => {
       include: [
         {
           model: SalidaCamionItem,
-          include: [{ model: Producto, attributes: ["id", "nombre", "precio"] }],
+            include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "kg_por_caja"] }],
         },
         { model: Cliente, as: "cliente", attributes: ["id", "nombre"] },
         { model: User, as: "repartidor_asignado", attributes: ["id", "nombre"] },
@@ -61,7 +62,7 @@ export const getResumenDelDia = async (req, res) => {
       include: [
         {
           model: VentaItem,
-          include: [{ model: Producto, attributes: ["id", "nombre", "precio"] }],
+           include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "kg_por_caja"] }],
         },
       ],
     });
@@ -162,6 +163,17 @@ export const cerrarCaja = async (req, res) => {
 
     const totalGeneral = localMonto + repartoMonto;
     const ventas_netas = mercaderia_enviada - mercaderia_devuelta;
+    const gastoDia = await GastoDia.findOne({ where: { fecha: today } });
+    const pagosEmpleados = await PagoEmpleado.findAll({
+      where: { fecha: today },
+      include: [{ model: User, as: "empleado", attributes: ["id", "nombre"], include: [{ model: Role, attributes: ["nombre"] }] }],
+    });
+    const pagosEmpleadosSnapshot = pagosEmpleados.map((pago) => ({
+      userId: pago.userId,
+      nombre: pago.empleado?.nombre || "Empleado",
+      rol: pago.empleado?.Role?.nombre || "-",
+      monto: parseFloat(pago.monto) || 0,
+    }));
     const now = new Date();
     const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
@@ -174,6 +186,10 @@ export const cerrarCaja = async (req, res) => {
       mercaderia_devuelta: mercaderia_devuelta.toFixed(2),
       ventas_netas: ventas_netas.toFixed(2),
       usuario_cierre: req.user.nombre,
+      gastos_combustible: gastoDia?.combustible || 0,
+      gastos_otros: gastoDia?.otros || 0,
+      descripcion_otros_gastos: gastoDia?.descripcion_otros || "",
+      pagos_empleados: JSON.stringify(pagosEmpleadosSnapshot),
     });
 
     const salidasEnCamino = await SalidaCamion.findAll({
@@ -200,6 +216,123 @@ export const getHistorialCierres = async (req, res) => {
   }
 };
 
+const parsePagosEmpleados = (valor) => {
+  if (!valor) return [];
+  try { return typeof valor === "string" ? JSON.parse(valor) : valor; } catch { return []; }
+};
+
+export const getHistorialGastos = async (req, res) => {
+  try {
+    const cierres = await CierreCaja.findAll({
+      attributes: ["id", "fecha", "hora", "usuario_cierre", "gastos_combustible", "gastos_otros", "descripcion_otros_gastos"],
+      order: [["fecha", "DESC"]],
+    });
+    res.json(cierres.map((cierre) => ({
+      ...cierre.toJSON(),
+      total: (parseFloat(cierre.gastos_combustible) || 0) + (parseFloat(cierre.gastos_otros) || 0),
+    })));
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener historial de gastos", error: error.message });
+  }
+};
+
+export const getHistorialPagosEmpleados = async (req, res) => {
+  try {
+    const cierres = await CierreCaja.findAll({
+      attributes: ["id", "fecha", "hora", "usuario_cierre", "pagos_empleados"],
+      order: [["fecha", "DESC"]],
+    });
+    res.json(cierres.map((cierre) => ({
+      id: cierre.id,
+      fecha: cierre.fecha,
+      hora: cierre.hora,
+      usuario_cierre: cierre.usuario_cierre,
+      pagos: parsePagosEmpleados(cierre.pagos_empleados),
+    })).filter((registro) => registro.pagos.length > 0));
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener historial de pagos a empleados", error: error.message });
+  }
+};
+
+export const getResumenIngresosEgresos = async (req, res) => {
+  try {
+    const { desde, hasta } = req.query;
+    if (!desde || !hasta || !/^\d{4}-\d{2}-\d{2}$/.test(desde) || !/^\d{4}-\d{2}-\d{2}$/.test(hasta)) {
+      return res.status(400).json({ message: "Debe indicar fechas validas desde y hasta" });
+    }
+    if (desde > hasta) {
+      return res.status(400).json({ message: "La fecha desde no puede ser posterior a hasta" });
+    }
+
+    const cierres = await CierreCaja.findAll({
+      where: { fecha: { [Op.between]: [desde, hasta] } },
+      order: [["fecha", "ASC"]],
+    });
+
+    const ventas = await Venta.findAll({
+      where: { fecha: { [Op.between]: [desde, hasta] }, estado: "completada" },
+      attributes: ["fecha", "total"],
+      include: [{ model: VentaItem, attributes: ["cantidad", "costo_unitario"], include: [{ model: Producto, attributes: ["costo"] }] }],
+    });
+    const costosPorFecha = {};
+    const ventasPorFecha = {};
+    for (const venta of ventas) {
+      ventasPorFecha[venta.fecha] = (ventasPorFecha[venta.fecha] || 0) + (parseFloat(venta.total) || 0);
+      costosPorFecha[venta.fecha] = (costosPorFecha[venta.fecha] || 0) + (venta.VentaItems || []).reduce((sum, item) => {
+        const costo = parseFloat(item.costo_unitario) || parseFloat(item.Producto?.costo) || 0;
+        return sum + costo * (item.cantidad || 0);
+      }, 0);
+    }
+    const movimientos = await ProveedorMovimiento.findAll({ where: { fecha: { [Op.between]: [desde, hasta] } } });
+    const comprasPorFecha = {};
+    for (const movimiento of movimientos) {
+      comprasPorFecha[movimiento.fecha] = (comprasPorFecha[movimiento.fecha] || 0) + (parseFloat(movimiento.mercaderias_compradas) || 0);
+    }
+    const cierresPorFecha = new Map(cierres.map((cierre) => [cierre.fecha, cierre]));
+    const fechas = new Set([...cierres.map((cierre) => cierre.fecha), ...Object.keys(ventasPorFecha), ...Object.keys(comprasPorFecha)]);
+
+    const detalle = [...fechas].sort().map((fecha) => {
+      const cierre = cierresPorFecha.get(fecha);
+      const combustible = parseFloat(cierre?.gastos_combustible) || 0;
+      const otros = parseFloat(cierre?.gastos_otros) || 0;
+      const pagos = parsePagosEmpleados(cierre?.pagos_empleados);
+      const pagosTotal = pagos.reduce((sum, pago) => sum + (parseFloat(pago.monto) || 0), 0);
+      const ingresos = cierre ? parseFloat(cierre.total_ventas) || 0 : ventasPorFecha[fecha] || 0;
+      const costoMercaderia = costosPorFecha[fecha] || 0;
+      const comprasProveedores = comprasPorFecha[fecha] || 0;
+      return {
+        fecha,
+        usuario_cierre: cierre?.usuario_cierre || "-",
+        ingresos,
+        combustible,
+        otros,
+        costo_mercaderia: costoMercaderia,
+        compras_proveedores: comprasProveedores,
+        descripcion_otros: cierre?.descripcion_otros_gastos || "",
+        pagos_empleados: pagos,
+        pagos_empleados_total: pagosTotal,
+        egresos: combustible + otros + pagosTotal + costoMercaderia + comprasProveedores,
+        resultado: ingresos - combustible - otros - pagosTotal - costoMercaderia - comprasProveedores,
+      };
+    });
+
+    const resumen = detalle.reduce((totales, dia) => ({
+      ingresos: totales.ingresos + dia.ingresos,
+      combustible: totales.combustible + dia.combustible,
+      otros: totales.otros + dia.otros,
+      costo_mercaderia: totales.costo_mercaderia + dia.costo_mercaderia,
+      compras_proveedores: totales.compras_proveedores + dia.compras_proveedores,
+      pagos_empleados: totales.pagos_empleados + dia.pagos_empleados_total,
+      egresos: totales.egresos + dia.egresos,
+      resultado: totales.resultado + dia.resultado,
+    }), { ingresos: 0, combustible: 0, otros: 0, costo_mercaderia: 0, compras_proveedores: 0, pagos_empleados: 0, egresos: 0, resultado: 0 });
+
+    res.json({ desde, hasta, cierres: cierres.length, resumen, detalle });
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener ingresos y egresos", error: error.message });
+  }
+};
+
 export const getDetalleCierre = async (req, res) => {
   try {
     const fecha = req.query.fecha || getFechaLocal();
@@ -214,7 +347,7 @@ export const getDetalleCierre = async (req, res) => {
       include: [
         {
           model: SalidaCamionItem,
-          include: [{ model: Producto, attributes: ["id", "nombre", "precio"] }],
+          include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "kg_por_caja"] }],
         },
       ],
     });
@@ -230,11 +363,19 @@ export const getDetalleCierre = async (req, res) => {
     let kg_enviados = 0;
     let kg_devueltos = 0;
 
+    const calcularKilos = (item) => {
+      const cantidad = Number(item.cantidad) || 0;
+      const kgPorCaja = Number(item.Producto?.kg_por_caja) || 0;
+      const unidad = String(item.Producto?.unidad || "").toLowerCase();
+      if (kgPorCaja > 0) return cantidad * kgPorCaja;
+      return unidad === "kilogramo" || unidad === "kg" ? cantidad : 0;
+    };
+
     for (const salida of salidasHoy) {
       for (const item of salida.SalidaCamionItems || []) {
-        kg_enviados += item.cantidad || 0;
+        kg_enviados += calcularKilos(item);
         if (item.cantidad_devuelta) {
-          kg_devueltos += item.cantidad_devuelta;
+          kg_devueltos += calcularKilos({ ...item.toJSON(), cantidad: item.cantidad_devuelta });
         }
       }
     }
@@ -312,6 +453,10 @@ export const getDetalleCierre = async (req, res) => {
       mercaderia_devuelta: cierre.mercaderia_devuelta,
       ventas_netas: cierre.ventas_netas,
       total_ventas: cierre.total_ventas,
+      gastos_combustible: cierre.gastos_combustible,
+      gastos_otros: cierre.gastos_otros,
+      descripcion_otros_gastos: cierre.descripcion_otros_gastos,
+      pagos_empleados: parsePagosEmpleados(cierre.pagos_empleados),
       local_monto: localMonto.toFixed(2),
       local_count: localCount,
       reparto_monto: repartoMonto.toFixed(2),

@@ -6,6 +6,8 @@ export default function HistorialSalidas() {
   const [salidas, setSalidas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtros, setFiltros] = useState({ buscar: "", fecha: "", estado: "" });
+  const [detalle, setDetalle] = useState(null);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
 
   useEffect(() => {
     loadSalidas();
@@ -32,16 +34,39 @@ export default function HistorialSalidas() {
     }
   };
 
-  const handleDownloadResumen = async (id) => {
+  const cargarDetalle = async (id) => {
     try {
       const [salidaRes, ventasRes] = await Promise.all([
         salidasAPI.getById(id),
         ventasAPI.getAll({ salidaCamionId: id }),
       ]);
-      generarResumenEntregaPDF(salidaRes.data, ventasRes.data);
+      const vendidos = {};
+      for (const venta of ventasRes.data) {
+        for (const item of venta.VentaItems || []) {
+          vendidos[item.productoId] = (vendidos[item.productoId] || 0) + item.cantidad;
+        }
+      }
+      const items = (salidaRes.data.SalidaCamionItems || []).map((item) => ({
+        ...item,
+        vendido: vendidos[item.productoId] || 0,
+        faltante: Math.max(0, item.cantidad - (item.cantidad_devuelta || 0) - (vendidos[item.productoId] || 0)),
+      }));
+      return { salida: salidaRes.data, ventas: ventasRes.data, items, sobrantes: items.filter((item) => item.faltante > 0) };
     } catch (error) {
-      alert("Error al generar resumen: " + (error.response?.data?.message || error.message));
+      alert("Error al obtener detalle: " + (error.response?.data?.message || error.message));
+      return null;
     }
+  };
+
+  const handleVerDetalle = async (id) => {
+    setLoadingDetalle(true);
+    setDetalle(await cargarDetalle(id));
+    setLoadingDetalle(false);
+  };
+
+  const handleDownloadResumen = async (id) => {
+    const data = await cargarDetalle(id);
+    if (data) generarResumenEntregaPDF({ ...data.salida, sobrantes: data.sobrantes }, data.ventas);
   };
 
   const salidasFiltradas = useMemo(() => {
@@ -63,13 +88,47 @@ export default function HistorialSalidas() {
     en_camino: "#3b82f6",
     entregado: "#10b981",
     cancelado: "#ef4444",
+    sobrante: "#dc2626",
   };
+  const estadoLabels = { pendiente: "Pendiente", en_camino: "En Camino", entregado: "Entregado", cancelado: "Cancelado", sobrante: "Sobrante" };
 
   if (loading) return <div className="loading">Cargando...</div>;
 
   return (
     <div>
       <h2>Historial de Salidas de Camión</h2>
+
+      {detalle && (
+        <div className="modal-overlay" onClick={() => setDetalle(null)}>
+          <div className="modal-card modal-wide salida-detail-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Detalle del camión {detalle.salida.camion}</h3>
+            <p className="subtitle">{detalle.salida.fecha} · Zona: {detalle.salida.destino || "-"}</p>
+            {detalle.salida.estado === "sobrante" && detalle.sobrantes.length > 0 && (
+              <div className="sobrante-alert">
+                <strong>Faltó devolver mercadería</strong>
+                <span>Productos pendientes:</span>
+                {detalle.sobrantes.map((item) => <span key={item.id}>• {item.Producto?.nombre || "Producto"}: {item.faltante}</span>)}
+              </div>
+            )}
+            <div className="table-container">
+              <table>
+                <thead><tr><th>Producto</th><th>Llevó</th><th>Vendió</th><th>Devolvió</th><th>Faltó devolver</th></tr></thead>
+                <tbody>{detalle.items.map((item) => <tr key={item.id}>
+                  <td>{item.Producto?.nombre || "-"}</td>
+                  <td>{item.cantidad}</td>
+                  <td>{item.vendido}</td>
+                  <td>{item.cantidad_devuelta || 0}</td>
+                  <td className={item.faltante > 0 ? "monto-regreso" : ""}><strong>{item.faltante}</strong></td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setDetalle(null)}>Cerrar</button>
+              <button className="btn btn-primary" onClick={() => generarResumenEntregaPDF({ ...detalle.salida, sobrantes: detalle.sobrantes }, detalle.ventas)}>Generar PDF</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="form-card filtros-card">
         <div className="filtros-grid">
@@ -108,6 +167,7 @@ export default function HistorialSalidas() {
               <option value="en_camino">En Camino</option>
               <option value="entregado">Entregado</option>
               <option value="cancelado">Cancelado</option>
+              <option value="sobrante">Sobrante</option>
             </select>
           </div>
         </div>
@@ -141,7 +201,7 @@ export default function HistorialSalidas() {
                       className="estado-badge"
                       style={{ backgroundColor: estadoColors[s.estado] }}
                     >
-                      {s.estado.replace("_", " ")}
+                        {estadoLabels[s.estado] || s.estado}
                     </span>
                   </td>
                   <td>
@@ -153,14 +213,12 @@ export default function HistorialSalidas() {
                         Eliminar
                       </button>
                     )}
-                    {s.estado === "entregado" && (
-                      <button
-                        className="btn btn-sm btn-primary"
-                        onClick={() => handleDownloadResumen(s.id)}
-                      >
-                        Resumen PDF
-                      </button>
-                    )}
+                    <button className="btn btn-sm btn-secondary" onClick={() => handleVerDetalle(s.id)} disabled={loadingDetalle}>
+                      Detalle
+                    </button>
+                    <button className="btn btn-sm btn-primary" onClick={() => handleDownloadResumen(s.id)} disabled={loadingDetalle}>
+                      PDF
+                    </button>
                   </td>
                   <td>
                     <div className="badge-grid">

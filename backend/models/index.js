@@ -15,6 +15,9 @@ import Cliente from "./Cliente.js";
 import ClientePago from "./ClientePago.js";
 import Banco from "./Banco.js";
 import Produccion from "./Produccion.js";
+import GastoDia from "./GastoDia.js";
+import PagoEmpleado from "./PagoEmpleado.js";
+import ProveedorMovimiento from "./ProveedorMovimiento.js";
 
 User.belongsTo(Role, { foreignKey: "roleId" });
 Role.hasMany(User, { foreignKey: "roleId" });
@@ -73,4 +76,13 @@ Cliente.hasMany(ClientePago, { foreignKey: "clienteId" });
 Venta.belongsTo(Proveedor, { foreignKey: "proveedorId" });
 Proveedor.hasMany(Venta, { foreignKey: "proveedorId" });
 
-export { User, Role, Proveedor, Marca, Producto, Reparto, RepartoItem, SalidaCamion, SalidaCamionItem, CierreCaja, Venta, VentaItem, VentaPago, Cliente, ClientePago, Banco, Produccion };
+PagoEmpleado.belongsTo(User, { foreignKey: "userId", as: "empleado" });
+User.hasMany(PagoEmpleado, { foreignKey: "userId", as: "pagos_empleado" });
+PagoEmpleado.belongsTo(User, { foreignKey: "registradoPorId", as: "registrado_por" });
+
+GastoDia.belongsTo(User, { foreignKey: "usuarioId", as: "registrado_por" });
+User.hasMany(GastoDia, { foreignKey: "usuarioId", as: "gastos_dia" });
+ProveedorMovimiento.belongsTo(Proveedor, { foreignKey: "proveedorId", as: "proveedor" });
+Proveedor.hasMany(ProveedorMovimiento, { foreignKey: "proveedorId", as: "movimientos" });
+
+export { User, Role, Proveedor, Marca, Producto, Reparto, RepartoItem, SalidaCamion, SalidaCamionItem, CierreCaja, Venta, VentaItem, VentaPago, Cliente, ClientePago, Banco, Produccion, GastoDia, PagoEmpleado, ProveedorMovimiento };

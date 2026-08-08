@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { salidasAPI, cierreCajaAPI, productosAPI, ventasAPI } from "../api";
+import { salidasAPI, cierreCajaAPI, productosAPI, gastosAPI, pagosEmpleadosAPI, usuariosAPI } from "../api";
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -16,6 +16,12 @@ export default function Dashboard() {
   const [cancelandoId, setCancelandoId] = useState(null);
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [showStockBajo, setShowStockBajo] = useState(false);
+  const [gastos, setGastos] = useState({ combustible: "0.00", otros: "0.00", descripcion_otros: "" });
+  const [guardandoGastos, setGuardandoGastos] = useState(false);
+  const [showPagosEmpleados, setShowPagosEmpleados] = useState(false);
+  const [empleados, setEmpleados] = useState([]);
+  const [pagosForm, setPagosForm] = useState({});
+  const [guardandoPagos, setGuardandoPagos] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -28,16 +34,58 @@ export default function Dashboard() {
         salidasAPI.getAll(),
         cierreCajaAPI.getResumenHoy(),
         productosAPI.getLowStock(),
+        gastosAPI.getHoy(),
       ];
-      const [statsRes, salidasRes, resumenRes, stockRes] = await Promise.all(promises);
+      const [statsRes, salidasRes, resumenRes, stockRes, gastosRes] = await Promise.all(promises);
       setStats(statsRes.data);
       setSalidas(salidasRes.data);
       setResumen(resumenRes.data);
       setStockBajo(stockRes.data);
+      setGastos(gastosRes.data);
     } catch (error) {
       console.error("Error:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGuardarGastos = async (event) => {
+    event.preventDefault();
+    setGuardandoGastos(true);
+    try {
+      const response = await gastosAPI.guardar(gastos);
+      setGastos(response.data);
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    } finally {
+      setGuardandoGastos(false);
+    }
+  };
+
+  const abrirPagosEmpleados = async () => {
+    try {
+      const [usuariosRes, pagosRes] = await Promise.all([usuariosAPI.getEmpleadosPago(), pagosEmpleadosAPI.getHoy()]);
+      const montos = {};
+      pagosRes.data.forEach((pago) => { montos[pago.userId] = pago.monto; });
+      setEmpleados(usuariosRes.data);
+      setPagosForm(montos);
+      setShowPagosEmpleados(true);
+    } catch (error) {
+      alert("Error al cargar empleados: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleGuardarPagos = async (event) => {
+    event.preventDefault();
+    setGuardandoPagos(true);
+    try {
+      const pagos = empleados.map((empleado) => ({ userId: empleado.id, monto: Number(pagosForm[empleado.id] || 0) }));
+      await pagosEmpleadosAPI.guardar(pagos);
+      setShowPagosEmpleados(false);
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    } finally {
+      setGuardandoPagos(false);
     }
   };
 
@@ -106,7 +154,7 @@ export default function Dashboard() {
           cantidad: item.cantidad_regreso,
         }));
 
-      const res = await salidasAPI.registrarRegreso(regresando.id, {
+       await salidasAPI.registrarRegreso(regresando.id, {
         items_regreso: items_para_enviar,
       });
       setRegresando(null);
@@ -138,6 +186,7 @@ export default function Dashboard() {
     if (!confirm("¿Cerrar la caja del dia? No se podran hacer mas modificaciones.")) return;
     setCerrando(true);
     try {
+      await gastosAPI.guardar(gastos);
       await cierreCajaAPI.cerrar();
       setCierreExitoso(true);
       setSalidas([]);
@@ -243,6 +292,50 @@ export default function Dashboard() {
                 Confirmar Cancelacion
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showPagosEmpleados && (
+        <div className="modal-overlay" onClick={() => setShowPagosEmpleados(false)}>
+          <div className="modal-card modal-wide employee-payment-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Pago a Empleados</h3>
+            <p className="subtitle">Carga el monto pagado hoy a cada repartidor u operador.</p>
+            <form onSubmit={handleGuardarPagos}>
+              <div className="table-container employee-payment-table" style={{ maxHeight: "360px", overflowY: "auto" }}>
+                <table>
+                  <thead>
+                    <tr><th>Empleado</th><th>Rol</th><th>Monto pagado</th></tr>
+                  </thead>
+                  <tbody>
+                    {empleados.map((empleado) => (
+                      <tr key={empleado.id}>
+                        <td><strong>{empleado.nombre}</strong></td>
+                        <td>{empleado.Role?.nombre || "-"}</td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={pagosForm[empleado.id] || ""}
+                            onChange={(event) => setPagosForm({ ...pagosForm, [empleado.id]: event.target.value })}
+                            placeholder="0.00"
+                            style={{ maxWidth: "150px" }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    {empleados.length === 0 && <tr><td colSpan="3" className="empty">No hay empleados activos para pagar</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowPagosEmpleados(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={guardandoPagos}>
+                  {guardandoPagos ? "Guardando..." : "Guardar pagos"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -489,6 +582,45 @@ export default function Dashboard() {
         </div>
       )}
 
+      {!cierreExitoso && (
+        <>
+          <div className="dashboard-actions">
+            <button className="btn btn-primary employee-payment-button" onClick={abrirPagosEmpleados} disabled={resumen?.cerrado}>
+              Pago a empleados
+            </button>
+          </div>
+
+            <div className="section daily-expenses-section">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+              <h3 style={{ margin: 0 }}>Gastos del Dia</h3>
+              {resumen?.cerrado && <span className="cierre-cerrado-badge">CERRADO</span>}
+            </div>
+            <p className="subtitle" style={{ marginTop: "0.35rem" }}>Se guardan automáticamente al realizar el cierre de caja.</p>
+            <form onSubmit={handleGuardarGastos} className="form-card" style={{ marginTop: "1rem" }}>
+              <div className="cierre-2col">
+                <div className="form-group">
+                  <label htmlFor="gasto-combustible">Gastos de combustible</label>
+                  <input id="gasto-combustible" type="number" min="0" step="0.01" value={gastos.combustible || ""} onChange={(event) => setGastos({ ...gastos, combustible: event.target.value })} disabled={resumen?.cerrado} />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="gasto-otros">Otros gastos</label>
+                  <input id="gasto-otros" type="number" min="0" step="0.01" value={gastos.otros || ""} onChange={(event) => setGastos({ ...gastos, otros: event.target.value })} disabled={resumen?.cerrado} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label htmlFor="descripcion-otros">Descripción de otros gastos</label>
+                <textarea id="descripcion-otros" rows="2" value={gastos.descripcion_otros || ""} onChange={(event) => setGastos({ ...gastos, descripcion_otros: event.target.value })} placeholder="Detalle de los otros gastos..." disabled={resumen?.cerrado} />
+              </div>
+              <div className="cierre-item cierre-total">
+                <span>Total gastos:</span>
+                <strong>${(Number(gastos.combustible || 0) + Number(gastos.otros || 0)).toFixed(2)}</strong>
+              </div>
+              {!resumen?.cerrado && <button type="submit" className="btn btn-primary btn-full" disabled={guardandoGastos}>{guardandoGastos ? "Guardando..." : "Guardar gastos del dia"}</button>}
+            </form>
+          </div>
+        </>
+      )}
+
       {resumen && (
         <div className="section">
           <h3>Cierre de Caja del Dia</h3>
@@ -658,85 +790,51 @@ export default function Dashboard() {
       )}
 
       {!cierreExitoso && (
-        <div className="section">
-          <h3>Salidas de Hoy ({salidas.length})</h3>
-          {salidas.length === 0 ? (
-            <p className="empty">No hay salidas registradas hoy</p>
-          ) : (
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Zona</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                    <th>Repartidor</th>
-                    <th>Monto Salida</th>
-                    <th>Monto Regreso</th>
-                    <th>Total</th>
-                    <th>Mercaderia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {salidas.map((s) => (
-                    <tr key={s.id}>
-                      <td><strong>{s.destino || "-"}</strong></td>
-                      <td>
-                        <span
-                          className="estado-badge"
-                          style={{ backgroundColor: estadoColors[s.estado] }}
-                        >
-                          {s.estado.replace("_", " ")}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="action-buttons">
-                          {s.estado === "pendiente" && (
-                            <button
-                              className="btn btn-sm btn-camino"
-                              onClick={() => updateEstado(s.id, "en_camino")}
-                            >
-                              Enviar
-                            </button>
-                          )}
-                          {s.estado === "en_camino" && (
-                            <button
-                              className="btn btn-sm btn-entregado"
-                              onClick={() => handleEntregadoClick(s.id)}
-                            >
-                              Registrar Entrega
-                            </button>
-                          )}
-                          {s.estado !== "entregado" && s.estado !== "cancelado" && (
-                            <button
-                              className="btn btn-sm btn-cancel"
-                              onClick={() => { setCancelandoId(s.id); setShowCancelConfirm(true); }}
-                            >
-                              Cancelar
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td>{s.repartidor_asignado?.nombre || "-"}</td>
-                      <td>{s.monto_salida ? <strong className="monto-salida">${s.monto_salida}</strong> : "-"}</td>
-                      <td>{s.monto_regreso ? <strong className="monto-regreso">${s.monto_regreso}</strong> : "-"}</td>
-                      <td><strong>${(parseFloat(s.monto_salida || 0) - parseFloat(s.monto_regreso || 0)).toFixed(2)}</strong></td>
-                      <td>
-                        <div className="badge-grid">
-                          {s.SalidaCamionItems?.map((item) => (
-                            <span key={item.id} className="badge">
-                              {item.cantidad}x {item.Producto?.nombre}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
+        <>
+          <div className="section">
+            <h3>Salidas de Hoy ({salidas.length})</h3>
+            {salidas.length === 0 ? (
+              <p className="empty">No hay salidas registradas hoy</p>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Zona</th>
+                      <th>Estado</th>
+                      <th>Acciones</th>
+                      <th>Repartidor</th>
+                      <th>Monto Salida</th>
+                      <th>Monto Regreso</th>
+                      <th>Total</th>
+                      <th>Mercaderia</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                  </thead>
+                  <tbody>
+                    {salidas.map((s) => (
+                      <tr key={s.id}>
+                        <td><strong>{s.destino || "-"}</strong></td>
+                        <td><span className="estado-badge" style={{ backgroundColor: estadoColors[s.estado] }}>{s.estado.replace("_", " ")}</span></td>
+                        <td>
+                          <div className="action-buttons">
+                            {s.estado === "pendiente" && <button className="btn btn-sm btn-camino" onClick={() => updateEstado(s.id, "en_camino")}>Enviar</button>}
+                            {s.estado === "en_camino" && <button className="btn btn-sm btn-entregado" onClick={() => handleEntregadoClick(s.id)}>Registrar Entrega</button>}
+                            {s.estado !== "entregado" && s.estado !== "cancelado" && <button className="btn btn-sm btn-cancel" onClick={() => { setCancelandoId(s.id); setShowCancelConfirm(true); }}>Cancelar</button>}
+                          </div>
+                        </td>
+                        <td>{s.repartidor_asignado?.nombre || "-"}</td>
+                        <td>{s.monto_salida ? <strong className="monto-salida">${s.monto_salida}</strong> : "-"}</td>
+                        <td>{s.monto_regreso ? <strong className="monto-regreso">${s.monto_regreso}</strong> : "-"}</td>
+                        <td><strong>${(parseFloat(s.monto_salida || 0) - parseFloat(s.monto_regreso || 0)).toFixed(2)}</strong></td>
+                        <td><div className="badge-grid">{s.SalidaCamionItems?.map((item) => <span key={item.id} className="badge">{item.cantidad}x {item.Producto?.nombre}</span>)}</div></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

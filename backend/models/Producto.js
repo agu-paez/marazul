@@ -19,6 +19,12 @@ const Producto = sequelize.define("Producto", {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
   },
+  costo: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0,
+    comment: "Costo unitario del producto",
+  },
   stock: {
     type: DataTypes.INTEGER,
     defaultValue: 0,

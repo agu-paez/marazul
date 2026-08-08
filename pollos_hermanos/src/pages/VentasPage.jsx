@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { productosAPI, ventasAPI, clientesAPI, salidasAPI, bancosAPI, proveedoresAPI } from "../api";
 import BancoAutocomplete from "../components/BancoAutocomplete";
+import ClienteAutocomplete from "../components/ClienteAutocomplete";
 
 const fechaHoraLocalInput = () => {
   const now = new Date();
@@ -29,9 +30,8 @@ export default function VentasPage() {
     { medio_pago: "efectivo", monto: 0 },
   ]);
   const [montosEditando, setMontosEditando] = useState({});
-  const [showNewCliente, setShowNewCliente] = useState(false);
-  const [newClienteNombre, setNewClienteNombre] = useState("");
   const [pagarDeuda, setPagarDeuda] = useState(false);
+  const [clienteNombreIngresado, setClienteNombreIngresado] = useState("");
   const [camionesActivos, setCamionesActivos] = useState([]);
   const [camionSeleccionado, setCamionSeleccionado] = useState("");
   const [stockCamion, setStockCamion] = useState([]);
@@ -77,6 +77,15 @@ export default function VentasPage() {
       setStockCamion([]);
     }
   }, [camionSeleccionado, form.tipo_venta]);
+
+  useEffect(() => {
+    if (form.tipo_venta !== "reparto" || !camionSeleccionado) return;
+    const camion = camionesActivos.find((item) => item.id === parseInt(camionSeleccionado));
+    if (form.clienteId && camion && !clientes.some((cliente) => cliente.id === parseInt(form.clienteId) && cliente.zona === camion.destino)) {
+      setForm((prev) => ({ ...prev, clienteId: "" }));
+      setClienteNombreIngresado("");
+    }
+  }, [camionSeleccionado, camionesActivos, clientes, form.tipo_venta]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -301,6 +310,10 @@ export default function VentasPage() {
   };
 
   const clienteSeleccionado = clientes.find((c) => c.id === parseInt(form.clienteId));
+  const camionSeleccionadoData = camionesActivos.find((camion) => camion.id === parseInt(camionSeleccionado));
+  const clientesDisponibles = esReparto && camionSeleccionadoData
+    ? clientes.filter((cliente) => cliente.zona === camionSeleccionadoData.destino)
+    : esReparto ? [] : clientes;
   const subtotal = calcularSubtotal();
   const deudaAnterior = clienteSeleccionado ? parseFloat(clienteSeleccionado.saldo_pendiente) || 0 : 0;
   const tieneDeuda = deudaAnterior > 0;
@@ -328,27 +341,25 @@ export default function VentasPage() {
   const limiteCredito = clienteSeleccionado ? parseFloat(clienteSeleccionado.limite_credito) || 30000 : 30000;
   const excedeCredito = (tieneCCSimple || tieneCCDividido) && totalAcumulado > limiteCredito;
 
-  const handleClienteChange = (e) => {
-    if (e.target.value === "nuevo") {
-      setShowNewCliente(true);
-      setNewClienteNombre("");
-    } else {
-      handleChange(e);
-      setPagarDeuda(false);
-    }
+  const handleClienteChange = (clienteId, nombre) => {
+    setForm((prev) => ({ ...prev, clienteId }));
+    setClienteNombreIngresado(nombre || "");
+    setPagarDeuda(false);
   };
 
-  const handleCreateCliente = async () => {
-    if (!newClienteNombre.trim()) return;
+  const handleAddCliente = async (nombre) => {
     try {
-      const res = await clientesAPI.create({ nombre: newClienteNombre.trim() });
-      const clientesRes = await clientesAPI.getAll();
-      setClientes(clientesRes.data);
-      setForm({ ...form, clienteId: res.data.id });
-      setShowNewCliente(false);
-      setNewClienteNombre("");
+      const zonaCliente = esReparto ? camionSeleccionadoData?.destino : null;
+      if (esReparto && !zonaCliente) {
+        alert("Debe seleccionar un camion antes de crear el cliente");
+        return;
+      }
+      const response = await clientesAPI.create({ nombre, zona: zonaCliente });
+      setClientes((prev) => [...prev, response.data.cliente]);
+      setForm((prev) => ({ ...prev, clienteId: String(response.data.cliente.id) }));
+      setClienteNombreIngresado(response.data.cliente.nombre);
     } catch (error) {
-      alert("Error: " + (error.response?.data?.message || error.message));
+      alert("Error al crear cliente: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -368,10 +379,6 @@ export default function VentasPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.clienteId) {
-      alert("Debe seleccionar un cliente registrado");
-      return;
-    }
     if (productosSeleccionados.length === 0) {
       alert("Debe seleccionar al menos un producto");
       return;
@@ -414,9 +421,25 @@ export default function VentasPage() {
     }
     setLoading(true);
     try {
+      let clienteId = parseInt(form.clienteId);
+      if (!clienteId) {
+        const nombreNuevo = clienteNombreIngresado.trim();
+        if (!nombreNuevo) {
+          alert("Debe seleccionar o escribir un cliente");
+          return;
+        }
+        const zonaCliente = esReparto ? camionSeleccionadoData?.destino : null;
+        if (esReparto && !zonaCliente) {
+          alert("Debe seleccionar un camion antes de crear el cliente");
+          return;
+        }
+        const clienteRes = await clientesAPI.create({ nombre: nombreNuevo, zona: zonaCliente });
+        clienteId = clienteRes.data.cliente.id;
+        setClientes((prev) => [...prev, clienteRes.data.cliente]);
+      }
       const data = {
         tipo_venta: form.tipo_venta,
-        clienteId: parseInt(form.clienteId),
+        clienteId,
         medio_pago: form.medio_pago,
         notas: form.notas,
         porcentaje_aumento: porcentajeAumento,
@@ -480,6 +503,7 @@ export default function VentasPage() {
         medio_pago: "efectivo",
         notas: "",
       });
+      setClienteNombreIngresado("");
       setPagoDividido(false);
       setPagos([{ medio_pago: "efectivo", monto: 0 }]);
       setDatosTransferencia([]);
@@ -557,27 +581,6 @@ export default function VentasPage() {
       {success && ultimaVenta && (
         <div className="success-msg">
           Venta {ultimaVenta.numero_comprobante} registrada. PDF descargado.
-        </div>
-      )}
-
-      {showNewCliente && (
-        <div className="modal-overlay" onClick={() => setShowNewCliente(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Nuevo Cliente</h3>
-            <div className="form-group">
-              <label>Nombre *</label>
-              <input
-                value={newClienteNombre}
-                onChange={(e) => setNewClienteNombre(e.target.value)}
-                placeholder="Nombre del cliente"
-                autoFocus
-              />
-            </div>
-            <div className="modal-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => setShowNewCliente(false)}>Cancelar</button>
-              <button type="button" className="btn btn-primary" onClick={handleCreateCliente} disabled={!newClienteNombre.trim()}>Crear</button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -711,21 +714,15 @@ export default function VentasPage() {
               </div>
             )}
             <div className="form-group">
-              <label>Cliente *</label>
-              <select name="clienteId" value={form.clienteId} onChange={handleClienteChange} required>
-                <option value="">Seleccionar cliente</option>
-                {clientes.filter((c) => c.nombre !== "Seleccionar cliente").map((c) => {
-                  const saldoCliente = parseFloat(c.saldo_pendiente) || 0;
-                  let label = c.nombre;
-
-                  return (
-                    <option key={c.id} value={c.id}>
-                      {label}
-                    </option>
-                  );
-                })}
-                <option value="nuevo">+ Nuevo Cliente</option>
-              </select>
+              <label>Clientes *</label>
+              <ClienteAutocomplete
+                value={form.clienteId}
+                clientes={clientesDisponibles}
+                onChange={handleClienteChange}
+                onAddCliente={handleAddCliente}
+                disabled={esReparto && !camionSeleccionadoData}
+                placeholder={esReparto && !camionSeleccionadoData ? "Seleccione un camion primero" : "Buscar cliente por nombre..."}
+              />
             </div>
           </div>
 
