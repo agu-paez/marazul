@@ -56,7 +56,6 @@ export const productosAPI = {
   update: (id, data) => API.put(`/productos/${id}`, data),
   delete: (id) => API.delete(`/productos/${id}`),
   actualizarPrecios: (data) => API.put("/productos/actualizar-precios", data),
-  descontarStock: (data) => API.post("/productos/descontar-stock", data),
 };
 
 export const repartosAPI = {
@@ -132,11 +131,6 @@ export const produccionAPI = {
   getHistorial: () => API.get("/produccion/historial"),
   descargarHistorialPDF: (semana) => API.get(`/produccion/historial/${semana}/pdf`, { responseType: "blob" }),
   create: (data) => API.post("/produccion", data),
-};
-
-export const gastosAPI = {
-  getAll: (params) => API.get("/gastos", { params }),
-  create: (data) => API.post("/gastos", data),
 };
 
 export default API;

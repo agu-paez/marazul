@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { productosAPI, ventasAPI, clientesAPI, salidasAPI, bancosAPI, proveedoresAPI } from "../api";
 import BancoAutocomplete from "../components/BancoAutocomplete";
-import ClienteSelect from "../components/ClienteSelect";
 
 const fechaHoraLocalInput = () => {
   const now = new Date();
@@ -285,7 +284,6 @@ export default function VentasPage() {
     : productos;
 
   const productosFiltrados = productosBase.filter((p) => {
-    if (!esReparto && p.stock <= 0) return false;
     const termino = busqueda.toLowerCase();
     return (
       p.nombre.toLowerCase().includes(termino) ||
@@ -303,10 +301,6 @@ export default function VentasPage() {
   };
 
   const clienteSeleccionado = clientes.find((c) => c.id === parseInt(form.clienteId));
-  const camionActual = camionesActivos.find((c) => c.id === parseInt(camionSeleccionado));
-  const clientesVisibles = esReparto && camionActual?.destino
-    ? clientes.filter((c) => c.zona === camionActual.destino)
-    : clientes;
   const subtotal = calcularSubtotal();
   const deudaAnterior = clienteSeleccionado ? parseFloat(clienteSeleccionado.saldo_pendiente) || 0 : 0;
   const tieneDeuda = deudaAnterior > 0;
@@ -334,12 +328,12 @@ export default function VentasPage() {
   const limiteCredito = clienteSeleccionado ? parseFloat(clienteSeleccionado.limite_credito) || 30000 : 30000;
   const excedeCredito = (tieneCCSimple || tieneCCDividido) && totalAcumulado > limiteCredito;
 
-  const handleClienteChange = (id) => {
-    if (id === "nuevo") {
+  const handleClienteChange = (e) => {
+    if (e.target.value === "nuevo") {
       setShowNewCliente(true);
       setNewClienteNombre("");
     } else {
-      setForm({ ...form, clienteId: id });
+      handleChange(e);
       setPagarDeuda(false);
     }
   };
@@ -347,11 +341,7 @@ export default function VentasPage() {
   const handleCreateCliente = async () => {
     if (!newClienteNombre.trim()) return;
     try {
-      const res = await clientesAPI.create({
-        nombre: newClienteNombre.trim(),
-        zona: esReparto && camionActual?.destino ? camionActual.destino : undefined,
-        zona_pendiente: esReparto && camionActual?.destino ? true : false,
-      });
+      const res = await clientesAPI.create({ nombre: newClienteNombre.trim() });
       const clientesRes = await clientesAPI.getAll();
       setClientes(clientesRes.data);
       setForm({ ...form, clienteId: res.data.id });
@@ -722,12 +712,20 @@ export default function VentasPage() {
             )}
             <div className="form-group">
               <label>Cliente *</label>
-              <ClienteSelect
-                value={form.clienteId}
-                onChange={handleClienteChange}
-                clientes={clientesVisibles}
-                placeholder={esReparto && camionActual?.destino ? "Buscar cliente de la zona..." : "Buscar cliente..."}
-              />
+              <select name="clienteId" value={form.clienteId} onChange={handleClienteChange} required>
+                <option value="">Seleccionar cliente</option>
+                {clientes.filter((c) => c.nombre !== "Seleccionar cliente").map((c) => {
+                  const saldoCliente = parseFloat(c.saldo_pendiente) || 0;
+                  let label = c.nombre;
+
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {label}
+                    </option>
+                  );
+                })}
+                <option value="nuevo">+ Nuevo Cliente</option>
+              </select>
             </div>
           </div>
 

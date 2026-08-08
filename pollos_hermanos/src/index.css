@@ -167,7 +167,6 @@ body {
 .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; margin: 0 2px; }
 .btn-camino { background: var(--info); color: white; }
 .btn-entregado { background: var(--success); color: white; }
-.btn-warning { background: var(--warning); color: white; }
 .btn-cancel { background: var(--danger); color: white; }
 .btn-cierre-pdf { background: #d97706; color: white; }
 .btn-cierre-pdf:hover { background: #b45309; }
@@ -245,9 +244,6 @@ body {
 .stat-card h3 {
   font-size: 2rem;
   color: var(--primary);
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  line-height: 1.2;
 }
 
 .stat-card p {
@@ -294,30 +290,6 @@ th {
 
 tr:hover {
   background: rgba(74, 107, 90, 0.06);
-}
-
-.fila-sin-stock {
-  background: rgba(239, 68, 68, 0.12);
-}
-
-.fila-sin-stock:hover {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-.fila-stock-bajo {
-  background: rgba(245, 158, 11, 0.16);
-}
-
-.fila-stock-bajo:hover {
-  background: rgba(245, 158, 11, 0.25);
-}
-
-.fila-sin-zona {
-  background: rgba(245, 158, 11, 0.22);
-}
-
-.fila-sin-zona:hover {
-  background: rgba(245, 158, 11, 0.32);
 }
 
 /* Badges */
@@ -521,96 +493,6 @@ h2 {
 
 .resumen-row span {
   color: var(--text-muted);
-}
-
-/* Gastos */
-.gastos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.gastos-card {
-  margin-bottom: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.gastos-card h3 {
-  font-size: 1.05rem;
-}
-
-.gastos-total {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.8rem;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  margin-bottom: 0.8rem;
-}
-
-.gastos-total span {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
-.gastos-total-monto {
-  color: var(--danger);
-  font-size: 1.1rem;
-}
-
-.gastos-vacio {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  font-style: italic;
-  padding: 0.3rem 0;
-}
-
-.gastos-lista {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  flex: 1;
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.gasto-item {
-  padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.gasto-item:last-child {
-  border-bottom: none;
-}
-
-.gasto-item-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.gasto-item-descripcion {
-  color: var(--text);
-  font-size: 0.85rem;
-}
-
-.gasto-item-usuario {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
-.gastos-agregar {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.8rem;
-}
-
-.gastos-agregar .input-cantidad {
-  flex: 1;
 }
 
 /* Resumen grid (cierre de caja) */
@@ -1552,12 +1434,6 @@ input[type="number"] {
   margin-top: 0.25rem;
 }
 
-.produccion-form-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-}
-
 .produccion-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -1660,8 +1536,7 @@ input[type="number"] {
 
 .produccion-history-card h3 {
   color: var(--primary);
-  font-size: 1.3rem;
-  font-weight: bold;
+  font-size: 1rem;
 }
 
 .produccion-history-card p,

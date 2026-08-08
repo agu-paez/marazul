@@ -1145,35 +1145,6 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
     devueltos
   );
 
-  // 2b. Mercaderia no devuelta (no marcada en la dashboard)
-  const vendidoPorProducto = {};
-  for (const v of ventas) {
-    for (const vi of v.VentaItems || []) {
-      vendidoPorProducto[vi.productoId] = (vendidoPorProducto[vi.productoId] || 0) + vi.cantidad;
-    }
-  }
-  const noDevueltos = enviados.filter((item) => {
-    const restante = (item.cantidad || 0) - (item.cantidad_devuelta || 0) - (vendidoPorProducto[item.productoId] || 0);
-    return restante > 0;
-  });
-  if (noDevueltos.length > 0) {
-    addPageIfNeeded(14 + noDevueltos.length * 4.5);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(220, 38, 38);
-    doc.text("Mercaderia no devuelta:", ml + 3, y + 4);
-    y += 6;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(60, 60, 70);
-    for (const item of noDevueltos) {
-      const restante = (item.cantidad || 0) - (item.cantidad_devuelta || 0) - (vendidoPorProducto[item.productoId] || 0);
-      doc.text(`- ${item.Producto?.nombre || "N/A"}: ${restante}`, ml + 6, y + 3);
-      y += 4.5;
-    }
-    y += 2;
-  }
-
   // 3. Ventas realizadas
   drawSectionTitle("Ventas Realizadas");
   const ventasItems = [];
@@ -1211,24 +1182,9 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
   doc.text(`Total Ventas: $${totalVentas.toFixed(2)}`, ml + 3, y + 4);
   y += 8;
 
-  // 4. Observaciones de salidas
-  drawSectionTitle("Observaciones de Salidas");
+  // 4. Observaciones de ventas
+  drawSectionTitle("Observaciones de Ventas");
   const ventasConNotas = ventas.filter((v) => v.notas);
-  if (salida.estado === "cancelado") {
-    if (salida.notas) {
-      addPageIfNeeded(20);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(220, 38, 38);
-      doc.text("SALIDA CANCELADA", ml + 3, y + 4);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(60, 60, 70);
-      const motivoLines = doc.splitTextToSize(salida.notas, cw - 10);
-      doc.text(motivoLines, ml + 6, y + 9);
-      y += 10 + motivoLines.length * 5;
-    }
-  }
   if (ventasConNotas.length > 0) {
     for (const v of ventasConNotas) {
       addPageIfNeeded(16);

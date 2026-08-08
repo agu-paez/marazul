@@ -1,17 +1,7 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
 import { salidasAPI, cierreCajaAPI, productosAPI, ventasAPI } from "../api";
-import GastosBoxes from "../components/GastosBoxes";
-
-const formatNumero = (valor) => {
-  const n = parseFloat(valor);
-  if (!Number.isFinite(n)) return "0";
-  return parseFloat(n.toFixed(2)).toString();
-};
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
   const [stats, setStats] = useState(null);
   const [salidas, setSalidas] = useState([]);
   const [resumen, setResumen] = useState(null);
@@ -20,7 +10,6 @@ export default function Dashboard() {
   const [cerrando, setCerrando] = useState(false);
   const [camionActivo, setCamionActivo] = useState(null);
   const [regresando, setRegresando] = useState(null);
-  const [editandoRegreso, setEditandoRegreso] = useState(false);
   const [itemsRegreso, setItemsRegreso] = useState([]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -61,9 +50,8 @@ export default function Dashboard() {
     }
   };
 
-  const openRegresoForm = async (salida, editando = false) => {
+  const openRegresoForm = async (salida) => {
     setRegresando(salida);
-    setEditandoRegreso(editando);
     try {
       const res = await salidasAPI.getStockCamion(salida.id);
       const stockMap = {};
@@ -74,7 +62,6 @@ export default function Dashboard() {
         const stock = stockMap[item.productoId];
         const vendido = stock ? stock.vendido : 0;
         const maxDevolver = item.cantidad - vendido;
-        const devueltoPrevio = item.cantidad_devuelta ?? (stock ? stock.devuelto : 0);
         return {
           productoId: item.productoId,
           nombre: item.Producto?.nombre,
@@ -82,7 +69,7 @@ export default function Dashboard() {
           cantidad_enviada: item.cantidad,
           cantidad_vendida: vendido,
           max_devolver: maxDevolver,
-          cantidad_regreso: editando ? Math.min(devueltoPrevio, maxDevolver) : 0,
+          cantidad_regreso: 0,
         };
       });
       setItemsRegreso(items);
@@ -278,11 +265,7 @@ export default function Dashboard() {
               <h3 style={{ color: "var(--warning)", marginBottom: "0.5rem" }}>Aviso Importante</h3>
             </div>
             <p style={{ textAlign: "center", color: "var(--text)", lineHeight: "1.6", marginBottom: "0.5rem" }}>
-              {editandoRegreso ? (
-                <>Para guardar los cambios, la mercaderia vendida debe estar registrada como <strong>Venta por Reparto</strong> en la seccion de Ventas.</>
-              ) : (
-                <>Para confirmar la entrega primero debe registrar la mercaderia vendida como <strong>Venta por Reparto</strong> en la seccion de Ventas.</>
-              )}
+              Para confirmar la entrega primero debe registrar la mercaderia vendida como <strong>Venta por Reparto</strong> en la seccion de Ventas.
             </p>
             <p style={{ textAlign: "center", color: "var(--danger)", fontWeight: "500", marginBottom: "1.5rem" }}>
               Si no registro la venta por reparto, la entrega no podra completarse.
@@ -292,7 +275,7 @@ export default function Dashboard() {
                 Cancelar
               </button>
               <button className="btn btn-primary" onClick={ejecutarEntregado}>
-                {editandoRegreso ? "Guardar Cambios" : "Confirmar Entrega"}
+                Confirmar Entrega
               </button>
             </div>
           </div>
@@ -302,12 +285,8 @@ export default function Dashboard() {
       {regresando && (
         <div className="modal-overlay" onClick={() => setRegresando(null)}>
           <div className="modal-card modal-wide" onClick={(e) => e.stopPropagation()}>
-            <h3>{editandoRegreso ? "Editar Regreso" : "Registrar Entrega"} - {regresando.camion}</h3>
-            <p className="subtitle">
-              {editandoRegreso
-                ? "Modifica las cantidades de la mercaderia devuelta"
-                : "Selecciona los productos que regresaron y sus cantidades"}
-            </p>
+            <h3>Registrar Entrega - {regresando.camion}</h3>
+            <p className="subtitle">Selecciona los productos que regresaron y sus cantidades</p>
 
             <div className="table-container" style={{ maxHeight: "200px", overflowY: "auto" }}>
               <table>
@@ -363,7 +342,7 @@ export default function Dashboard() {
                 Cancelar
               </button>
               <button className="btn btn-entregado" onClick={confirmarEntregado}>
-                {editandoRegreso ? "Guardar Cambios" : "Confirmar Entrega"}
+                Confirmar Entrega
               </button>
             </div>
           </div>
@@ -455,7 +434,7 @@ export default function Dashboard() {
             <p>Entregados</p>
           </div>
           <div className="stat-card stat-ventas">
-            <h3>${formatNumero(stats.total_ventas)}</h3>
+            <h3>${stats.total_ventas}</h3>
             <p>Ventas del Dia</p>
           </div>
         </div>
@@ -509,8 +488,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      <GastosBoxes />
 
       {resumen && (
         <div className="section">
@@ -730,15 +707,7 @@ export default function Dashboard() {
                               Registrar Entrega
                             </button>
                           )}
-                          {s.estado === "sobrante" && isAdmin && (
-                            <button
-                              className="btn btn-sm btn-warning"
-                              onClick={() => openRegresoForm(s, true)}
-                            >
-                              Editar
-                            </button>
-                          )}
-                          {s.estado !== "entregado" && s.estado !== "cancelado" && s.estado !== "sobrante" && (
+                          {s.estado !== "entregado" && s.estado !== "cancelado" && (
                             <button
                               className="btn btn-sm btn-cancel"
                               onClick={() => { setCancelandoId(s.id); setShowCancelConfirm(true); }}

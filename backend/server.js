@@ -23,7 +23,6 @@ import userRoutes from "./routes/userRoutes.js";
 import clienteRoutes from "./routes/clienteRoutes.js";
 import bancoRoutes from "./routes/bancoRoutes.js";
 import produccionRoutes from "./routes/produccionRoutes.js";
-import { iniciarSchedulerProduccion } from "./utils/scheduler.js";
 
 dotenv.config();
 
@@ -70,7 +69,7 @@ app.use(express.json());
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: Number(process.env.API_RATE_LIMIT_MAX) || (isProduction ? 100 : 1000),
+  limit: 100,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { message: "Demasiadas solicitudes. Intenta nuevamente más tarde." },
@@ -143,7 +142,6 @@ const start = async () => {
       references: { model: "Marcas", key: "id" },
     });
     await ensureColumn(Cliente, "zona", { type: DataTypes.STRING, allowNull: true });
-    await ensureColumn(Cliente, "zona_pendiente", { type: DataTypes.BOOLEAN, defaultValue: false });
     await ensureColumn(Proveedor, "mercaderias_compradas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "dinero_ventas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "diferencia_acumulada", { type: DataTypes.FLOAT, defaultValue: 0 });
@@ -184,8 +182,6 @@ const start = async () => {
       console.log(`Servidor corriendo en puerto ${PORT}`);
       console.log(`API: http://localhost:${PORT}/api`);
     });
-
-    iniciarSchedulerProduccion();
   } catch (error) {
     logger.error("Error al iniciar servidor", { error: error.stack || error.message });
     process.exit(1);
