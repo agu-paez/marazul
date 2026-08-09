@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { clientesAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { generarResumenZonasPDF } from "../utils/generarPDF";
 
 const zonas = [
   ...Array.from({ length: 7 }, (_, index) => `Zona ${index + 1}`),
@@ -12,6 +13,7 @@ export default function ClientesPage() {
   const isAdmin = user?.role === "admin";
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState(null);
   const [historial, setHistorial] = useState(null);
@@ -65,7 +67,15 @@ export default function ClientesPage() {
     }
   };
 
-  const openEdit = (c) => {
+  const openEdit = async (c) => {
+    if (c.pendiente_revision && (user?.role === "admin" || user?.role === "operador")) {
+      try {
+        await clientesAPI.revisar(c.id);
+        setClientes((prev) => prev.map((cl) => (cl.id === c.id ? { ...cl, pendiente_revision: false } : cl)));
+      } catch (error) {
+        alert("Error al marcar cliente como revisado: " + (error.response?.data?.message || error.message));
+      }
+    }
     setEditando(c);
     setNombre(c.nombre);
     setZona(c.zona || "");
@@ -154,11 +164,23 @@ export default function ClientesPage() {
 
   if (loading) return <div className="loading">Cargando...</div>;
 
+  const filtrados = clientes.filter((c) => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (c.nombre || "").toLowerCase().includes(q) ||
+      (c.zona || "").toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div>
       <div className="page-header">
         <h2>Clientes</h2>
-        <button className="btn btn-primary" onClick={openCreate}>+ Nuevo Cliente</button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button className="btn btn-secondary" onClick={() => generarResumenZonasPDF(clientes, zonas)}>Resumen por Zonas</button>
+          <button className="btn btn-primary" onClick={openCreate}>+ Nuevo Cliente</button>
+        </div>
       </div>
 
       {showForm && (
@@ -427,6 +449,32 @@ export default function ClientesPage() {
       {clientes.length === 0 ? (
         <p className="empty">No hay clientes registrados</p>
       ) : (
+        <>
+          <div style={{
+            background: "var(--bg-card)",
+            borderRadius: "12px",
+            border: "1px solid var(--border)",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+            marginBottom: "0.75rem",
+          }}>
+            <input
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar cliente por nombre o zona..."
+              style={{
+                width: "100%",
+                padding: "0.8rem 1rem",
+                background: "transparent",
+                border: "none",
+                color: "var(--text)",
+                fontSize: "0.9rem",
+                outline: "none",
+              }}
+            />
+          </div>
+          {filtrados.length === 0 ? (
+            <p className="empty">No se encontraron clientes para "{busqueda}"</p>
+          ) : (
         <div className="table-container">
           <table>
             <thead>
@@ -440,13 +488,18 @@ export default function ClientesPage() {
               </tr>
             </thead>
             <tbody>
-              {clientes.map((c) => {
+              {filtrados.map((c) => {
                 const saldo = parseFloat(c.saldo_pendiente) || 0;
                 const limite = parseFloat(c.limite_credito) || 30000;
                 const disponible = limite - saldo;
                 return (
-                  <tr key={c.id}>
-                    <td><strong>{c.nombre}</strong></td>
+                  <tr key={c.id} className={c.pendiente_revision ? "cliente-pendiente-revision" : ""}>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <strong>{c.nombre}</strong>
+                        {c.pendiente_revision && <span className="badge badge-pendiente">Pendiente</span>}
+                      </div>
+                    </td>
                     <td>{c.zona || "Sin zona"}</td>
                     <td
                       className={saldo !== 0 ? "monto-salida" : ""}
@@ -474,6 +527,8 @@ export default function ClientesPage() {
             </tbody>
           </table>
         </div>
+          )}
+        </>
       )}
     </div>
   );

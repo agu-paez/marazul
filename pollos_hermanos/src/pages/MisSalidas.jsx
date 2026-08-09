@@ -12,6 +12,7 @@ export default function MisSalidas() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelandoId, setCancelandoId] = useState(null);
+  const [cancelarConRegreso, setCancelarConRegreso] = useState(false);
 
   useEffect(() => {
     loadSalidas();
@@ -29,15 +30,6 @@ export default function MisSalidas() {
   };
 
   const [cancelMotivo, setCancelMotivo] = useState("");
-
-  const updateEstado = async (id, estado, notas) => {
-    try {
-      await salidasAPI.updateStatus(id, { estado, notas });
-      loadSalidas();
-    } catch (error) {
-      alert("Error: " + (error.response?.data?.message || error.message));
-    }
-  };
 
   const openRegresoForm = async (salida) => {
     setRegresando(salida);
@@ -82,7 +74,33 @@ export default function MisSalidas() {
 
   const confirmarRegreso = async () => {
     if (!regresando) return;
+    if (cancelarConRegreso) {
+      ejecutarCancelacion();
+      return;
+    }
     setShowConfirm(true);
+  };
+
+  const ejecutarCancelacion = async () => {
+    if (!regresando) return;
+    try {
+      const items_para_enviar = itemsRegreso.map((item) => ({
+        productoId: item.productoId,
+        cantidad: item.cantidad_regreso,
+      }));
+      await salidasAPI.registrarRegreso(regresando.id, {
+        items_regreso: items_para_enviar,
+        cancelar: true,
+        motivo: cancelMotivo,
+      });
+      setRegresando(null);
+      setCancelarConRegreso(false);
+      setCancelandoId(null);
+      setCancelMotivo("");
+      loadSalidas();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    }
   };
 
   const ejecutarRegreso = async () => {
@@ -155,9 +173,10 @@ export default function MisSalidas() {
                 className="btn btn-cancel"
                 disabled={!cancelMotivo.trim()}
                 onClick={() => {
+                  const salidaCancelar = salidas.find((s) => s.id === cancelandoId);
                   setShowCancelConfirm(false);
-                  updateEstado(cancelandoId, "cancelado", cancelMotivo);
-                  setCancelMotivo("");
+                  setCancelarConRegreso(true);
+                  openRegresoForm(salidaCancelar);
                 }}
               >
                 Confirmar Cancelacion
@@ -203,10 +222,10 @@ export default function MisSalidas() {
       )}
 
       {regresando && (
-        <div className="modal-overlay" onClick={() => setRegresando(null)}>
+        <div className="modal-overlay" onClick={() => { setRegresando(null); setCancelarConRegreso(false); }}>
           <div className="modal-card modal-wide" onClick={(e) => e.stopPropagation()}>
-            <h3>Registrar Regreso - {regresando.camion}</h3>
-            <p className="subtitle">Selecciona los productos que regresaron y sus cantidades</p>
+            <h3>{cancelarConRegreso ? `Cancelar Envio - ${regresando.camion}` : `Registrar Regreso - ${regresando.camion}`}</h3>
+            <p className="subtitle">{cancelarConRegreso ? "Marca la mercaderia que volvio al cancelar el envio" : "Selecciona los productos que regresaron y sus cantidades"}</p>
 
             <div className="table-container" style={{ maxHeight: "200px", overflowY: "auto" }}>
               <table>
@@ -258,11 +277,11 @@ export default function MisSalidas() {
             </div>
 
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setRegresando(null)}>
+              <button className="btn btn-secondary" onClick={() => { setRegresando(null); setCancelarConRegreso(false); }}>
                 Cancelar
               </button>
               <button className="btn btn-entregado" onClick={confirmarRegreso}>
-                Confirmar Regreso
+                {cancelarConRegreso ? "Confirmar Cancelacion" : "Confirmar Regreso"}
               </button>
             </div>
           </div>

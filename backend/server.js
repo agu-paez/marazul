@@ -11,7 +11,7 @@ import logger from "./utils/logger.js";
 
 import sequelize from "./config/database.js";
 import "./models/index.js";
-import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, Proveedor, CierreCaja } from "./models/index.js";
+import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, Proveedor, CierreCaja, SalidaCamion } from "./models/index.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import proveedorRoutes from "./routes/proveedorRoutes.js";
@@ -151,6 +151,12 @@ const start = async () => {
       references: { model: "Marcas", key: "id" },
     });
     await ensureColumn(Cliente, "zona", { type: DataTypes.STRING, allowNull: true });
+    await ensureColumn(Cliente, "pendiente_revision", { type: DataTypes.BOOLEAN, defaultValue: false });
+    await ensureColumn(SalidaCamion, "autorizadoPorId", {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: "Users", key: "id" },
+    });
     await ensureColumn(Proveedor, "mercaderias_compradas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "dinero_ventas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "diferencia_acumulada", { type: DataTypes.FLOAT, defaultValue: 0 });

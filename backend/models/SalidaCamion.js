@@ -66,6 +66,11 @@ const SalidaCamion = sequelize.define("SalidaCamion", {
     allowNull: true,
     comment: "Cliente registrado (opcional)",
   },
+  autorizadoPorId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: "Usuario (admin/operador) que autorizo la salida al marcarla como en camino",
+  },
 });
 
 export default SalidaCamion;

@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { getFechaLocal } from "./fecha.js";
 
 const createPdf = (...args) => {
   const doc = new jsPDF(...args);
@@ -1022,12 +1023,12 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
   };
 
   const drawInfoBox = () => {
-    addPageIfNeeded(36);
+    addPageIfNeeded(42);
     doc.setFillColor(248, 249, 252);
-    doc.rect(ml, y - 3, cw, 30, "F");
+    doc.rect(ml, y - 3, cw, 36, "F");
     doc.setDrawColor(220, 222, 228);
     doc.setLineWidth(0.3);
-    doc.rect(ml, y - 3, cw, 30, "S");
+    doc.rect(ml, y - 3, cw, 36, "S");
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
@@ -1042,8 +1043,9 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
     doc.text(`Total enviado: $${parseFloat(salida.monto_salida || 0).toFixed(2)}`, ml + 3, y + 25);
     const neto = parseFloat(salida.monto_salida || 0) - parseFloat(salida.monto_regreso || 0);
     doc.text(`Total devuelto: $${parseFloat(salida.monto_regreso || 0).toFixed(2)}`, ml + 80, y + 25);
+    doc.text(`Salida autorizada por: ${salida.autorizado_por?.nombre || "-"}`, ml + 3, y + 31);
 
-    y += 32;
+    y += 38;
   };
 
   const drawSimpleTable = (headers, colWidths, cellGetters, rows) => {
@@ -1124,6 +1126,37 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
     doc.setTextColor(153, 27, 27);
     doc.text(lineas, ml + 4, y + 4);
     y += 14 + lineas.length * 4;
+  }
+
+  // 0. Observaciones de la salida
+  if (salida.notas) {
+    const esCancelada = salida.estado === "cancelado";
+    const motivo = String(salida.notas).replace(/^ENVIO CANCELADO\s*\n?/i, "");
+    const lineas = doc.splitTextToSize(motivo || "Sin motivo detallado", cw - 10);
+    addPageIfNeeded(18 + lineas.length * 4);
+    doc.setFillColor(esCancelada ? 254 : 244, esCancelada ? 226 : 245, esCancelada ? 226 : 248);
+    doc.setDrawColor(esCancelada ? 220 : 190, esCancelada ? 38 : 192, esCancelada ? 38 : 200);
+    doc.rect(ml, y - 3, cw, 16 + lineas.length * 4, "FD");
+    if (esCancelada) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(153, 27, 27);
+      doc.text("ENVIO CANCELADO", ml + 4, y + 4);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(60, 60, 70);
+      doc.text(lineas, ml + 4, y + 11);
+    } else {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(26, 26, 46);
+      doc.text("OBSERVACIONES", ml + 4, y + 4);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(60, 60, 70);
+      doc.text(lineas, ml + 4, y + 11);
+    }
+    y += 16 + lineas.length * 4 + 6;
   }
 
   // 1. Mercaderia enviada
@@ -1354,4 +1387,100 @@ export const generarPagosEmpleadosPDF = (registro) => {
   doc.line(15, y + 2, pw - 15, y + 2);
   doc.text(`Total pagado: $${total.toFixed(2)}`, pw - 20, y + 11, { align: "right" });
   doc.save(`pagos-empleados-${registro.fecha}.pdf`);
+};
+
+export const generarResumenZonasPDF = async (clientes, zonas = []) => {
+  const doc = createPdf();
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const ml = 15;
+  const mr = 15;
+  const cw = pw - ml - mr;
+  const zonasFiltradas = zonas.length > 0
+    ? zonas
+    : [...new Set(clientes.map((c) => String(c.zona || "").trim()).filter(Boolean))];
+
+  const normalizar = (zona) => String(zona || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+  const logo = await cargarLogo();
+
+  const headerBarH = 38;
+  let y = headerBarH + 16;
+
+  doc.setFillColor(26, 26, 46);
+  doc.rect(0, 0, pw, headerBarH, "F");
+  if (logo) {
+    doc.addImage(logo, "JPEG", ml, 4, 30, 30);
+  }
+  doc.setTextColor(217, 119, 6);
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("Mar Azul", pw / 2, 14, { align: "center" });
+  doc.setTextColor(226, 232, 240);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Resumen de Clientes por Zonas", pw / 2, 25, { align: "center" });
+  doc.setFontSize(8);
+  doc.text(getFechaLocal(), pw - mr, headerBarH + 8, { align: "right" });
+
+  for (const zona of zonasFiltradas) {
+    const clientesZona = clientes.filter((c) => normalizar(c.zona) === normalizar(zona));
+
+    if (y + 34 > ph - 20) {
+      doc.addPage();
+      y = headerBarH + 16;
+    }
+
+    doc.setFillColor(74, 107, 90);
+    doc.rect(ml, y, cw, 10, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.text(zona.toUpperCase(), ml + 4, y + 7);
+    y += 16;
+
+    if (clientesZona.length === 0) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(10);
+      doc.setTextColor(130, 130, 140);
+      doc.text("Sin clientes cargados", ml + 4, y);
+      y += 14;
+      continue;
+    }
+
+    doc.setFillColor(230, 232, 240);
+    doc.rect(ml, y - 5, cw, 8, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(40, 40, 50);
+    doc.text("Cliente", ml + 4, y);
+    y += 9;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    clientesZona.forEach((c, idx) => {
+      if (y > ph - 20) {
+        doc.addPage();
+        y = 20;
+      }
+      if (idx % 2 === 1) {
+        doc.setFillColor(248, 249, 250);
+        doc.rect(ml, y - 5, cw, 9, "F");
+      }
+      doc.setDrawColor(210, 212, 218);
+      doc.setLineWidth(0.2);
+      doc.line(ml, y, ml + cw, y);
+      doc.setTextColor(50, 50, 60);
+      doc.text(c.nombre, ml + 4, y);
+      y += 9;
+    });
+    y += 8;
+  }
+
+  doc.setFontSize(7);
+  doc.setTextColor(160, 160, 160);
+  doc.setFont("helvetica", "normal");
+  doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, ph - 12, { align: "center" });
+
+  doc.save(`resumen-por-zonas-${getFechaLocal()}.pdf`);
 };

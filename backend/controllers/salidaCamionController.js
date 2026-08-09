@@ -15,6 +15,7 @@ const includeSalida = [
   { model: Cliente, as: "cliente", attributes: ["id", "nombre"] },
   { model: User, as: "repartidor_asignado", attributes: ["id", "nombre"] },
   { model: User, as: "creado_por", attributes: ["id", "nombre"] },
+  { model: User, as: "autorizado_por", attributes: ["id", "nombre"] },
 ];
 
 export const getAllSalidas = async (req, res) => {
@@ -44,6 +45,7 @@ export const getSalidaById = async (req, res) => {
         { model: Cliente, as: "cliente", attributes: ["id", "nombre"] },
         { model: User, as: "repartidor_asignado", attributes: ["id", "nombre"] },
         { model: User, as: "creado_por", attributes: ["id", "nombre"] },
+        { model: User, as: "autorizado_por", attributes: ["id", "nombre"] },
       ],
     });
 
@@ -183,13 +185,25 @@ export const registrarRegreso = async (req, res) => {
       return res.status(404).json({ message: "Salida no encontrada" });
     }
 
+    const editandoHistorial = salida.estado === "sobrante";
+
+    if (editandoHistorial && req.userRole !== "admin") {
+      return res.status(403).json({ message: "Solo el administrador puede editar el historial de sobrante" });
+    }
+
     if (req.userRole === "repartidor") {
       if (salida.asignadoRepartidorId !== req.user.id && salida.creadoPorId !== req.user.id) {
         return res.status(403).json({ message: "No tienes permiso para modificar esta salida" });
       }
     }
 
-    if (salida.estado !== "en_camino") {
+    const { items_regreso, cancelar = false, motivo } = req.body;
+
+    if (cancelar && salida.estado !== "en_camino") {
+      return res.status(400).json({ message: "Solo se puede cancelar con regreso una salida en camino" });
+    }
+
+    if (salida.estado !== "en_camino" && !editandoHistorial && !cancelar) {
       return res.status(400).json({ message: "Solo se puede registrar regreso de salidas en camino" });
     }
 
@@ -201,7 +215,7 @@ export const registrarRegreso = async (req, res) => {
       where: { salidaCamionId: salida.id, estado: "completada" },
       include: [{ model: VentaItem, attributes: ["productoId", "cantidad"] }],
     });
-    if (ventasExistentes.length === 0) {
+    if (!cancelar && ventasExistentes.length === 0) {
       return res.status(400).json({ message: "Debe registrar la mercaderia como Venta por Reparto antes de confirmar el regreso" });
     }
 
@@ -212,8 +226,6 @@ export const registrarRegreso = async (req, res) => {
       }
     }
 
-    const { items_regreso } = req.body;
-
     let montoRegreso = 0;
     if (items_regreso && items_regreso.length > 0) {
       for (const item of items_regreso) {
@@ -222,13 +234,14 @@ export const registrarRegreso = async (req, res) => {
           const salidaItem = salida.SalidaCamionItems.find((si) => si.productoId === item.productoId);
           if (salidaItem) {
             const maxDevolver = salidaItem.cantidad - (vendidoPorProducto[item.productoId] || 0);
-            if (item.cantidad > maxDevolver) {
+            if (item.cantidad > 0 && item.cantidad > maxDevolver) {
               return res.status(400).json({
                 message: `No se puede devolver ${item.cantidad} unidades de "${producto.nombre}": solo quedan ${maxDevolver} disponibles (${salidaItem.cantidad} cargados - ${vendidoPorProducto[item.productoId] || 0} vendidos)`,
               });
             }
+            const devueltoAnterior = salidaItem.cantidad_devuelta || 0;
             montoRegreso += producto.precio * item.cantidad;
-            await producto.update({ stock: producto.stock + item.cantidad });
+            await producto.update({ stock: producto.stock + (item.cantidad - devueltoAnterior) });
             await salidaItem.update({ cantidad_devuelta: item.cantidad });
           }
         }
@@ -239,19 +252,27 @@ export const registrarRegreso = async (req, res) => {
       monto_regreso: montoRegreso,
     });
 
-    const totalVentasReparto = ventasExistentes.reduce((sum, v) => sum + parseFloat(v.total || 0), 0);
-    const montoSalida = parseFloat(salida.monto_salida || 0);
-    const estadoFinal = montoRegreso + totalVentasReparto >= montoSalida ? "entregado" : "sobrante";
-
-    await salida.update({
-      estado: estadoFinal,
-    });
+    if (cancelar) {
+      const motivoTexto = String(motivo || "").trim().replace(/^ENVIO CANCELADO\s*\n?/i, "");
+      await salida.update({
+        estado: "cancelado",
+        notas: `ENVIO CANCELADO\n${motivoTexto}`,
+      });
+    } else {
+      const totalVentasReparto = ventasExistentes.reduce((sum, v) => sum + parseFloat(v.total || 0), 0);
+      const montoSalida = parseFloat(salida.monto_salida || 0);
+      const estadoFinal = montoRegreso + totalVentasReparto >= montoSalida ? "entregado" : "sobrante";
+      await salida.update({ estado: estadoFinal });
+    }
 
     const salidaActualizada = await SalidaCamion.findByPk(salida.id, {
       include: includeSalida,
     });
 
-    res.json({ message: "Regreso registrado", salida: salidaActualizada });
+    res.json({
+      message: cancelar ? "Envio cancelado" : editandoHistorial ? "Historial de regreso actualizado" : "Regreso registrado",
+      salida: salidaActualizada,
+    });
   } catch (error) {
     res.status(500).json({ message: "Error al registrar regreso", error: error.message });
   }
@@ -298,6 +319,10 @@ export const updateSalidaStatus = async (req, res) => {
       }
     }
 
+    if (salida.estado === "sobrante" && estado === "cancelado" && req.userRole !== "admin") {
+      return res.status(403).json({ message: "Solo el administrador puede cancelar un envio con sobrante" });
+    }
+
     if (estado === "entregado") {
       const ventasCount = await Venta.count({ where: { salidaCamionId: salida.id } });
       if (ventasCount === 0) {
@@ -330,7 +355,17 @@ export const updateSalidaStatus = async (req, res) => {
       }
     }
 
-    const updateData = { estado, notas: notas !== undefined ? notas : salida.notas };
+    let updateData = { estado };
+    if (estado === "en_camino") {
+      updateData.autorizadoPorId = req.user.id;
+    }
+    if (estado === "cancelado" && notas) {
+      const motivo = String(notas).trim();
+      const sinPrefijo = motivo.replace(/^ENVIO CANCELADO\s*\n?/i, "");
+      updateData.notas = `ENVIO CANCELADO\n${sinPrefijo}`;
+    } else {
+      updateData.notas = notas !== undefined ? notas : salida.notas;
+    }
 
     await salida.update(updateData);
 

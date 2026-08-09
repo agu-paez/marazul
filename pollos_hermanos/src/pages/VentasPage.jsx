@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { productosAPI, ventasAPI, clientesAPI, salidasAPI, bancosAPI, proveedoresAPI } from "../api";
 import BancoAutocomplete from "../components/BancoAutocomplete";
@@ -311,9 +311,12 @@ export default function VentasPage() {
 
   const clienteSeleccionado = clientes.find((c) => c.id === parseInt(form.clienteId));
   const camionSeleccionadoData = camionesActivos.find((camion) => camion.id === parseInt(camionSeleccionado));
-  const clientesDisponibles = esReparto && camionSeleccionadoData
-    ? clientes.filter((cliente) => cliente.zona === camionSeleccionadoData.destino)
-    : esReparto ? [] : clientes;
+  const clientesDisponibles = useMemo(() => {
+    if (esReparto && camionSeleccionadoData) {
+      return clientes.filter((cliente) => cliente.zona === camionSeleccionadoData.destino);
+    }
+    return esReparto ? [] : clientes;
+  }, [esReparto, clientes, camionSeleccionadoData]);
   const subtotal = calcularSubtotal();
   const deudaAnterior = clienteSeleccionado ? parseFloat(clienteSeleccionado.saldo_pendiente) || 0 : 0;
   const tieneDeuda = deudaAnterior > 0;

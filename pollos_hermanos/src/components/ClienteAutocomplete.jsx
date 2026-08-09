@@ -7,11 +7,16 @@ export default function ClienteAutocomplete({ value, onChange, clientes, onAddCl
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef(null);
   const selectingRef = useRef(false);
+  const clientesRef = useRef(clientes);
 
   useEffect(() => {
-    const cliente = clientes.find((item) => String(item.id) === String(value));
+    clientesRef.current = clientes;
+  }, [clientes]);
+
+  useEffect(() => {
+    const cliente = clientesRef.current.find((item) => String(item.id) === String(value));
     setInputValue(cliente?.nombre || "");
-  }, [value, clientes]);
+  }, [value, clientesRef]);
 
   const filtered = clientes.filter((cliente) =>
     cliente.nombre.toLowerCase().includes(inputValue.toLowerCase())
@@ -27,7 +32,6 @@ export default function ClienteAutocomplete({ value, onChange, clientes, onAddCl
 
   const handleInputChange = (event) => {
     setInputValue(event.target.value);
-    skipSyncRef.current = true;
     onChange("");
     setShowDropdown(true);
     setHighlightedIndex(-1);

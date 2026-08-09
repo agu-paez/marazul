@@ -3,6 +3,17 @@ import { useAuth } from "../context/AuthContext";
 import { cierreCajaAPI } from "../api";
 import { generarResumenPagosPorProveedorPDF, generarTransferenciaIndividualPDF, generarCierreCajaPDF } from "../utils/generarPDF";
 
+const getFechaLocal = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
 export default function HistorialCierres() {
   const { user } = useAuth();
   const [cierres, setCierres] = useState([]);
@@ -12,6 +23,9 @@ export default function HistorialCierres() {
   const [loadingTransf, setLoadingTransf] = useState(false);
   const [proveedorExpandido, setProveedorExpandido] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const today = getFechaLocal();
+  const esAdmin = user?.role === "admin";
+  const esAdminOrOperador = user?.role === "admin" || user?.role === "operador";
 
   useEffect(() => {
     loadCierres();
@@ -28,6 +42,28 @@ export default function HistorialCierres() {
       console.error("Error:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAbrir = async (c) => {
+    if (!window.confirm(`¿Abrir la caja del día ${c.fecha}?\nEsto eliminará el cierre y permitirá cerrar el día nuevamente.`)) return;
+    try {
+      await cierreCajaAPI.abrir(c.fecha);
+      alert("Caja abierta correctamente");
+      loadCierres();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleEliminar = async (c) => {
+    if (!window.confirm(`¿Eliminar el cierre del día ${c.fecha}?\nEsta acción no se puede deshacer.`)) return;
+    try {
+      await cierreCajaAPI.eliminar(c.fecha);
+      alert("Cierre eliminado correctamente");
+      loadCierres();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -191,6 +227,28 @@ export default function HistorialCierres() {
                     >
                       Por Proveedor
                     </button>
+                  </div>
+                )}
+                {((c.fecha === today && esAdminOrOperador) || (c.fecha !== today && esAdmin)) && (
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }} onClick={(e) => e.stopPropagation()}>
+                    {c.fecha === today && esAdminOrOperador && (
+                      <button
+                        className="btn btn-sm btn-abrir"
+                        style={{ flex: 1, fontSize: "0.75rem" }}
+                        onClick={() => handleAbrir(c)}
+                      >
+                        Abrir
+                      </button>
+                    )}
+                    {c.fecha !== today && esAdmin && (
+                      <button
+                        className="btn btn-sm btn-cancel"
+                        style={{ flex: 1, fontSize: "0.75rem" }}
+                        onClick={() => handleEliminar(c)}
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -357,7 +415,7 @@ export default function HistorialCierres() {
                 <th>Ventas Netas</th>
                 <th>Total Ventas</th>
                 <th>Usuario</th>
-                {user?.role === "admin" && <th>Acciones</th>}
+                {esAdminOrOperador && <th>Acciones</th>}
               </tr>
             </thead>
             <tbody>
@@ -383,30 +441,52 @@ export default function HistorialCierres() {
                     <td className="monto-ventas"><strong>${c.ventas_netas}</strong></td>
                     <td><strong>${c.total_ventas}</strong></td>
                     <td>{c.usuario_cierre}</td>
-                    {user?.role === "admin" && (
+                    {esAdminOrOperador && (
                       <td onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: "flex", gap: "0.25rem" }}>
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handleCierreCompletoPDF(c)}
-                            title="Generar PDF completo del cierre"
-                          >
-                            Cierre PDF
-                          </button>
-                          <button
-                            className="btn btn-sm btn-cierre-pdf"
-                            onClick={() => handleCierrePDF(c)}
-                            title="Generar PDFs por proveedor"
-                          >
-                            Por Proveedor
-                          </button>
+                        <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+                          {esAdmin && (
+                            <>
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => handleCierreCompletoPDF(c)}
+                                title="Generar PDF completo del cierre"
+                              >
+                                Cierre PDF
+                              </button>
+                              <button
+                                className="btn btn-sm btn-cierre-pdf"
+                                onClick={() => handleCierrePDF(c)}
+                                title="Generar PDFs por proveedor"
+                              >
+                                Por Proveedor
+                              </button>
+                            </>
+                          )}
+                          {c.fecha === today && (
+                            <button
+                              className="btn btn-sm btn-abrir"
+                              onClick={() => handleAbrir(c)}
+                              title="Abrir la caja de hoy para poder cerrarla nuevamente"
+                            >
+                              Abrir
+                            </button>
+                          )}
+                          {c.fecha !== today && esAdmin && (
+                            <button
+                              className="btn btn-sm btn-cancel"
+                              onClick={() => handleEliminar(c)}
+                              title="Eliminar este cierre del historial"
+                            >
+                              Eliminar
+                            </button>
+                          )}
                         </div>
                       </td>
                     )}
                   </tr>
                   {cierreExpandido === c.id && (
                     <tr key={`${c.id}-detail`}>
-                      <td colSpan={user?.role === "admin" ? 10 : 9} style={{ padding: "0", background: "var(--bg-card)" }}>
+                      <td colSpan={esAdminOrOperador ? 10 : 9} style={{ padding: "0", background: "var(--bg-card)" }}>
                         <div style={{ padding: "1rem 1.5rem" }}>
                           <h4 style={{ margin: "0 0 0.75rem", color: "var(--primary)" }}>
                             Transferencias del Cierre - {c.fecha}
