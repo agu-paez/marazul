@@ -116,6 +116,15 @@ app.get("/api/health", (req, res) => {
   res.json({ message: "Mar Azul API - Funcionando!" });
 });
 
+if (isProduction) {
+  const distPath = path.join(__dirname, "..", "pollos_hermanos", "dist");
+  app.use(express.static(distPath));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+}
+
 app.use(errorHandler);
 
 const start = async () => {
