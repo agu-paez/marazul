@@ -328,7 +328,8 @@ export default function ProductosPage() {
       )}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="form-card">
+        <div className="modal-overlay" onClick={() => setShowForm(false)}>
+        <form onSubmit={handleSubmit} className="form-card modal-card modal-wide" onClick={(e) => e.stopPropagation()}>
           <h3>{editing ? "Editar Producto" : "Nuevo Producto"}</h3>
           <div className="form-row">
             <div className="form-group">
@@ -420,10 +421,16 @@ export default function ProductosPage() {
               />
             </div>
           </div>
-          <button type="submit" className="btn btn-primary">
-            {editing ? "Actualizar" : "Crear"}
-          </button>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
+              Cancelar
+            </button>
+            <button type="submit" className="btn btn-primary">
+              {editing ? "Actualizar" : "Crear"}
+            </button>
+          </div>
         </form>
+        </div>
       )}
 
       <div className="producto-search">
