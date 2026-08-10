@@ -26,7 +26,7 @@ export default function Navbar() {
   return (
     <nav className="navbar">
       <div className="nav-brand">
-        <img src="/logo-marazul.jpeg" alt="Mar Azul" className="nav-logo" />
+        <img src={`${import.meta.env.BASE_URL}logo-marazul.jpeg`} alt="Mar Azul" className="nav-logo" />
         <span>Mar Azul</span>
       </div>
       <button className="hamburger" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">

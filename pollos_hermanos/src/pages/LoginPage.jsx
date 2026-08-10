@@ -29,7 +29,7 @@ export default function LoginPage() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <img src="/logo-marazul.jpeg" alt="Mar Azul" className="login-logo" />
+          <img src={`${import.meta.env.BASE_URL}logo-marazul.jpeg`} alt="Mar Azul" className="login-logo" />
           <h1>Mar Azul</h1>
           <p>Sistema de Reparto</p>
         </div>

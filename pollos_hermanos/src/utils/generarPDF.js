@@ -21,7 +21,7 @@ const cargarLogo = () => {
       resolve(canvas.toDataURL("image/jpeg"));
     };
     img.onerror = () => resolve(null);
-    img.src = "/logo-marazul.jpeg";
+    img.src = `${import.meta.env.BASE_URL}logo-marazul.jpeg`;
   });
 };
 
