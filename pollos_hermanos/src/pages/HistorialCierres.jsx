@@ -82,6 +82,22 @@ export default function HistorialCierres() {
     generarTransferenciaIndividualPDF(pago, fecha);
   };
 
+  const handleEliminarCierre = async (cierre) => {
+    const confirmado = window.confirm(`¿Eliminar el cierre de caja del ${cierre.fecha}? Podrás realizar otro cierre para ese día.`);
+    if (!confirmado) return;
+
+    try {
+      await cierreCajaAPI.eliminar(cierre.id);
+      setCierres((actuales) => actuales.filter((item) => item.id !== cierre.id));
+      if (cierreExpandido === cierre.id) {
+        setCierreExpandido(null);
+        setTransferencias([]);
+      }
+    } catch (error) {
+      alert(error.response?.data?.message || "No se pudo eliminar el cierre");
+    }
+  };
+
   const handleProveedorPDF = (proveedor, fecha) => {
     const pagosProveedor = transferencias.filter((t) =>
       (t.proveedor?.id || "sin-proveedor") === (proveedor.id || "sin-proveedor")
@@ -190,6 +206,13 @@ export default function HistorialCierres() {
                       onClick={() => handleCierrePDF(c)}
                     >
                       Por Proveedor
+                    </button>
+                    <button
+                      className="btn btn-sm btn-cancel"
+                      style={{ flex: 1, fontSize: "0.75rem" }}
+                      onClick={() => handleEliminarCierre(c)}
+                    >
+                      Eliminar
                     </button>
                   </div>
                 )}
@@ -399,6 +422,13 @@ export default function HistorialCierres() {
                             title="Generar PDFs por proveedor"
                           >
                             Por Proveedor
+                          </button>
+                          <button
+                            className="btn btn-sm btn-cancel"
+                            onClick={() => handleEliminarCierre(c)}
+                            title="Eliminar cierre y permitir realizar otro"
+                          >
+                            Eliminar
                           </button>
                         </div>
                       </td>

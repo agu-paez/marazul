@@ -56,6 +56,7 @@ export const productosAPI = {
   create: (data) => API.post("/productos", data),
   update: (id, data) => API.put(`/productos/${id}`, data),
   delete: (id) => API.delete(`/productos/${id}`),
+  descontarStock: (id, data) => API.post(`/productos/${id}/descontar-stock`, data),
   actualizarPrecios: (data) => API.put("/productos/actualizar-precios", data),
 };
 
@@ -87,6 +88,7 @@ export const cierreCajaAPI = {
   getResumenHoy: () => API.get("/cierre-caja/resumen-hoy"),
   cerrar: () => API.post("/cierre-caja/cerrar"),
   getHistorial: () => API.get("/cierre-caja/historial"),
+  eliminar: (id) => API.delete(`/cierre-caja/${id}`),
   getPagosHoy: (fecha) => API.get("/cierre-caja/pagos-hoy", { params: fecha ? { fecha } : {} }),
   getDetalleCierre: (fecha) => API.get("/cierre-caja/detalle-cierre", { params: fecha ? { fecha } : {} }),
   getHistorialGastos: () => API.get("/cierre-caja/historial-gastos"),

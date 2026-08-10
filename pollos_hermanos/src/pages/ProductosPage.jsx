@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { productosAPI, proveedoresAPI, marcasAPI } from "../api";
+import { useAuth } from "../context/AuthContext";
 
 export default function ProductosPage() {
+  const { user } = useAuth();
   const [productos, setProductos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [marcas, setMarcas] = useState([]);
@@ -14,6 +16,10 @@ export default function ProductosPage() {
   const [tipoPrecio, setTipoPrecio] = useState("normal");
   const [descuento, setDescuento] = useState("");
   const [busqueda, setBusqueda] = useState("");
+  const [productoStock, setProductoStock] = useState(null);
+  const [cantidadDescontar, setCantidadDescontar] = useState("");
+  const [motivoDescuento, setMotivoDescuento] = useState("mal estado");
+  const [descontandoStock, setDescontandoStock] = useState(false);
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
@@ -94,6 +100,28 @@ export default function ProductosPage() {
       loadData();
     } catch (error) {
       alert("Error al eliminar");
+    }
+  };
+
+  const handleDescontarStock = async (e) => {
+    e.preventDefault();
+    const cantidad = Number(cantidadDescontar);
+    if (!Number.isInteger(cantidad) || cantidad <= 0) {
+      alert("Ingrese una cantidad entera mayor a cero");
+      return;
+    }
+
+    setDescontandoStock(true);
+    try {
+      await productosAPI.descontarStock(productoStock.id, { cantidad, motivo: motivoDescuento });
+      setProductoStock(null);
+      setCantidadDescontar("");
+      setMotivoDescuento("mal estado");
+      loadData();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    } finally {
+      setDescontandoStock(false);
     }
   };
 
@@ -261,6 +289,44 @@ export default function ProductosPage() {
         </div>
       )}
 
+      {productoStock && (
+        <div className="modal-overlay" onClick={() => setProductoStock(null)}>
+          <form className="modal-card" onSubmit={handleDescontarStock} onClick={(e) => e.stopPropagation()}>
+            <h3>Descontar stock</h3>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
+              {productoStock.nombre} | Stock actual: <strong>{productoStock.stock}</strong>
+            </p>
+            <div className="form-group">
+              <label>Cantidad a descontar</label>
+              <input
+                type="number"
+                min="1"
+                max={productoStock.stock}
+                step="1"
+                value={cantidadDescontar}
+                onChange={(e) => setCantidadDescontar(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="form-group">
+              <label>Motivo</label>
+              <select value={motivoDescuento} onChange={(e) => setMotivoDescuento(e.target.value)}>
+                <option value="mal estado">Mal estado</option>
+                <option value="faltante">No está / faltante</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setProductoStock(null)}>Cancelar</button>
+              <button type="submit" className="btn btn-cancel" disabled={descontandoStock}>
+                {descontandoStock ? "Descontando..." : "Descontar stock"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {showForm && (
         <form onSubmit={handleSubmit} className="form-card">
           <h3>{editing ? "Editar Producto" : "Nuevo Producto"}</h3>
@@ -361,8 +427,10 @@ export default function ProductosPage() {
       )}
 
       <div className="producto-search">
+        <label htmlFor="buscar-producto">Buscar producto</label>
         <div className="search-with-clear">
           <input
+            id="buscar-producto"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre o código de barras..."
@@ -403,13 +471,18 @@ export default function ProductosPage() {
                 <td>{p.unidad}</td>
                 <td>{p.Marca?.nombre || "-"}</td>
                 <td>
-                  <button className="btn btn-sm btn-camino" onClick={() => handleEdit(p)}>
-                    Editar
-                  </button>
-                  <button className="btn btn-sm btn-cancel" onClick={() => handleDelete(p.id)}>
-                    Eliminar
-                  </button>
-                </td>
+                   <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: "0.35rem" }}>
+                   {user?.role === "admin" && <button className="btn btn-sm btn-secondary" onClick={() => setProductoStock(p)}>
+                     Descontar stock
+                   </button>}
+                   <button className="btn btn-sm btn-camino" onClick={() => handleEdit(p)}>
+                     Editar
+                   </button>
+                   <button className="btn btn-sm btn-cancel" onClick={() => handleDelete(p.id)}>
+                     Eliminar
+                   </button>
+                   </div>
+                 </td>
               </tr>
             ))}
           </tbody>

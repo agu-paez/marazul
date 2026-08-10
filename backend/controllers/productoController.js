@@ -131,6 +131,38 @@ export const actualizarPreciosPorcentaje = async (req, res) => {
   }
 };
 
+export const descontarStock = async (req, res) => {
+  try {
+    const { cantidad, motivo } = req.body;
+    const cantidadDescontar = Number(cantidad);
+
+    if (!Number.isInteger(cantidadDescontar) || cantidadDescontar <= 0) {
+      return res.status(400).json({ message: "La cantidad a descontar debe ser un entero mayor a cero" });
+    }
+    if (!motivo || !motivo.trim()) {
+      return res.status(400).json({ message: "Debe indicar el motivo del descuento" });
+    }
+
+    const producto = await Producto.findByPk(req.params.id);
+    if (!producto || !producto.activo) {
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+    if (cantidadDescontar > producto.stock) {
+      return res.status(400).json({
+        message: `No se pueden descontar ${cantidadDescontar} unidades: el stock disponible es ${producto.stock}`,
+      });
+    }
+
+    await producto.update({ stock: producto.stock - cantidadDescontar });
+    res.json({
+      message: `Se descontaron ${cantidadDescontar} unidades por ${motivo.trim()}`,
+      producto,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error al descontar stock", error: error.message });
+  }
+};
+
 export const deleteProducto = async (req, res) => {
   try {
     const producto = await Producto.findByPk(req.params.id);

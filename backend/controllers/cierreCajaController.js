@@ -216,6 +216,20 @@ export const getHistorialCierres = async (req, res) => {
   }
 };
 
+export const eliminarCierre = async (req, res) => {
+  try {
+    const cierre = await CierreCaja.findByPk(req.params.id);
+    if (!cierre) {
+      return res.status(404).json({ message: "No existe el cierre indicado" });
+    }
+
+    await cierre.destroy();
+    res.json({ message: "Cierre eliminado exitosamente" });
+  } catch (error) {
+    res.status(500).json({ message: "Error al eliminar cierre", error: error.message });
+  }
+};
+
 const parsePagosEmpleados = (valor) => {
   if (!valor) return [];
   try { return typeof valor === "string" ? JSON.parse(valor) : valor; } catch { return []; }

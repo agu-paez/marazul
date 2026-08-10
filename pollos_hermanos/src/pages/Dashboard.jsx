@@ -17,7 +17,6 @@ export default function Dashboard() {
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [showStockBajo, setShowStockBajo] = useState(false);
   const [gastos, setGastos] = useState({ combustible: "0.00", otros: "0.00", descripcion_otros: "" });
-  const [guardandoGastos, setGuardandoGastos] = useState(false);
   const [showPagosEmpleados, setShowPagosEmpleados] = useState(false);
   const [empleados, setEmpleados] = useState([]);
   const [pagosForm, setPagosForm] = useState({});
@@ -46,19 +45,6 @@ export default function Dashboard() {
       console.error("Error:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleGuardarGastos = async (event) => {
-    event.preventDefault();
-    setGuardandoGastos(true);
-    try {
-      const response = await gastosAPI.guardar(gastos);
-      setGastos(response.data);
-    } catch (error) {
-      alert("Error: " + (error.response?.data?.message || error.message));
-    } finally {
-      setGuardandoGastos(false);
     }
   };
 
@@ -596,7 +582,7 @@ export default function Dashboard() {
               {resumen?.cerrado && <span className="cierre-cerrado-badge">CERRADO</span>}
             </div>
             <p className="subtitle" style={{ marginTop: "0.35rem" }}>Se guardan automáticamente al realizar el cierre de caja.</p>
-            <form onSubmit={handleGuardarGastos} className="form-card" style={{ marginTop: "1rem" }}>
+            <div className="form-card" style={{ marginTop: "1rem" }}>
               <div className="cierre-2col">
                 <div className="form-group">
                   <label htmlFor="gasto-combustible">Gastos de combustible</label>
@@ -615,8 +601,7 @@ export default function Dashboard() {
                 <span>Total gastos:</span>
                 <strong>${(Number(gastos.combustible || 0) + Number(gastos.otros || 0)).toFixed(2)}</strong>
               </div>
-              {!resumen?.cerrado && <button type="submit" className="btn btn-primary btn-full" disabled={guardandoGastos}>{guardandoGastos ? "Guardando..." : "Guardar gastos del dia"}</button>}
-            </form>
+            </div>
           </div>
         </>
       )}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { produccionAPI } from "../api";
+import { produccionAPI, productosAPI } from "../api";
 
 const fechaHoy = () => {
   const hoy = new Date();
@@ -33,6 +33,10 @@ export default function ProduccionPage() {
   const [data, setData] = useState({ registros: [], promedioDiario: [], promedioSemanal: [] });
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [productos, setProductos] = useState([]);
+  const [mostrarCajones, setMostrarCajones] = useState(false);
+  const [cajonesPorProducto, setCajonesPorProducto] = useState({});
+  const [busquedaProducto, setBusquedaProducto] = useState("");
   const [form, setForm] = useState({
     fecha: fechaHoy(),
     cajones: "",
@@ -44,8 +48,12 @@ export default function ProduccionPage() {
 
   const loadData = async () => {
     try {
-      const res = await produccionAPI.getEstadisticas();
-      setData(res.data);
+      const [produccionRes, productosRes] = await Promise.all([
+        produccionAPI.getEstadisticas(),
+        productosAPI.getAll(),
+      ]);
+      setData(produccionRes.data);
+      setProductos(productosRes.data);
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -63,14 +71,22 @@ export default function ProduccionPage() {
       alert("Debe seleccionar una fecha");
       return;
     }
-    if (form.cajones === "" || Number(form.cajones) < 0) {
+    if (totalCajones <= 0) {
       alert("El campo Cajones es obligatorio");
+      return;
+    }
+    if (Object.keys(cajonesPorProducto).length === 0) {
+      alert("Debe tocar Cargar cajones y seleccionar los productos");
       return;
     }
     setGuardando(true);
     try {
-      await produccionAPI.create(form);
+      await produccionAPI.create({
+        ...form,
+        productos_cajones: Object.entries(cajonesPorProducto).map(([productoId, cantidad]) => ({ productoId: Number(productoId), cantidad })),
+      });
       setForm({ fecha: fechaHoy(), cajones: "", alitas: "", pechugas: "", pata_muslo: "", menudos: "" });
+      setCajonesPorProducto({});
       await loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -80,6 +96,14 @@ export default function ProduccionPage() {
   };
 
   const onChange = (campo, valor) => setForm({ ...form, [campo]: valor });
+  const totalCajones = Object.values(cajonesPorProducto).reduce((total, cantidad) => total + Number(cantidad || 0), 0);
+  const abrirCargadorCajones = () => setMostrarCajones(true);
+  const terminoProducto = busquedaProducto.trim().toLowerCase();
+  const productosFiltrados = productos.filter((producto) => (
+    !terminoProducto
+    || producto.nombre.toLowerCase().includes(terminoProducto)
+    || String(producto.codigo_barras || "").toLowerCase().includes(terminoProducto)
+  ));
 
   if (loading) return <div className="loading">Cargando...</div>;
 
@@ -101,17 +125,78 @@ export default function ProduccionPage() {
               <input
                 type={type}
                 min={type === "number" ? "0" : undefined}
-                value={form[key]}
-                onChange={(e) => onChange(key, e.target.value)}
+                value={key === "cajones" ? totalCajones : form[key]}
+                onChange={(e) => key !== "cajones" && onChange(key, e.target.value)}
+                readOnly={key === "cajones"}
                 required={required}
               />
             </div>
           ))}
         </div>
-        <button type="submit" className="btn btn-primary" disabled={guardando}>
-          {guardando ? "Guardando..." : "Guardar Registro"}
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <button type="button" className="btn btn-primary" onClick={abrirCargadorCajones}>
+            Cargar cajones
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={guardando || totalCajones === 0}>
+            {guardando ? "Guardando..." : "Guardar Registro"}
+          </button>
+        </div>
       </form>
+
+      {mostrarCajones && (
+        <div className="modal-overlay" onClick={() => setMostrarCajones(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Cargar cajones</h3>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
+              Indique cuántos cajones carga de cada producto. Total: <strong>{totalCajones}</strong>
+            </p>
+            <div className="form-group">
+              <label htmlFor="buscar-producto-cajones">Buscar producto</label>
+              <input
+                id="buscar-producto-cajones"
+                type="search"
+                value={busquedaProducto}
+                onChange={(e) => setBusquedaProducto(e.target.value)}
+                placeholder="Nombre o código de barras..."
+              />
+            </div>
+            <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
+              {productosFiltrados.map((producto) => (
+                <div key={producto.id} className="cajones-producto-card">
+                  <div className="cajones-producto-info">
+                    <span className="producto-nombre">{producto.nombre}</span>
+                    <span className="producto-stock">Stock disponible: {producto.stock}</span>
+                  </div>
+                  <input
+                    className="cajones-input"
+                    type="number"
+                    min="0"
+                    max={producto.stock}
+                    step="1"
+                    value={cajonesPorProducto[producto.id] || ""}
+                    onChange={(e) => {
+                      const cantidad = Math.max(0, Math.min(Number(e.target.value) || 0, producto.stock));
+                      setCajonesPorProducto((actual) => {
+                        const siguiente = { ...actual };
+                        if (cantidad > 0) siguiente[producto.id] = cantidad;
+                        else delete siguiente[producto.id];
+                        return siguiente;
+                      });
+                    }}
+                    style={{ width: "90px" }}
+                    aria-label={`Cajones de ${producto.nombre}`}
+                  />
+                </div>
+              ))}
+              {productosFiltrados.length === 0 && <p className="empty">No se encontraron productos.</p>}
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setMostrarCajones(false)}>Cancelar</button>
+              <button type="button" className="btn btn-primary" onClick={() => setMostrarCajones(false)} disabled={totalCajones === 0}>Aplicar ({totalCajones})</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="produccion-grid">
         <div className="produccion-card">

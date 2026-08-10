@@ -1,4 +1,5 @@
-import { Produccion } from "../models/index.js";
+import { Produccion, Producto } from "../models/index.js";
+import sequelize from "../config/database.js";
 import PDFDocument from "pdfkit";
 import { getFechaLocal } from "../utils/fecha.js";
 
@@ -157,24 +158,63 @@ export const descargarHistorialProduccionPdf = async (req, res) => {
 };
 
 export const createProduccion = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
-    const { fecha, cajones, alitas, pechugas, pata_muslo, menudos } = req.body;
+    const { fecha, productos_cajones, alitas, pechugas, pata_muslo, menudos } = req.body;
 
     if (!fecha) {
+      await transaction.rollback();
       return res.status(400).json({ message: "La fecha es obligatoria" });
     }
 
+    if (!Array.isArray(productos_cajones) || productos_cajones.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Debe cargar al menos un producto en los cajones" });
+    }
+
+    const cantidades = productos_cajones.map((item) => ({
+      productoId: Number(item.productoId),
+      cantidad: Number(item.cantidad),
+    }));
+    if (cantidades.some((item) => !Number.isInteger(item.productoId) || !Number.isInteger(item.cantidad) || item.cantidad <= 0)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Las cantidades de cajones deben ser enteros mayores a cero" });
+    }
+
+    const cantidadPorProducto = new Map();
+    for (const item of cantidades) {
+      cantidadPorProducto.set(item.productoId, (cantidadPorProducto.get(item.productoId) || 0) + item.cantidad);
+    }
+
+    for (const [productoId, cantidad] of cantidadPorProducto) {
+      const producto = await Producto.findOne({ where: { id: productoId, activo: true }, transaction, lock: transaction.LOCK.UPDATE });
+      if (!producto) {
+        await transaction.rollback();
+        return res.status(404).json({ message: `Producto ${productoId} no encontrado` });
+      }
+      if (producto.stock < cantidad) {
+        await transaction.rollback();
+        return res.status(400).json({ message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${cantidad}` });
+      }
+      await producto.update({ stock: producto.stock - cantidad }, { transaction });
+    }
+
+    const cajones = [...cantidadPorProducto.values()].reduce((total, cantidad) => total + cantidad, 0);
+
     const registro = await Produccion.create({
       fecha,
-      cajones: Number.isFinite(Number(cajones)) ? Number(cajones) : 0,
+      cajones,
       alitas: Number.isFinite(Number(alitas)) ? Number(alitas) : 0,
       pechugas: Number.isFinite(Number(pechugas)) ? Number(pechugas) : 0,
       pata_muslo: Number.isFinite(Number(pata_muslo)) ? Number(pata_muslo) : 0,
       menudos: Number.isFinite(Number(menudos)) ? Number(menudos) : 0,
-    });
+    }, { transaction });
+
+    await transaction.commit();
 
     res.status(201).json({ message: "Registro de producción cargado", registro });
   } catch (error) {
+    await transaction.rollback();
     res.status(500).json({ message: "Error al cargar producción", error: error.message });
   }
 };

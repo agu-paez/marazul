@@ -1,5 +1,10 @@
 import sequelize from './config/database.js';
 import logger from './utils/logger.js';
+import './models/index.js';
+
+await sequelize.authenticate();
+await sequelize.sync();
+console.log('Base de datos conectada y tablas verificadas');
 
 try {
   await sequelize.query("ALTER TABLE Venta ADD COLUMN proveedorId INTEGER REFERENCES Proveedors(id)");

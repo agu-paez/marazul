@@ -171,6 +171,58 @@ body {
 .btn-cierre-pdf { background: #d97706; color: white; }
 .btn-cierre-pdf:hover { background: #b45309; }
 
+.cajones-producto-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: #f7f9f3;
+  border: 1px solid #e0e8da;
+  border-radius: 8px;
+}
+
+.cajones-producto-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.producto-nombre {
+  overflow: hidden;
+  color: #405b4d;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.producto-stock {
+  color: #89947f;
+  font-size: 12px;
+}
+
+.cajones-input {
+  width: 70px !important;
+  height: 38px;
+  flex-shrink: 0;
+  border: 1px solid #ccd7c4;
+  border-radius: 8px;
+  outline: none;
+  background: white;
+  color: #405b4d;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.cajones-input:focus {
+  border-color: #527565;
+  box-shadow: 0 0 0 3px rgba(82, 117, 101, 0.12);
+}
+
 /* Forms */
 .form-group {
   margin-bottom: 1rem;
