@@ -8,6 +8,7 @@ import {
   getHistorialGastos,
   getHistorialPagosEmpleados,
   getResumenIngresosEgresos,
+  abrirCaja,
   eliminarCierre,
 } from "../controllers/cierreCajaController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
@@ -24,6 +25,7 @@ router.get("/historial-gastos", authorize("admin", "operador"), getHistorialGast
 router.get("/historial-pagos-empleados", authorize("admin", "operador"), getHistorialPagosEmpleados);
 router.get("/ingresos-egresos", authorize("admin", "operador"), getResumenIngresosEgresos);
 router.post("/cerrar", authorize("admin", "operador"), cerrarCaja);
-router.delete("/:id", authorize("admin"), eliminarCierre);
+router.post("/:fecha/abrir", authorize("admin", "operador"), abrirCaja);
+router.delete("/:fecha", authorize("admin"), eliminarCierre);
 
 export default router;

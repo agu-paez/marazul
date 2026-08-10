@@ -167,9 +167,12 @@ body {
 .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; margin: 0 2px; }
 .btn-camino { background: var(--info); color: white; }
 .btn-entregado { background: var(--success); color: white; }
+.btn-editar { background: var(--warning); color: white; }
 .btn-cancel { background: var(--danger); color: white; }
 .btn-cierre-pdf { background: #d97706; color: white; }
 .btn-cierre-pdf:hover { background: #b45309; }
+.btn-abrir { background: #6fae8a; color: white; }
+.btn-abrir:hover { background: #5e9d79; }
 
 .cajones-producto-card {
   display: flex;
@@ -302,6 +305,8 @@ body {
 .stat-card h3 {
   font-size: 2rem;
   color: var(--primary);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .stat-card p {
@@ -369,6 +374,24 @@ tr:hover {
   color: white;
   font-weight: 600;
   text-transform: capitalize;
+}
+
+tr.cliente-pendiente-revision {
+  background: rgba(245, 158, 11, 0.12);
+}
+
+tr.cliente-pendiente-revision td:first-child {
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+.badge-pendiente {
+  background: var(--warning);
+  color: #fff;
+  border: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 /* Section */
@@ -631,6 +654,31 @@ h2 {
 .daily-expenses-section {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(240, 245, 232, 0.96));
   border-top: 4px solid var(--secondary);
+  border-radius: 14px;
+  padding: 1.25rem;
+  min-width: 0;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(45, 58, 30, 0.06);
+}
+
+.daily-expenses-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.daily-expenses-header h3 {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.daily-expenses-section .subtitle {
+  margin-top: 0.35rem;
+  margin-bottom: 0;
 }
 
 .employee-payment-modal {
@@ -1558,6 +1606,9 @@ input[type="number"] {
   .employee-payment-button {
     width: 100%;
     justify-content: center;
+  }
+  .daily-expenses-section {
+    padding: 1rem 0.9rem;
   }
   .daily-expenses-section .form-card {
     padding: 1rem;

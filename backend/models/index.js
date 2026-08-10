@@ -49,6 +49,9 @@ User.hasMany(SalidaCamion, { foreignKey: "asignadoRepartidorId" });
 SalidaCamion.belongsTo(User, { foreignKey: "creadoPorId", as: "creado_por" });
 User.hasMany(SalidaCamion, { foreignKey: "creadoPorId" });
 
+SalidaCamion.belongsTo(User, { foreignKey: "autorizadoPorId", as: "autorizado_por" });
+User.hasMany(SalidaCamion, { foreignKey: "autorizadoPorId" });
+
 SalidaCamion.belongsTo(Cliente, { foreignKey: "clienteId", as: "cliente" });
 Cliente.hasMany(SalidaCamion, { foreignKey: "clienteId" });
 

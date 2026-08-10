@@ -41,6 +41,7 @@ export const createCliente = async (req, res) => {
       nombre: nombre.trim(),
       zona: zona?.trim() || null,
       limite_credito: limiteCredito.toFixed(2),
+      pendiente_revision: req.userRole === "repartidor",
     });
     res.status(201).json({ message: "Cliente creado", cliente });
   } catch (error) {
@@ -65,6 +66,21 @@ export const updateCliente = async (req, res) => {
     res.json({ message: "Cliente actualizado", cliente });
   } catch (error) {
     res.status(500).json({ message: "Error al actualizar cliente", error: error.message });
+  }
+};
+
+export const revisarCliente = async (req, res) => {
+  try {
+    const cliente = await Cliente.findByPk(req.params.id);
+    if (!cliente) {
+      return res.status(404).json({ message: "Cliente no encontrado" });
+    }
+
+    await cliente.update({ pendiente_revision: false });
+
+    res.json({ message: "Cliente marcado como revisado", cliente });
+  } catch (error) {
+    res.status(500).json({ message: "Error al marcar cliente como revisado", error: error.message });
   }
 };
 

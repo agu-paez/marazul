@@ -122,6 +122,14 @@ export default function HistorialSalidas() {
                 </tr>)}</tbody>
               </table>
             </div>
+            {detalle.salida.notas && (
+              <div style={{ marginTop: "1rem", padding: "0.75rem 1rem", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: "8px", whiteSpace: "pre-line" }}>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: "600", marginBottom: "0.25rem" }}>Observaciones</div>
+                {detalle.salida.estado === "cancelado"
+                  ? <div><strong style={{ color: "var(--danger)" }}>ENVIO CANCELADO</strong><div>{detalle.salida.notas.replace(/^ENVIO CANCELADO\s*\n?/i, "")}</div></div>
+                  : detalle.salida.notas}
+              </div>
+            )}
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setDetalle(null)}>Cerrar</button>
               <button className="btn btn-primary" onClick={() => generarResumenEntregaPDF({ ...detalle.salida, sobrantes: detalle.sobrantes }, detalle.ventas)}>Generar PDF</button>
@@ -187,6 +195,7 @@ export default function HistorialSalidas() {
                 <th>Estado</th>
                 <th>Acciones</th>
                 <th>Mercadería</th>
+                <th>Observaciones</th>
               </tr>
             </thead>
             <tbody>
@@ -228,6 +237,14 @@ export default function HistorialSalidas() {
                         </span>
                       ))}
                     </div>
+                  </td>
+                  <td style={{ whiteSpace: "pre-line", minWidth: "120px" }}>
+                    {s.estado === "cancelado" && s.notas ? (
+                      <>
+                        <span style={{ fontWeight: "bold", color: "var(--danger)" }}>ENVIO CANCELADO</span>
+                        <div>{s.notas.replace(/^ENVIO CANCELADO\s*\n?/i, "")}</div>
+                      </>
+                    ) : s.notas || "-"}
                   </td>
                 </tr>
               ))}

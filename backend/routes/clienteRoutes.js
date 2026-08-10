@@ -7,6 +7,7 @@ import {
   updateMontosCliente,
   getHistorialCuentaCorriente,
   registrarPagoCuentaCorriente,
+  revisarCliente,
   deleteCliente,
 } from "../controllers/clienteController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
@@ -22,6 +23,7 @@ router.post("/", createCliente);
 router.post("/:id/pago-cc", registrarPagoCuentaCorriente);
 router.put("/:id", updateCliente);
 router.put("/:id/montos", authorize("admin"), updateMontosCliente);
+router.put("/:id/revisar", authorize("admin", "operador"), revisarCliente);
 router.delete("/:id", deleteCliente);
 
 export default router;

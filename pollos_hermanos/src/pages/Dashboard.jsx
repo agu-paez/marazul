@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
 import { salidasAPI, cierreCajaAPI, productosAPI, gastosAPI, pagosEmpleadosAPI, usuariosAPI } from "../api";
+import { useAuth } from "../context/AuthContext";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const formatVentas = (valor) => {
+    const numero = Number(valor || 0);
+    if (Number.isInteger(numero)) return `$${numero}`;
+    return `$${numero.toFixed(2).replace(/\.?0+$/, "")}`;
+  };
+  const [editandoRegreso, setEditandoRegreso] = useState(false);
   const [stats, setStats] = useState(null);
   const [salidas, setSalidas] = useState([]);
   const [resumen, setResumen] = useState(null);
@@ -15,6 +25,7 @@ export default function Dashboard() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelandoId, setCancelandoId] = useState(null);
   const [cancelMotivo, setCancelMotivo] = useState("");
+  const [cancelarConRegreso, setCancelarConRegreso] = useState(false);
   const [showStockBajo, setShowStockBajo] = useState(false);
   const [gastos, setGastos] = useState({ combustible: "0.00", otros: "0.00", descripcion_otros: "" });
   const [showPagosEmpleados, setShowPagosEmpleados] = useState(false);
@@ -84,8 +95,9 @@ export default function Dashboard() {
     }
   };
 
-  const openRegresoForm = async (salida) => {
+  const openRegresoForm = async (salida, esEdicion = false) => {
     setRegresando(salida);
+    setEditandoRegreso(esEdicion);
     try {
       const res = await salidasAPI.getStockCamion(salida.id);
       const stockMap = {};
@@ -103,7 +115,7 @@ export default function Dashboard() {
           cantidad_enviada: item.cantidad,
           cantidad_vendida: vendido,
           max_devolver: maxDevolver,
-          cantidad_regreso: 0,
+          cantidad_regreso: item.cantidad_devuelta || 0,
         };
       });
       setItemsRegreso(items);
@@ -126,24 +138,53 @@ export default function Dashboard() {
   };
 
   const confirmarEntregado = () => {
+    if (editandoRegreso) {
+      ejecutarEntregado();
+      return;
+    }
+    if (cancelarConRegreso) {
+      ejecutarCancelacion();
+      return;
+    }
     setShowConfirm(true);
+  };
+
+  const ejecutarCancelacion = async () => {
+    if (!regresando) return;
+    try {
+      const items_para_enviar = itemsRegreso.map((item) => ({
+        productoId: item.productoId,
+        cantidad: item.cantidad_regreso,
+      }));
+      await salidasAPI.registrarRegreso(regresando.id, {
+        items_regreso: items_para_enviar,
+        cancelar: true,
+        motivo: cancelMotivo,
+      });
+      setRegresando(null);
+      setCancelarConRegreso(false);
+      setCancelandoId(null);
+      setCancelMotivo("");
+      loadData();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    }
   };
 
   const ejecutarEntregado = async () => {
     setShowConfirm(false);
     if (!regresando) return;
     try {
-      const items_para_enviar = itemsRegreso
-        .filter((item) => item.cantidad_regreso > 0)
-        .map((item) => ({
-          productoId: item.productoId,
-          cantidad: item.cantidad_regreso,
-        }));
+      const items_para_enviar = itemsRegreso.map((item) => ({
+        productoId: item.productoId,
+        cantidad: item.cantidad_regreso,
+      }));
 
        await salidasAPI.registrarRegreso(regresando.id, {
         items_regreso: items_para_enviar,
       });
       setRegresando(null);
+      setEditandoRegreso(false);
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -270,9 +311,16 @@ export default function Dashboard() {
                 className="btn btn-cancel"
                 disabled={!cancelMotivo.trim()}
                 onClick={() => {
+                  const salidaCancelar = salidas.find((s) => s.id === cancelandoId);
                   setShowCancelConfirm(false);
-                  updateEstado(cancelandoId, "cancelado", cancelMotivo);
-                  setCancelMotivo("");
+                  if (salidaCancelar?.estado === "en_camino") {
+                    setCancelarConRegreso(true);
+                    openRegresoForm(salidaCancelar);
+                  } else {
+                    updateEstado(cancelandoId, "cancelado", cancelMotivo);
+                    setCancelandoId(null);
+                    setCancelMotivo("");
+                  }
                 }}
               >
                 Confirmar Cancelacion
@@ -362,10 +410,16 @@ export default function Dashboard() {
       )}
 
       {regresando && (
-        <div className="modal-overlay" onClick={() => setRegresando(null)}>
+        <div className="modal-overlay" onClick={() => { setRegresando(null); setEditandoRegreso(false); setCancelarConRegreso(false); }}>
           <div className="modal-card modal-wide" onClick={(e) => e.stopPropagation()}>
-            <h3>Registrar Entrega - {regresando.camion}</h3>
-            <p className="subtitle">Selecciona los productos que regresaron y sus cantidades</p>
+            <h3>{editandoRegreso ? `Editar Regreso - ${regresando.camion}` : cancelarConRegreso ? `Cancelar Envio - ${regresando.camion}` : `Registrar Entrega - ${regresando.camion}`}</h3>
+            <p className="subtitle">
+              {editandoRegreso
+                ? "Modifica las cantidades de mercaderia devuelta registradas"
+                : cancelarConRegreso
+                  ? "Marca la mercaderia que volvio al cancelar el envio"
+                  : "Selecciona los productos que regresaron y sus cantidades"}
+            </p>
 
             <div className="table-container" style={{ maxHeight: "200px", overflowY: "auto" }}>
               <table>
@@ -417,11 +471,11 @@ export default function Dashboard() {
             </div>
 
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setRegresando(null)}>
+              <button className="btn btn-secondary" onClick={() => { setRegresando(null); setEditandoRegreso(false); setCancelarConRegreso(false); }}>
                 Cancelar
               </button>
               <button className="btn btn-entregado" onClick={confirmarEntregado}>
-                Confirmar Entrega
+                {editandoRegreso ? "Guardar Cambios" : cancelarConRegreso ? "Confirmar Cancelacion" : "Confirmar Entrega"}
               </button>
             </div>
           </div>
@@ -513,7 +567,7 @@ export default function Dashboard() {
             <p>Entregados</p>
           </div>
           <div className="stat-card stat-ventas">
-            <h3>${stats.total_ventas}</h3>
+            <h3>{formatVentas(stats.total_ventas)}</h3>
             <p>Ventas del Dia</p>
           </div>
         </div>
@@ -577,8 +631,8 @@ export default function Dashboard() {
           </div>
 
             <div className="section daily-expenses-section">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-              <h3 style={{ margin: 0 }}>Gastos del Dia</h3>
+            <div className="daily-expenses-header">
+              <h3>Gastos del Dia</h3>
               {resumen?.cerrado && <span className="cierre-cerrado-badge">CERRADO</span>}
             </div>
             <p className="subtitle" style={{ marginTop: "0.35rem" }}>Se guardan automáticamente al realizar el cierre de caja.</p>
@@ -804,7 +858,8 @@ export default function Dashboard() {
                           <div className="action-buttons">
                             {s.estado === "pendiente" && <button className="btn btn-sm btn-camino" onClick={() => updateEstado(s.id, "en_camino")}>Enviar</button>}
                             {s.estado === "en_camino" && <button className="btn btn-sm btn-entregado" onClick={() => handleEntregadoClick(s.id)}>Registrar Entrega</button>}
-                            {s.estado !== "entregado" && s.estado !== "cancelado" && <button className="btn btn-sm btn-cancel" onClick={() => { setCancelandoId(s.id); setShowCancelConfirm(true); }}>Cancelar</button>}
+                            {s.estado === "sobrante" && isAdmin && <button className="btn btn-sm btn-editar" onClick={() => openRegresoForm(s, true)}>Editar</button>}
+                            {(s.estado === "pendiente" || s.estado === "en_camino") && <button className="btn btn-sm btn-cancel" onClick={() => { setCancelandoId(s.id); setShowCancelConfirm(true); }}>Cancelar</button>}
                           </div>
                         </td>
                         <td>{s.repartidor_asignado?.nombre || "-"}</td>

@@ -216,15 +216,45 @@ export const getHistorialCierres = async (req, res) => {
   }
 };
 
-export const eliminarCierre = async (req, res) => {
+export const abrirCaja = async (req, res) => {
   try {
-    const cierre = await CierreCaja.findByPk(req.params.id);
+    const { fecha } = req.params;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      return res.status(400).json({ message: "Fecha inválida" });
+    }
+    if (fecha !== getFechaLocal()) {
+      return res.status(400).json({ message: "Solo se puede abrir la caja del día actual" });
+    }
+
+    const cierre = await CierreCaja.findOne({ where: { fecha } });
     if (!cierre) {
-      return res.status(404).json({ message: "No existe el cierre indicado" });
+      return res.status(404).json({ message: "La caja de hoy ya está abierta" });
     }
 
     await cierre.destroy();
-    res.json({ message: "Cierre eliminado exitosamente" });
+    res.json({ message: "Caja abierta correctamente. Ya puede volver a cerrarla" });
+  } catch (error) {
+    res.status(500).json({ message: "Error al abrir caja", error: error.message });
+  }
+};
+
+export const eliminarCierre = async (req, res) => {
+  try {
+    const { fecha } = req.params;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      return res.status(400).json({ message: "Fecha inválida" });
+    }
+    if (fecha === getFechaLocal()) {
+      return res.status(400).json({ message: "Para el cierre de hoy use la opción Abrir" });
+    }
+
+    const cierre = await CierreCaja.findOne({ where: { fecha } });
+    if (!cierre) {
+      return res.status(404).json({ message: "No existe cierre para esa fecha" });
+    }
+
+    await cierre.destroy();
+    res.json({ message: "Cierre eliminado correctamente" });
   } catch (error) {
     res.status(500).json({ message: "Error al eliminar cierre", error: error.message });
   }
@@ -241,10 +271,31 @@ export const getHistorialGastos = async (req, res) => {
       attributes: ["id", "fecha", "hora", "usuario_cierre", "gastos_combustible", "gastos_otros", "descripcion_otros_gastos"],
       order: [["fecha", "DESC"]],
     });
-    res.json(cierres.map((cierre) => ({
-      ...cierre.toJSON(),
-      total: (parseFloat(cierre.gastos_combustible) || 0) + (parseFloat(cierre.gastos_otros) || 0),
-    })));
+    const fechasCerradas = new Set(cierres.map((cierre) => cierre.fecha));
+    const gastosDia = fechasCerradas.size === 0
+      ? await GastoDia.findAll({ order: [["fecha", "DESC"]] })
+      : await GastoDia.findAll({
+          where: { fecha: { [Op.notIn]: [...fechasCerradas] } },
+          order: [["fecha", "DESC"]],
+        });
+    const registros = [
+      ...cierres.map((cierre) => ({
+        ...cierre.toJSON(),
+        total: (parseFloat(cierre.gastos_combustible) || 0) + (parseFloat(cierre.gastos_otros) || 0),
+      })),
+      ...gastosDia.map((gasto) => ({
+        id: `g${gasto.id}`,
+        fecha: gasto.fecha,
+        hora: null,
+        usuario_cierre: "Sin cierre",
+        gastos_combustible: gasto.combustible,
+        gastos_otros: gasto.otros,
+        descripcion_otros_gastos: gasto.descripcion_otros || "",
+        total: (parseFloat(gasto.combustible) || 0) + (parseFloat(gasto.otros) || 0),
+        pendiente_cierre: true,
+      })),
+    ].sort((a, b) => b.fecha.localeCompare(a.fecha) || String(b.hora || "").localeCompare(String(a.hora || "")));
+    res.json(registros);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener historial de gastos", error: error.message });
   }
