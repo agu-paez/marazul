@@ -339,8 +339,8 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
   const ml = 18;
   const mr = 18;
   const tableWidth = pageWidth - ml - mr;
-   const colWidths = [45, 45, 45, 38, 45, tableWidth - 218];
-   const headers = ["Fecha y Hora", "Titular", "Alias", "Monto", "Banco", "Tipo"];
+   const colWidths = [50, 70, 55, 45, tableWidth - 220];
+   const headers = ["Fecha", "Titular", "Banco", "Tipo", "Monto"];
   const rowH = 7;
   const headerH = 9;
   const fontSize = 12;
@@ -446,10 +446,9 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
     const rowData = [
       (p.fecha_hora || "").replace("T", " ").replace(/(\d{2}:\d{2}):\d{2}/, "$1"),
        p.titular || p.nombre_cuenta || "-",
-       p.alias || "-",
-      `$${Number(p.monto || 0).toFixed(2)}`,
-      p.banco || "-",
-      p.tipo || "-",
+       p.banco || "-",
+       p.tipo || "-",
+       `$${Number(p.monto || 0).toFixed(2)}`,
     ];
     drawRow(y, rowData, i % 2 === 1, i === pagos.length - 1);
     y += rowH;
@@ -514,8 +513,8 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
     const ml = 18;
     const mr = 18;
     const tableWidth = pageWidth - ml - mr;
-     const colWidths = [45, 45, 45, 38, 45, tableWidth - 218];
-     const headers = ["Fecha y Hora", "Titular", "Alias", "Monto", "Banco", "Tipo"];
+     const colWidths = [50, 70, 55, 45, tableWidth - 220];
+     const headers = ["Fecha", "Titular", "Banco", "Tipo", "Monto"];
     const rowH = 7;
     const headerH = 9;
     const fontSize = 12;
@@ -618,10 +617,9 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
       const rowData = [
         (p.fecha_hora || "").replace("T", " ").replace(/(\d{2}:\d{2}):\d{2}/, "$1"),
          p.titular || p.nombre_cuenta || "-",
-         p.alias || "-",
+         p.banco || "-",
+         p.tipo || "-",
          `$${Number(p.monto || 0).toFixed(2)}`,
-        p.banco || "-",
-        p.tipo || "-",
       ];
       drawRow(y, rowData, i % 2 === 1, i === grupo.pagos.length - 1);
       y += rowH;
