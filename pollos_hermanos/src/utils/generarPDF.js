@@ -412,8 +412,8 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
     for (let i = 0; i < rowData.length; i++) {
       let cellText = String(rowData[i]);
       const maxWidth = colWidths[i] - 6;
-      while (cellText.length > 1 && (doc.getTextWidth ? doc.getTextWidth(cellText) : cellText.length * 4) > maxWidth) {
-        cellText = `${cellText.slice(0, -2)}...`;
+      while (cellText.length > 3 && (doc.getTextWidth ? doc.getTextWidth(cellText) : cellText.length * 4) > maxWidth) {
+        cellText = `${cellText.slice(0, -4)}...`;
       }
       doc.text(cellText, x + 3, yPos + rowH / 2 + 1.2);
       if (i < rowData.length - 1) {
@@ -584,8 +584,8 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
       for (let i = 0; i < rowData.length; i++) {
         let cellText = String(rowData[i]);
         const maxWidth = colWidths[i] - 6;
-        while (cellText.length > 1 && (doc.getTextWidth ? doc.getTextWidth(cellText) : cellText.length * 4) > maxWidth) {
-          cellText = `${cellText.slice(0, -2)}...`;
+        while (cellText.length > 3 && (doc.getTextWidth ? doc.getTextWidth(cellText) : cellText.length * 4) > maxWidth) {
+          cellText = `${cellText.slice(0, -4)}...`;
         }
         doc.text(cellText, x + 3, yPos + rowH / 2 + 1.2);
         if (i < rowData.length - 1) {
