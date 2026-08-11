@@ -92,6 +92,7 @@ export default function MisSalidas() {
     const datosBancarios = ["transferencia", "tarjeta"].includes(pagoCliente.medio_pago)
       ? {
           nombre_cuenta: pagoCliente.nombre_cuenta.trim(),
+          titular: pagoCliente.nombre_cuenta.trim(),
           alias: proveedorPago?.alias || "",
           proveedorId: proveedorPago?.id || null,
           banco: pagoCliente.banco,

@@ -527,7 +527,8 @@ export const getDetalleCierre = async (req, res) => {
       pagos.push({
         tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
-        nombre_cuenta: datos?.nombre_cuenta || "-",
+        nombre_cuenta: datos?.nombre_cuenta || datos?.titular || "-",
+        titular: datos?.titular || datos?.nombre_cuenta || "-",
         alias: datos?.alias || proveedorPago?.alias || "-",
         monto: parseFloat(pago.monto) || 0,
         banco: datos?.banco || "-",
@@ -633,7 +634,8 @@ export const getPagosHoy = async (req, res) => {
       pagos.push({
         tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
-        nombre_cuenta: datos?.nombre_cuenta || "-",
+        nombre_cuenta: datos?.nombre_cuenta || datos?.titular || "-",
+        titular: datos?.titular || datos?.nombre_cuenta || "-",
         alias: datos?.alias || proveedorPago?.alias || "-",
         monto: parseFloat(pago.monto) || 0,
         banco: datos?.banco || "-",
