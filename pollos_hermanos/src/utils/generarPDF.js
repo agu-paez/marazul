@@ -412,7 +412,7 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
     for (let i = 0; i < rowData.length; i++) {
       let cellText = String(rowData[i]);
       const maxWidth = colWidths[i] - 6;
-      while (cellText.length > 1 && doc.getTextWidth(cellText) > maxWidth) {
+      while (cellText.length > 1 && (doc.getTextWidth ? doc.getTextWidth(cellText) : cellText.length * 4) > maxWidth) {
         cellText = `${cellText.slice(0, -2)}...`;
       }
       doc.text(cellText, x + 3, yPos + rowH / 2 + 1.2);
@@ -447,7 +447,7 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
       (p.fecha_hora || "").replace("T", " ").replace(/(\d{2}:\d{2}):\d{2}/, "$1"),
        p.nombre_cuenta || "-",
        p.alias || "-",
-      `$${(p.monto || 0).toFixed(2)}`,
+      `$${Number(p.monto || 0).toFixed(2)}`,
       p.banco || "-",
       p.tipo || "-",
     ];
@@ -458,7 +458,7 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
   y += 4;
   y = addPageIfNeeded(y);
 
-  const total = pagos.reduce((s, p) => s + (p.monto || 0), 0);
+  const total = pagos.reduce((s, p) => s + Number(p.monto || 0), 0);
   const totalLineWidth = 120;
   const totalX = pageWidth - mr - totalLineWidth;
   doc.setDrawColor(70, 70, 80);
@@ -584,7 +584,7 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
       for (let i = 0; i < rowData.length; i++) {
         let cellText = String(rowData[i]);
         const maxWidth = colWidths[i] - 6;
-        while (cellText.length > 1 && doc.getTextWidth(cellText) > maxWidth) {
+        while (cellText.length > 1 && (doc.getTextWidth ? doc.getTextWidth(cellText) : cellText.length * 4) > maxWidth) {
           cellText = `${cellText.slice(0, -2)}...`;
         }
         doc.text(cellText, x + 3, yPos + rowH / 2 + 1.2);
@@ -619,7 +619,7 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
         (p.fecha_hora || "").replace("T", " ").replace(/(\d{2}:\d{2}):\d{2}/, "$1"),
          p.nombre_cuenta || "-",
          p.alias || "-",
-        `$${(p.monto || 0).toFixed(2)}`,
+         `$${Number(p.monto || 0).toFixed(2)}`,
         p.banco || "-",
         p.tipo || "-",
       ];
@@ -630,7 +630,7 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
     y += 4;
     y = addPageIfNeeded(y);
 
-    const total = grupo.pagos.reduce((s, p) => s + (p.monto || 0), 0);
+    const total = grupo.pagos.reduce((s, p) => s + Number(p.monto || 0), 0);
     const totalLineWidth = 120;
     const totalX = pageWidth - mr - totalLineWidth;
     doc.setDrawColor(70, 70, 80);
