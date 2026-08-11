@@ -51,6 +51,7 @@ export const getAllProveedores = async (req, res) => {
         if (typeof transferencias === "string") {
           try {
             transferencias = JSON.parse(transferencias);
+            if (typeof transferencias === "string") transferencias = JSON.parse(transferencias);
           } catch {
             transferencias = [];
           }
