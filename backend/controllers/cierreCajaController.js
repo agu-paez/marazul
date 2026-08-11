@@ -459,6 +459,7 @@ export const getDetalleCierre = async (req, res) => {
         try { return JSON.parse(datos); } catch { return []; }
       }
       if (Array.isArray(datos)) return datos;
+      if (typeof datos === "object") return [datos];
       return [];
     };
 
@@ -596,6 +597,7 @@ export const getPagosHoy = async (req, res) => {
         try { return JSON.parse(datos); } catch { return []; }
       }
       if (Array.isArray(datos)) return datos;
+      if (typeof datos === "object") return [datos];
       return [];
     };
 

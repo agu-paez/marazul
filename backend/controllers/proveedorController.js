@@ -55,6 +55,9 @@ export const getAllProveedores = async (req, res) => {
             transferencias = [];
           }
         }
+        if (!Array.isArray(transferencias) && transferencias && typeof transferencias === "object") {
+          transferencias = [transferencias];
+        }
 
         for (const transferencia of Array.isArray(transferencias) ? transferencias : []) {
           const proveedorId = transferencia.proveedorId || proveedoresPorAlias.get(String(transferencia.alias || "").trim().toLowerCase());
