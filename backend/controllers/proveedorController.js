@@ -1,4 +1,4 @@
-import { Proveedor, Marca, Producto, Venta, ProveedorMovimiento } from "../models/index.js";
+import { Proveedor, Marca, Producto, Venta, ClientePago, ProveedorMovimiento } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
 
 export const getAllProveedores = async (req, res) => {
@@ -15,6 +15,9 @@ export const getAllProveedores = async (req, res) => {
       where: { estado: "completada" },
       attributes: ["datos_transferencia", "proveedorId"],
     });
+    const pagosClientes = await ClientePago.findAll({
+      attributes: ["datos_transferencia"],
+    });
     const transferenciasPorProveedor = new Map();
 
     for (const venta of ventas) {
@@ -29,6 +32,28 @@ export const getAllProveedores = async (req, res) => {
 
       for (const transferencia of Array.isArray(transferencias) ? transferencias : []) {
         const proveedorId = transferencia.proveedorId || venta.proveedorId;
+        const monto = parseFloat(transferencia.monto) || 0;
+        if (proveedorId && monto > 0) {
+          transferenciasPorProveedor.set(
+            Number(proveedorId),
+            (transferenciasPorProveedor.get(Number(proveedorId)) || 0) + monto
+          );
+        }
+      }
+    }
+
+    for (const pago of pagosClientes) {
+      let transferencias = pago.datos_transferencia || [];
+      if (typeof transferencias === "string") {
+        try {
+          transferencias = JSON.parse(transferencias);
+        } catch {
+          transferencias = [];
+        }
+      }
+
+      for (const transferencia of Array.isArray(transferencias) ? transferencias : []) {
+        const proveedorId = transferencia.proveedorId;
         const monto = parseFloat(transferencia.monto) || 0;
         if (proveedorId && monto > 0) {
           transferenciasPorProveedor.set(

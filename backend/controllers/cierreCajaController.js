@@ -518,13 +518,15 @@ export const getDetalleCierre = async (req, res) => {
       const tarjeta = parseDatos(pago.datos_tarjeta)[0];
       const datos = transferencia || tarjeta;
       const medioPago = String(pago.medio_pago || "otro").toLowerCase();
+      const proveedorPago = datos?.proveedorId ? proveedoresPorId.get(Number(datos.proveedorId)) : null;
       pagos.push({
         tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
         nombre_cuenta: datos?.nombre_cuenta || "-",
+        alias: datos?.alias || proveedorPago?.alias || "-",
         monto: parseFloat(pago.monto) || 0,
         banco: datos?.banco || "-",
-        proveedor: null,
+        proveedor: proveedorPago,
         cliente: pago.Cliente?.nombre || "-",
       });
     }
@@ -617,13 +619,15 @@ export const getPagosHoy = async (req, res) => {
       const tarjeta = parseDatos(pago.datos_tarjeta)[0];
       const datos = transferencia || tarjeta;
       const medioPago = String(pago.medio_pago || "otro").toLowerCase();
+      const proveedorPago = datos?.proveedorId ? proveedoresPorId.get(Number(datos.proveedorId)) : null;
       pagos.push({
         tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
         nombre_cuenta: datos?.nombre_cuenta || "-",
+        alias: datos?.alias || proveedorPago?.alias || "-",
         monto: parseFloat(pago.monto) || 0,
         banco: datos?.banco || "-",
-        proveedor: null,
+        proveedor: proveedorPago,
         cliente: pago.Cliente?.nombre || "-",
       });
     }

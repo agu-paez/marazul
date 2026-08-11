@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI } from "../api";
+import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI, proveedoresAPI } from "../api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 
 
@@ -17,9 +17,10 @@ export default function MisSalidas() {
   const [resumenCaja, setResumenCaja] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [bancos, setBancos] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
   const [showPagoCliente, setShowPagoCliente] = useState(false);
   const [clientePago, setClientePago] = useState("");
-  const [pagoCliente, setPagoCliente] = useState({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", banco: "", notas: "" });
+  const [pagoCliente, setPagoCliente] = useState({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", alias: "", banco: "", notas: "" });
 
   useEffect(() => {
     loadSalidas();
@@ -28,14 +29,16 @@ export default function MisSalidas() {
 
   const loadDatosPago = async () => {
     try {
-      const [clientesRes, resumenRes, bancosRes] = await Promise.all([
+      const [clientesRes, resumenRes, bancosRes, proveedoresRes] = await Promise.all([
         clientesAPI.getAll(),
         cierreCajaAPI.getResumenHoy(),
         bancosAPI.getAll(),
+        proveedoresAPI.getAll(),
       ]);
       setClientes(clientesRes.data);
       setResumenCaja(resumenRes.data);
       setBancos(bancosRes.data.map((banco) => banco.nombre));
+      setProveedores(proveedoresRes.data);
     } catch (error) {
       console.error("Error al cargar datos de pagos:", error);
     }
@@ -58,7 +61,7 @@ export default function MisSalidas() {
       return;
     }
     setClientePago("");
-    setPagoCliente({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", banco: "", notas: "" });
+    setPagoCliente({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", proveedorId: "", banco: "", notas: "" });
     setShowPagoCliente(true);
   };
 
@@ -70,13 +73,16 @@ export default function MisSalidas() {
     if (monto <= 0 || monto > parseFloat(cliente.saldo_pendiente || 0)) {
       return alert("El monto debe ser mayor a 0 y no superar la deuda del cliente");
     }
-    if (["transferencia", "tarjeta"].includes(pagoCliente.medio_pago) && (!pagoCliente.nombre_cuenta.trim() || !pagoCliente.banco)) {
-      return alert("Debe completar la cuenta y el banco del pago");
+    const proveedorPago = proveedores.find((proveedor) => String(proveedor.id) === String(pagoCliente.proveedorId));
+    if (pagoCliente.medio_pago === "transferencia" && (!proveedorPago || !proveedorPago.alias || !pagoCliente.nombre_cuenta.trim() || !pagoCliente.banco)) {
+      return alert("Debe seleccionar un proveedor con alias y completar la cuenta y banco");
     }
 
     const datosBancarios = ["transferencia", "tarjeta"].includes(pagoCliente.medio_pago)
       ? {
           nombre_cuenta: pagoCliente.nombre_cuenta.trim(),
+          alias: proveedorPago?.alias || "",
+          proveedorId: proveedorPago?.id || null,
           banco: pagoCliente.banco,
           fecha_hora: new Date().toISOString(),
           monto,
@@ -254,6 +260,17 @@ export default function MisSalidas() {
                   <label>Cuenta / titular *</label>
                   <input value={pagoCliente.nombre_cuenta} onChange={(event) => setPagoCliente({ ...pagoCliente, nombre_cuenta: event.target.value })} required />
                 </div>
+                {pagoCliente.medio_pago === "transferencia" && (
+                  <div className="form-group">
+                    <label>Proveedor / alias *</label>
+                    <select value={pagoCliente.proveedorId} onChange={(event) => setPagoCliente({ ...pagoCliente, proveedorId: event.target.value })} required>
+                      <option value="">Seleccionar proveedor...</option>
+                      {proveedores.filter((proveedor) => proveedor.alias).map((proveedor) => (
+                        <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre} - {proveedor.alias}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Banco *</label>
                   <select value={pagoCliente.banco} onChange={(event) => setPagoCliente({ ...pagoCliente, banco: event.target.value })} required>

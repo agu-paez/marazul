@@ -22,7 +22,6 @@ export default function ProductosPage() {
   const [descontandoStock, setDescontandoStock] = useState(false);
   const [form, setForm] = useState({
     nombre: "",
-    descripcion: "",
     precio: "",
     costo: "",
     stock: "",
@@ -70,7 +69,7 @@ export default function ProductosPage() {
       }
       setShowForm(false);
       setEditing(null);
-      setForm({ nombre: "", descripcion: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
+      setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -81,7 +80,6 @@ export default function ProductosPage() {
     setEditing(producto);
     setForm({
       nombre: producto.nombre,
-      descripcion: producto.descripcion || "",
       precio: producto.precio,
       costo: producto.costo ?? "",
       stock: producto.stock,
@@ -176,7 +174,7 @@ export default function ProductosPage() {
             onClick={() => {
               setShowForm(!showForm);
               setEditing(null);
-                setForm({ nombre: "", descripcion: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
+                 setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
             }}
           >
             {showForm ? "Cancelar" : "+ Nuevo Producto"}
@@ -354,13 +352,6 @@ export default function ProductosPage() {
             </div>
           </div>
           <div className="form-group">
-            <label>Descripción</label>
-            <input
-              value={form.descripcion}
-              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-            />
-          </div>
-          <div className="form-group">
             <label>Código de Barras</label>
             <input
               value={form.codigo_barras}
@@ -456,7 +447,6 @@ export default function ProductosPage() {
           <thead>
             <tr>
               <th>Nombre</th>
-              <th>Descripción</th>
               <th>Código Barras</th>
               <th>Precio</th>
               <th>Costo</th>
@@ -470,7 +460,6 @@ export default function ProductosPage() {
             {productosFiltrados.map((p) => (
               <tr key={p.id}>
                 <td><strong>{p.nombre}</strong></td>
-                <td>{p.descripcion || "-"}</td>
                 <td>{p.codigo_barras || "-"}</td>
                 <td>${p.precio}</td>
                 <td>${Number(p.costo || 0).toFixed(2)}</td>
