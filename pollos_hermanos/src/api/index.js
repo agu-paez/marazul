@@ -33,12 +33,13 @@ export const authAPI = {
 };
 
 export const proveedoresAPI = {
-  getAll: () => API.get("/proveedores"),
+  getAll: (params) => API.get("/proveedores", { params }),
   getById: (id) => API.get(`/proveedores/${id}`),
   create: (data) => API.post("/proveedores", data),
   update: (id, data) => API.put(`/proveedores/${id}`, data),
   delete: (id) => API.delete(`/proveedores/${id}`),
   registrarMovimiento: (id, data) => API.post(`/proveedores/${id}/movimientos`, data),
+  cambiarEstado: (id) => API.patch(`/proveedores/${id}/estado`),
 };
 
 export const marcasAPI = {

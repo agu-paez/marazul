@@ -6,6 +6,7 @@ import {
   updateProveedor,
   deleteProveedor,
   registrarMovimientoProveedor,
+  cambiarEstadoProveedor,
 } from "../controllers/proveedorController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 
@@ -18,6 +19,7 @@ router.get("/:id", getProveedorById);
 router.post("/", authorize("admin"), createProveedor);
 router.put("/:id", authorize("admin"), updateProveedor);
 router.post("/:id/movimientos", authorize("admin"), registrarMovimientoProveedor);
+router.patch("/:id/estado", authorize("admin"), cambiarEstadoProveedor);
 router.delete("/:id", authorize("admin"), deleteProveedor);
 
 export default router;

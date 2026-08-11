@@ -28,7 +28,7 @@ export default function ProveedoresPage() {
 
   const loadProveedores = async () => {
     try {
-      const res = await proveedoresAPI.getAll();
+      const res = await proveedoresAPI.getAll({ incluirInactivos: true });
       setProveedores(res.data);
     } catch (error) {
       console.error("Error:", error);
@@ -101,13 +101,24 @@ export default function ProveedoresPage() {
     }
   };
 
+  const handleToggleEstado = async (proveedor) => {
+    const accion = proveedor.activo ? "desactivar" : "activar";
+    if (!confirm(`¿Desea ${accion} este proveedor?`)) return;
+    try {
+      await proveedoresAPI.cambiarEstado(proveedor.id);
+      loadProveedores();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    }
+  };
+
   const handleDelete = async (id) => {
-    if (!confirm("¿Desactivar este proveedor? Sus productos, marcas y alias dejarán de aparecer.")) return;
+    if (!confirm("¿Eliminar definitivamente este proveedor? Esta acción no se puede deshacer.")) return;
     try {
       await proveedoresAPI.delete(id);
       loadProveedores();
     } catch (error) {
-      alert("Error al desactivar");
+      alert("Error: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -358,10 +369,10 @@ export default function ProveedoresPage() {
             {proveedores.map((p) => {
               const diferencia = (p.dinero_ventas || 0) + (p.mercaderias_compradas || 0) + (p.diferencia_acumulada || 0) + (p.transferencias_historial || 0);
               return (
-                <tr key={p.id}>
+                <tr key={p.id} className={!p.activo ? "proveedor-inactivo" : ""}>
                   <td data-label="Nombre"><strong>{p.nombre}</strong></td>
                   <td data-label="Alias">{p.alias || "-"}</td>
-                  <td data-label="Marcas">{p.Marcas?.map((marca) => marca.nombre).join(", ") || "-"}</td>
+                   <td data-label="Marcas">{p.activo ? (p.Marcas?.map((marca) => marca.nombre).join(", ") || "-") : "-"}</td>
                   <td data-label="Diferencias">
                     <strong style={{ color: diferencia >= 0 ? "var(--success)" : "var(--danger)" }}>
                       ${diferencia.toFixed(2)}
@@ -369,7 +380,7 @@ export default function ProveedoresPage() {
                   </td>
                   <td data-label="Teléfono">{p.telefono || "-"}</td>
                   <td data-label="Tipo Producto">{p.tipo_producto || "-"}</td>
-                   <td data-label="Productos">{p.Marcas?.reduce((total, marca) => total + (marca.Productos?.length || 0), 0) || 0}</td>
+                    <td data-label="Productos">{p.activo ? (p.Marcas?.reduce((total, marca) => total + (marca.Productos?.length || 0), 0) || 0) : 0}</td>
                   <td data-label="Acciones" className="proveedores-actions">
                     <button className="btn btn-sm btn-camino" onClick={() => handleEdit(p)}>
                       Editar
@@ -377,8 +388,11 @@ export default function ProveedoresPage() {
                     <button className="btn btn-sm btn-primary" onClick={() => openSaldosModal(p)}>
                       Saldos y Dif
                     </button>
-                    <button className="btn btn-sm btn-cancel" onClick={() => handleDelete(p.id)}>
-                      Desactivar
+                     <button className="btn btn-sm btn-cancel" onClick={() => handleToggleEstado(p)}>
+                       {p.activo ? "Desactivar" : "Activar"}
+                     </button>
+                     <button className="btn btn-sm btn-cancel" onClick={() => handleDelete(p.id)}>
+                       Eliminar
                     </button>
                   </td>
                   <td data-label="Dirección">{p.direccion || "-"}</td>

@@ -1939,6 +1939,15 @@ input[type="number"] {
   text-align: center;
 }
 
+.proveedores-table-container tr.proveedor-inactivo {
+  color: var(--text-muted);
+  opacity: 0.62;
+}
+
+.proveedores-table-container tr.proveedor-inactivo td:first-child {
+  text-decoration: line-through;
+}
+
 @media (max-width: 1024px) {
   .produccion-form-grid {
     grid-template-columns: repeat(3, 1fr);

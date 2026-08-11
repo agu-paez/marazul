@@ -8,7 +8,7 @@ export const getAllProveedores = async (req, res) => {
         model: Marca,
         include: [{ model: Producto, attributes: ["id", "nombre", "precio", "stock"] }],
       }],
-      where: { activo: true },
+      where: req.query.incluirInactivos === "true" ? undefined : { activo: true },
     });
 
     const ventas = await Venta.findAll({
@@ -158,6 +158,23 @@ export const registrarMovimientoProveedor = async (req, res) => {
   }
 };
 
+export const cambiarEstadoProveedor = async (req, res) => {
+  try {
+    const proveedor = await Proveedor.findByPk(req.params.id);
+    if (!proveedor) {
+      return res.status(404).json({ message: "Proveedor no encontrado" });
+    }
+
+    await proveedor.update({ activo: !proveedor.activo });
+    res.json({
+      message: proveedor.activo ? "Proveedor activado" : "Proveedor desactivado",
+      proveedor,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error al cambiar el estado del proveedor", error: error.message });
+  }
+};
+
 export const deleteProveedor = async (req, res) => {
   try {
     const proveedor = await Proveedor.findByPk(req.params.id);
@@ -165,8 +182,18 @@ export const deleteProveedor = async (req, res) => {
       return res.status(404).json({ message: "Proveedor no encontrado" });
     }
 
-    await proveedor.update({ activo: false });
-    res.json({ message: "Proveedor desactivado" });
+    // Preserve historical records while removing the supplier and its brands.
+    await Venta.update({ proveedorId: null }, { where: { proveedorId: proveedor.id } });
+    await ClientePago.update({ proveedorId: null }, { where: { proveedorId: proveedor.id } });
+    await ProveedorMovimiento.destroy({ where: { proveedorId: proveedor.id } });
+
+    const marcas = await Marca.findAll({ where: { proveedorId: proveedor.id } });
+    for (const marca of marcas) {
+      await Producto.update({ marcaId: null }, { where: { marcaId: marca.id } });
+      await marca.destroy();
+    }
+    await proveedor.destroy();
+    res.json({ message: "Proveedor eliminado" });
   } catch (error) {
     res.status(500).json({ message: "Error al eliminar proveedor", error: error.message });
   }
