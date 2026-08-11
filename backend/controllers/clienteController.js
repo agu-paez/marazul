@@ -1,12 +1,24 @@
 import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
 
+const normalizarSaldos = async (cliente) => {
+  const deuda = parseFloat(cliente.saldo_pendiente) || 0;
+  const favor = parseFloat(cliente.saldo_favor) || 0;
+  const saldoPendiente = Math.max(0, deuda - favor);
+  const saldoFavor = Math.max(0, favor - deuda);
+  if (saldoPendiente !== deuda || saldoFavor !== favor) {
+    await cliente.update({ saldo_pendiente: saldoPendiente.toFixed(2), saldo_favor: saldoFavor.toFixed(2) });
+  }
+  return cliente;
+};
+
 export const getAllClientes = async (req, res) => {
   try {
     const clientes = await Cliente.findAll({
       where: { activo: true },
       order: [["nombre", "ASC"]],
     });
+    await Promise.all(clientes.map(normalizarSaldos));
     res.json(clientes);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener clientes", error: error.message });
@@ -19,6 +31,7 @@ export const getClienteById = async (req, res) => {
     if (!cliente) {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
+    await normalizarSaldos(cliente);
     res.json(cliente);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener cliente", error: error.message });
@@ -178,8 +191,10 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
       return res.status(400).json({ message: "El total del pago debe ser mayor a 0" });
     }
 
-    const saldoPendienteActual = parseFloat(cliente.saldo_pendiente) || 0;
-    const saldoFavorActual = parseFloat(cliente.saldo_favor) || 0;
+    const deudaOriginal = parseFloat(cliente.saldo_pendiente) || 0;
+    const favorOriginal = parseFloat(cliente.saldo_favor) || 0;
+    const saldoPendienteActual = Math.max(0, deudaOriginal - favorOriginal);
+    const saldoFavorActual = Math.max(0, favorOriginal - deudaOriginal);
     for (const pago of pagos) {
       const datosBancarios = pago.datos_transferencia || pago.datos_tarjeta;
       const proveedorId = datosBancarios?.proveedorId || null;

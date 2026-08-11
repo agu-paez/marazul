@@ -339,8 +339,8 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
   const ml = 18;
   const mr = 18;
   const tableWidth = pageWidth - ml - mr;
-  const colWidths = [50, 55, 38, 50, tableWidth - 50 - 55 - 38 - 50];
-  const headers = ["Fecha y Hora", "Titular", "Monto", "Banco", "Tipo"];
+   const colWidths = [45, 45, 45, 38, 45, tableWidth - 218];
+   const headers = ["Fecha y Hora", "Titular", "Alias", "Monto", "Banco", "Tipo"];
   const rowH = 7;
   const headerH = 9;
   const fontSize = 12;
@@ -440,7 +440,8 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
     const p = pagos[i];
     const rowData = [
       (p.fecha_hora || "").replace("T", " "),
-       `${p.nombre_cuenta || "-"}${p.alias && p.alias !== "-" ? ` / Alias: ${p.alias}` : ""}`,
+       p.nombre_cuenta || "-",
+       p.alias || "-",
       `$${(p.monto || 0).toFixed(2)}`,
       p.banco || "-",
       p.tipo || "-",
@@ -508,8 +509,8 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
     const ml = 18;
     const mr = 18;
     const tableWidth = pageWidth - ml - mr;
-    const colWidths = [50, 55, 38, 50, tableWidth - 50 - 55 - 38 - 50];
-    const headers = ["Fecha y Hora", "Titular", "Monto", "Banco", "Tipo"];
+     const colWidths = [45, 45, 45, 38, 45, tableWidth - 218];
+     const headers = ["Fecha y Hora", "Titular", "Alias", "Monto", "Banco", "Tipo"];
     const rowH = 7;
     const headerH = 9;
     const fontSize = 12;
@@ -606,7 +607,8 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
       const p = grupo.pagos[i];
       const rowData = [
         (p.fecha_hora || "").replace("T", " "),
-         `${p.nombre_cuenta || "-"}${p.alias && p.alias !== "-" ? ` / Alias: ${p.alias}` : ""}`,
+         p.nombre_cuenta || "-",
+         p.alias || "-",
         `$${(p.monto || 0).toFixed(2)}`,
         p.banco || "-",
         p.tipo || "-",
