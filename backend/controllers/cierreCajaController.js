@@ -424,7 +424,10 @@ export const getDetalleCierre = async (req, res) => {
     });
     const pagosClientesHoy = await ClientePago.findAll({
       where: { fecha },
-      include: [{ model: Cliente, attributes: ["id", "nombre"] }],
+      include: [
+        { model: Cliente, attributes: ["id", "nombre"] },
+        { model: Proveedor, attributes: ["id", "nombre", "alias"] },
+      ],
     });
     const proveedores = await Proveedor.findAll({ attributes: ["id", "nombre", "alias"] });
     const proveedoresPorId = new Map(proveedores.map((p) => [p.id, { id: p.id, nombre: p.nombre, alias: p.alias }]));
@@ -518,7 +521,9 @@ export const getDetalleCierre = async (req, res) => {
       const tarjeta = parseDatos(pago.datos_tarjeta)[0];
       const datos = transferencia || tarjeta;
       const medioPago = String(pago.medio_pago || "otro").toLowerCase();
-      const proveedorPago = datos?.proveedorId ? proveedoresPorId.get(Number(datos.proveedorId)) : null;
+      const proveedorPago = pago.Proveedor
+        ? { id: pago.Proveedor.id, nombre: pago.Proveedor.nombre, alias: pago.Proveedor.alias }
+        : datos?.proveedorId ? proveedoresPorId.get(Number(datos.proveedorId)) : null;
       pagos.push({
         tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
@@ -568,7 +573,10 @@ export const getPagosHoy = async (req, res) => {
     });
     const pagosClientesHoy = await ClientePago.findAll({
       where: { fecha },
-      include: [{ model: Cliente, attributes: ["id", "nombre"] }],
+      include: [
+        { model: Cliente, attributes: ["id", "nombre"] },
+        { model: Proveedor, attributes: ["id", "nombre", "alias"] },
+      ],
     });
     const proveedores = await Proveedor.findAll({ attributes: ["id", "nombre", "alias"] });
     const proveedoresPorId = new Map(proveedores.map((p) => [p.id, { id: p.id, nombre: p.nombre, alias: p.alias }]));
@@ -619,7 +627,9 @@ export const getPagosHoy = async (req, res) => {
       const tarjeta = parseDatos(pago.datos_tarjeta)[0];
       const datos = transferencia || tarjeta;
       const medioPago = String(pago.medio_pago || "otro").toLowerCase();
-      const proveedorPago = datos?.proveedorId ? proveedoresPorId.get(Number(datos.proveedorId)) : null;
+      const proveedorPago = pago.Proveedor
+        ? { id: pago.Proveedor.id, nombre: pago.Proveedor.nombre, alias: pago.Proveedor.alias }
+        : datos?.proveedorId ? proveedoresPorId.get(Number(datos.proveedorId)) : null;
       pagos.push({
         tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,

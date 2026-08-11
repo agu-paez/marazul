@@ -1,4 +1,4 @@
-import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja } from "../models/index.js";
+import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
 
 export const getAllClientes = async (req, res) => {
@@ -180,6 +180,16 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
 
     const saldoPendienteActual = parseFloat(cliente.saldo_pendiente) || 0;
     const saldoFavorActual = parseFloat(cliente.saldo_favor) || 0;
+    for (const pago of pagos) {
+      const datosBancarios = pago.datos_transferencia || pago.datos_tarjeta;
+      const proveedorId = datosBancarios?.proveedorId || null;
+      if (["transferencia", "tarjeta"].includes(pago.medio_pago)) {
+        const proveedor = proveedorId ? await Proveedor.findOne({ where: { id: proveedorId, activo: true } }) : null;
+        if (!proveedor) {
+          return res.status(400).json({ message: "Debe seleccionar un alias de proveedor válido" });
+        }
+      }
+    }
     const nuevoSaldo = Math.max(0, saldoPendienteActual - totalPago);
     const nuevoSaldoFavor = saldoFavorActual + Math.max(0, totalPago - saldoPendienteActual);
     await cliente.update({
@@ -192,6 +202,8 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
     const fecha = getFechaLocal(now);
 
     for (const pago of pagos) {
+      const datosBancarios = pago.datos_transferencia || pago.datos_tarjeta;
+      const proveedorId = datosBancarios?.proveedorId || null;
       await ClientePago.create({
         clienteId: cliente.id,
         monto: parseFloat(pago.monto).toFixed(2),
@@ -201,6 +213,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
         notas: pago.notas || null,
         datos_transferencia: pago.datos_transferencia ? JSON.stringify(pago.datos_transferencia) : null,
         datos_tarjeta: pago.datos_tarjeta ? JSON.stringify(pago.datos_tarjeta) : null,
+        proveedorId,
       });
     }
 

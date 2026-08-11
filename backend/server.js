@@ -178,6 +178,7 @@ const start = async () => {
     await ensureColumn(CierreCaja, "pagos_empleados", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(ClientePago, "datos_transferencia", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(ClientePago, "datos_tarjeta", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(ClientePago, "proveedorId", { type: DataTypes.INTEGER, allowNull: true });
 
     const bancosDefault = ["Banco Nación", "Banco Provincia", "Banco Galicia", "Banco Santander", "Banco BBVA", "Banco Macro", "Banco Ciudad", "Banco Patagonia", "Banco Supervielle", "Banco Hipotecario"];
     for (const nombre of bancosDefault) {

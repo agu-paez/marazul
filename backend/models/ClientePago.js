@@ -37,6 +37,10 @@ const ClientePago = sequelize.define("ClientePago", {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  proveedorId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
 });
 
 export default ClientePago;
