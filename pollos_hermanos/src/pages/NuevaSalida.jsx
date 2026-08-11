@@ -48,9 +48,11 @@ export default function NuevaSalida() {
   };
 
   const toggleCantidad = (productoId, delta) => {
+    const producto = productos.find((p) => p.id === productoId);
+    const esKg = ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
     setCantidades((prev) => {
       const actual = prev[productoId] || 0;
-      const nueva = Math.max(0, actual + delta);
+      const nueva = Math.max(0, actual + (esKg ? delta * 0.5 : delta));
       return { ...prev, [productoId]: nueva };
     });
   };
@@ -211,20 +213,21 @@ export default function NuevaSalida() {
               {productosFiltrados.map((p) => {
                 const qty = cantidades[p.id] || 0;
                 const seleccionado = qty > 0;
+                const esKg = ["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase());
                 return (
                   <div
                     key={p.id}
                     className={`producto-card ${seleccionado ? "selected" : ""}`}
                   >
                     <div className="producto-card-name">{p.nombre}</div>
-                    <div className="producto-card-price">${p.precio}</div>
+                    <div className="producto-card-price">${Number(p.precio).toFixed(2)} {esKg ? "/ kg" : `/${p.unidad || "unidad"}`}</div>
                     <div className={`producto-card-stock ${p.stock <= (p.stock_minimo || 10) ? "bajo" : ""}`}>
                       Stock: {p.stock}
                     </div>
                     <div className="producto-card-qty">
-                      <button
+                        <button
                         type="button"
-                        onClick={() => toggleCantidad(p.id, -1)}
+                          onClick={() => toggleCantidad(p.id, -1)}
                         disabled={qty === 0}
                       >
                         -
@@ -234,11 +237,13 @@ export default function NuevaSalida() {
                         min="0"
                         max={p.stock}
                         value={qty}
+                        step={esKg ? "0.01" : "1"}
+                        aria-label={`Cantidad de ${p.nombre}${esKg ? " en kilogramos" : ""}`}
                         onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
+                          const val = esKg ? parseFloat(e.target.value) || 0 : parseInt(e.target.value) || 0;
                           setCantidades((prev) => ({
                             ...prev,
-                            [p.id]: Math.min(Math.max(0, val), p.stock),
+                            [p.id]: Math.min(Math.max(0, val), Number(p.stock)),
                           }));
                         }}
                       />
@@ -262,7 +267,7 @@ export default function NuevaSalida() {
             <div style={{ marginBottom: "0.5rem" }}>
               {productosSeleccionados.map((p) => (
                 <div key={p.id} className="resumen-row">
-                  <span>{cantidades[p.id]}x {p.nombre}</span>
+                   <span>{cantidades[p.id]}{["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase()) ? " kg" : "x"} {p.nombre}</span>
                   <strong>${(p.precio * cantidades[p.id]).toFixed(2)}</strong>
                 </div>
               ))}

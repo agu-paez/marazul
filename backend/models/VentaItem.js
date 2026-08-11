@@ -8,7 +8,7 @@ const VentaItem = sequelize.define("VentaItem", {
     autoIncrement: true,
   },
   cantidad: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
     defaultValue: 1,
   },

@@ -8,12 +8,12 @@ const SalidaCamionItem = sequelize.define("SalidaCamionItem", {
     autoIncrement: true,
   },
   cantidad: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
     defaultValue: 1,
   },
   cantidad_devuelta: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
     defaultValue: 0,
   },

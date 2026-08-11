@@ -61,7 +61,7 @@ export default function MisSalidas() {
 
   const handleCantidadRegreso = (index, value) => {
     const newItems = [...itemsRegreso];
-    const cant = parseInt(value) || 0;
+        const cant = parseFloat(value) || 0;
     newItems[index].cantidad_regreso = Math.min(cant, newItems[index].max_devolver);
     setItemsRegreso(newItems);
   };

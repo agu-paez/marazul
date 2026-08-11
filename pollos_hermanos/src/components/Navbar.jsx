@@ -21,6 +21,7 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path ? "nav-link active" : "nav-link";
 
   const isAdmin = user?.role === "admin";
+  const isOperador = user?.role === "operador";
   const isRepartidor = user?.role === "repartidor";
 
   return (
@@ -35,12 +36,12 @@ export default function Navbar() {
         <span className={`hamburger-line ${menuOpen ? "open" : ""}`}></span>
       </button>
       <div className={`nav-links ${menuOpen ? "nav-links-open" : ""}`}>
-        {isRepartidor ? (
+        {isRepartidor || isOperador ? (
           <>
-            <Link to="/" className={isActive("/")}>Dashboard</Link>
+            {isRepartidor && <Link to="/" className={isActive("/")}>Dashboard</Link>}
             <Link to="/salida/nueva" className={isActive("/salida/nueva")}>Registro Salidas</Link>
             <Link to="/ventas" className={isActive("/ventas")}>Ventas</Link>
-            <Link to="/historial" className={isActive("/historial")}>Historial</Link>
+            {isRepartidor && <Link to="/historial" className={isActive("/historial")}>Historial</Link>}
           </>
         ) : (
           <>

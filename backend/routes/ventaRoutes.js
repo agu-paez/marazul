@@ -12,7 +12,7 @@ const router = Router();
 
 router.use(authenticate);
 
-router.get("/stats", getVentasStats);
+router.get("/stats", authorize("admin"), getVentasStats);
 
 router.get("/", getVentas);
 router.get("/:id", getVentaById);

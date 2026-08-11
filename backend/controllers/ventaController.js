@@ -87,8 +87,13 @@ export const crearVenta = async (req, res) => {
         if (!producto) {
           return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
         }
+        const cantidad = Number(item.cantidad);
+        const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
+        if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo && !Number.isInteger(cantidad))) {
+          return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
+        }
         const disp = stockCamion[item.productoId] || 0;
-        if (disp < item.cantidad) {
+        if (disp < cantidad) {
           return res.status(400).json({
             message: `Stock insuficiente en camion "${salidaCamion.camion}" para "${producto.nombre}": disponible ${disp}, solicitado ${item.cantidad}`,
           });
@@ -100,7 +105,12 @@ export const crearVenta = async (req, res) => {
         if (!producto) {
           return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
         }
-        if (producto.stock < item.cantidad) {
+        const cantidad = Number(item.cantidad);
+        const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
+        if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo && !Number.isInteger(cantidad))) {
+          return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
+        }
+        if (producto.stock < cantidad) {
           return res.status(400).json({
             message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${item.cantidad}`,
           });
@@ -111,8 +121,8 @@ export const crearVenta = async (req, res) => {
     let subtotalCalc = 0;
     for (const item of items) {
       const producto = await Producto.findByPk(item.productoId);
-      const precioUnitario = item.precio_unitario !== undefined ? parseFloat(item.precio_unitario) : parseFloat(producto.precio);
-      subtotalCalc += precioUnitario * item.cantidad;
+      const precioUnitario = parseFloat(producto.precio);
+      subtotalCalc += precioUnitario * Number(item.cantidad);
     }
 
     const esPagoDividido = pagos && pagos.length > 0;
@@ -222,16 +232,16 @@ export const crearVenta = async (req, res) => {
 
     for (const item of items) {
       const producto = await Producto.findByPk(item.productoId);
-      const precioUnitario = item.precio_unitario !== undefined ? parseFloat(item.precio_unitario) : parseFloat(producto.precio);
+       const precioUnitario = parseFloat(producto.precio);
       await VentaItem.create({
         ventaId: venta.id,
         productoId: item.productoId,
-        cantidad: item.cantidad,
+         cantidad: Number(item.cantidad),
         precio_unitario: precioUnitario,
         costo_unitario: parseFloat(producto.costo) || 0,
       });
       if (!esReparto) {
-        await producto.update({ stock: producto.stock - item.cantidad });
+         await producto.update({ stock: parseFloat(producto.stock) - Number(item.cantidad) });
       }
     }
 
@@ -257,13 +267,13 @@ export const getVentas = async (req, res) => {
   try {
     const where = {};
 
-    if (req.userRole === "repartidor") {
+    if (req.userRole === "operador" || req.userRole === "repartidor") {
       where.usuarioId = req.user.id;
     }
 
     if (req.query.fecha) where.fecha = req.query.fecha;
     if (req.query.tipo_venta) where.tipo_venta = req.query.tipo_venta;
-    if (req.query.usuarioId) where.usuarioId = req.query.usuarioId;
+    if (req.query.usuarioId && req.userRole === "admin") where.usuarioId = req.query.usuarioId;
     if (req.query.medio_pago) where.medio_pago = req.query.medio_pago;
     if (req.query.salidaCamionId) where.salidaCamionId = req.query.salidaCamionId;
     if (req.query.numero_comprobante) {
@@ -333,6 +343,10 @@ export const getVentaById = async (req, res) => {
 
     if (!venta) {
       return res.status(404).json({ message: "Venta no encontrada" });
+    }
+
+    if (req.userRole !== "admin" && venta.usuarioId !== req.user.id) {
+      return res.status(403).json({ message: "No tienes permisos para ver esta venta" });
     }
 
     res.json(venta);

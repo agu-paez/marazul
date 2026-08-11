@@ -32,6 +32,7 @@ function PublicRoute({ children }) {
 function AppRoutes() {
   const { user } = useAuth();
   const isRepartidor = user?.role === "repartidor";
+  const isOperador = user?.role === "operador";
   const isAdmin = user?.role === "admin";
 
   return (
@@ -43,14 +44,14 @@ function AppRoutes() {
           <div className="app">
             <Navbar />
             <main className="main-content">
-              {isRepartidor ? <MisSalidas /> : <Dashboard />}
+              {isRepartidor || isOperador ? <MisSalidas /> : <Dashboard />}
             </main>
           </div>
         </PrivateRoute>
       } />
 
       <Route path="/salida/nueva" element={
-        <PrivateRoute>
+        <PrivateRoute allowedRoles={["admin", "operador", "repartidor"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><NuevaSalida /></main>
@@ -59,7 +60,7 @@ function AppRoutes() {
       } />
 
       <Route path="/ventas" element={
-        <PrivateRoute>
+        <PrivateRoute allowedRoles={["admin", "operador", "repartidor"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><VentasPage /></main>
@@ -68,7 +69,7 @@ function AppRoutes() {
       } />
 
       <Route path="/clientes" element={
-        <PrivateRoute allowedRoles={["admin", "operador"]}>
+        <PrivateRoute allowedRoles={["admin"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><ClientesPage /></main>
@@ -77,7 +78,7 @@ function AppRoutes() {
       } />
 
       <Route path="/historial" element={
-        <PrivateRoute>
+        <PrivateRoute allowedRoles={["admin"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><HistorialPage /></main>
@@ -86,7 +87,7 @@ function AppRoutes() {
       } />
 
       <Route path="/historial-salidas" element={
-        <PrivateRoute>
+        <PrivateRoute allowedRoles={["admin"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><HistorialPage /></main>
@@ -95,7 +96,7 @@ function AppRoutes() {
       } />
 
       <Route path="/historial-ventas" element={
-        <PrivateRoute>
+        <PrivateRoute allowedRoles={["admin"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><HistorialPage /></main>
@@ -104,7 +105,7 @@ function AppRoutes() {
       } />
 
       <Route path="/historial-cierres" element={
-        <PrivateRoute>
+        <PrivateRoute allowedRoles={["admin"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><HistorialCierres /></main>
@@ -113,7 +114,7 @@ function AppRoutes() {
       } />
 
       <Route path="/proveedores" element={
-        <PrivateRoute>
+        <PrivateRoute allowedRoles={["admin"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><ProveedoresPage /></main>
@@ -122,7 +123,7 @@ function AppRoutes() {
       } />
 
       <Route path="/productos" element={
-        <PrivateRoute>
+        <PrivateRoute allowedRoles={["admin"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><ProductosPage /></main>
@@ -131,7 +132,7 @@ function AppRoutes() {
       } />
 
       <Route path="/produccion" element={
-        <PrivateRoute>
+        <PrivateRoute allowedRoles={["admin"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><EstadisticasPage /></main>
@@ -140,7 +141,7 @@ function AppRoutes() {
       } />
 
       <Route path="/produccion/historial" element={
-        <PrivateRoute>
+        <PrivateRoute allowedRoles={["admin"]}>
           <Navigate to="/historial?tab=promedios" replace />
         </PrivateRoute>
       } />

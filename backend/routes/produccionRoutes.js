@@ -5,15 +5,15 @@ import {
   descargarHistorialProduccionPdf,
   createProduccion,
 } from "../controllers/produccionController.js";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, authorize } from "../middleware/auth.js";
 
 const router = Router();
 
 router.use(authenticate);
 
-router.get("/", getEstadisticasProduccion);
-router.get("/historial", getHistorialProduccion);
-router.get("/historial/:semana/pdf", descargarHistorialProduccionPdf);
-router.post("/", createProduccion);
+router.get("/", authorize("admin"), getEstadisticasProduccion);
+router.get("/historial", authorize("admin"), getHistorialProduccion);
+router.get("/historial/:semana/pdf", authorize("admin"), descargarHistorialProduccionPdf);
+router.post("/", authorize("admin"), createProduccion);
 
 export default router;

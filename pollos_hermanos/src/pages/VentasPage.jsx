@@ -40,7 +40,6 @@ export default function VentasPage() {
   const [datosTarjeta, setDatosTarjeta] = useState([]);
   const [bancos, setBancos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
-  const [porcentajeAumento, setPorcentajeAumento] = useState(0);
 
   useEffect(() => {
     productosAPI.getAll().then((res) => {
@@ -112,9 +111,11 @@ export default function VentasPage() {
   };
 
   const toggleCantidad = (productoId, delta) => {
+    const producto = productosBase.find((p) => p.id === productoId);
+    const esKg = ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
     setCantidades((prev) => {
       const actual = prev[productoId] || 0;
-      const nueva = Math.max(0, actual + delta);
+      const nueva = Math.max(0, actual + (esKg ? delta * 0.5 : delta));
       return { ...prev, [productoId]: nueva };
     });
   };
@@ -285,7 +286,8 @@ export default function VentasPage() {
     ? stockCamion.map((sc) => ({
         id: sc.productoId,
         nombre: sc.nombre,
-        precio: sc.precio,
+         precio: sc.precio,
+         unidad: sc.unidad,
         stock: sc.disponible,
         cargado: sc.cargado,
         devuelto: sc.devuelto,
@@ -304,8 +306,7 @@ export default function VentasPage() {
 
   const calcularSubtotal = () => {
     return productosSeleccionados.reduce((sum, p) => {
-      const precioAumentado = p.precio * (1 + porcentajeAumento / 100);
-      return sum + precioAumentado * (cantidades[p.id] || 0);
+      return sum + p.precio * (cantidades[p.id] || 0);
     }, 0);
   };
 
@@ -445,11 +446,10 @@ export default function VentasPage() {
         clienteId,
         medio_pago: form.medio_pago,
         notas: form.notas,
-        porcentaje_aumento: porcentajeAumento,
         items: productosSeleccionados.map((p) => ({
           productoId: p.id,
           cantidad: cantidades[p.id],
-          precio_unitario: p.precio * (1 + porcentajeAumento / 100),
+          precio_unitario: p.precio,
         })),
       };
       const proveedorSeleccionado = esTransferencia
@@ -515,7 +515,6 @@ export default function VentasPage() {
       setCamionSeleccionado("");
       setStockCamion([]);
       setBusqueda("");
-      setPorcentajeAumento(0);
 
       if (esRepartidor) {
         const camionesRes = await salidasAPI.getCamionesActivos();
@@ -548,38 +547,6 @@ export default function VentasPage() {
   return (
     <div>
       <h2>Nueva Venta</h2>
-
-      <div className="form-card" style={{ marginBottom: "1rem", background: porcentajeAumento > 0 ? "#fff3cd" : "var(--bg-card)", borderLeft: porcentajeAumento > 0 ? "3px solid #ffc107" : "none" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-          <label style={{ margin: 0, fontWeight: "bold", whiteSpace: "nowrap" }}>
-            Aumento de precio (%):
-          </label>
-          <input
-            type="number"
-            value={porcentajeAumento}
-            onChange={(e) => setPorcentajeAumento(parseFloat(e.target.value) || 0)}
-            min="0"
-            step="0.01"
-            placeholder="0"
-            style={{ width: "100px", padding: "0.5rem" }}
-          />
-          {porcentajeAumento > 0 && (
-            <span style={{ color: "#856404", fontSize: "0.85rem" }}>
-              Precios aumentados un {porcentajeAumento}% para esta venta
-            </span>
-          )}
-          {porcentajeAumento > 0 && (
-            <button
-              type="button"
-              className="btn btn-sm btn-secondary"
-              onClick={() => setPorcentajeAumento(0)}
-              style={{ fontSize: "0.8rem" }}
-            >
-              Quitar aumento
-            </button>
-          )}
-        </div>
-      </div>
 
       {success && ultimaVenta && (
         <div className="success-msg">
@@ -626,7 +593,7 @@ export default function VentasPage() {
               {productosFiltrados.map((p) => {
                 const qty = cantidades[p.id] || 0;
                 const seleccionado = qty > 0;
-                const precioAumentado = p.precio * (1 + porcentajeAumento / 100);
+                const esKg = ["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase());
                 return (
                   <div
                     key={p.id}
@@ -634,12 +601,7 @@ export default function VentasPage() {
                   >
                     <div className="producto-card-name">{p.nombre}</div>
                     <div className="producto-card-price">
-                      ${precioAumentado.toFixed(2)}
-                      {porcentajeAumento > 0 && (
-                        <span style={{ fontSize: "0.7rem", color: "#888", textDecoration: "line-through", marginLeft: "0.25rem" }}>
-                          ${p.precio.toFixed(2)}
-                        </span>
-                      )}
+                      ${Number(p.precio).toFixed(2)} {esKg ? "/ kg" : `/${p.unidad || "unidad"}`}
                     </div>
                     <div className={`producto-card-stock ${p.stock <= (p.stock_minimo || 10) ? "bajo" : ""}`}>
                       Stock: {p.stock}
@@ -659,12 +621,14 @@ export default function VentasPage() {
                       </button>
                       <input
                         type="number"
-                        value={qty}
+                         value={qty}
+                         step={esKg ? "0.01" : "1"}
+                         aria-label={`Cantidad de ${p.nombre}${esKg ? " en kilogramos" : ""}`}
                         min="0"
                         max={getStockMax(p.id)}
                         onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          const clamped = Math.max(0, Math.min(val, getStockMax(p.id)));
+                           const val = esKg ? parseFloat(e.target.value) || 0 : parseInt(e.target.value) || 0;
+                           const clamped = Math.max(0, Math.min(val, Number(getStockMax(p.id))));
                           setCantidades((prev) => ({ ...prev, [p.id]: clamped }));
                         }}
                         disabled={esReparto && !camionSeleccionado}
@@ -1019,11 +983,10 @@ export default function VentasPage() {
           {productosSeleccionados.length > 0 && (
             <div style={{ marginBottom: "0.5rem" }}>
               {productosSeleccionados.map((p) => {
-                const precioAumentado = p.precio * (1 + porcentajeAumento / 100);
                 return (
                   <div key={p.id} className="resumen-row">
-                    <span>{cantidades[p.id]}x {p.nombre}</span>
-                    <strong>${(precioAumentado * cantidades[p.id]).toFixed(2)}</strong>
+                    <span>{cantidades[p.id]}{["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase()) ? " kg" : "x"} {p.nombre}</span>
+                    <strong>${(p.precio * cantidades[p.id]).toFixed(2)}</strong>
                   </div>
                 );
               })}

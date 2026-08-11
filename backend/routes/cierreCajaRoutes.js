@@ -18,12 +18,12 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/resumen-hoy", getResumenDelDia);
-router.get("/historial", authorize("admin", "operador"), getHistorialCierres);
+router.get("/historial", authorize("admin"), getHistorialCierres);
 router.get("/pagos-hoy", authorize("admin", "operador"), getPagosHoy);
 router.get("/detalle-cierre", authorize("admin", "operador"), getDetalleCierre);
-router.get("/historial-gastos", authorize("admin", "operador"), getHistorialGastos);
-router.get("/historial-pagos-empleados", authorize("admin", "operador"), getHistorialPagosEmpleados);
-router.get("/ingresos-egresos", authorize("admin", "operador"), getResumenIngresosEgresos);
+router.get("/historial-gastos", authorize("admin"), getHistorialGastos);
+router.get("/historial-pagos-empleados", authorize("admin"), getHistorialPagosEmpleados);
+router.get("/ingresos-egresos", authorize("admin"), getResumenIngresosEgresos);
 router.post("/cerrar", authorize("admin", "operador"), cerrarCaja);
 router.post("/:fecha/abrir", authorize("admin", "operador"), abrirCaja);
 router.delete("/:fecha", authorize("admin"), eliminarCierre);

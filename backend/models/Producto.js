@@ -26,7 +26,7 @@ const Producto = sequelize.define("Producto", {
     comment: "Costo unitario del producto",
   },
   stock: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,
   },
   stock_minimo: {

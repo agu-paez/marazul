@@ -53,6 +53,10 @@ export const getSalidaById = async (req, res) => {
       return res.status(404).json({ message: "Salida no encontrada" });
     }
 
+    if (req.userRole !== "admin" && salida.asignadoRepartidorId !== req.user.id && salida.creadoPorId !== req.user.id) {
+      return res.status(403).json({ message: "No tienes permisos para ver esta salida" });
+    }
+
     res.json(salida);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener salida", error: error.message });
@@ -130,12 +134,17 @@ export const createSalida = async (req, res) => {
       if (!producto) {
         return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
       }
-      if (producto.stock < item.cantidad) {
+      const cantidad = Number(item.cantidad);
+      const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
+      if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo && !Number.isInteger(cantidad))) {
+        return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
+      }
+      if (producto.stock < cantidad) {
         return res.status(400).json({
           message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${item.cantidad}`,
         });
       }
-      precioTotal += producto.precio * item.cantidad;
+      precioTotal += parseFloat(producto.precio) * cantidad;
     }
 
     const montoSalidaCalc = precioTotal;
@@ -158,11 +167,11 @@ export const createSalida = async (req, res) => {
       await SalidaCamionItem.create({
         salidaCamionId: salida.id,
         productoId: item.productoId,
-        cantidad: item.cantidad,
+        cantidad: Number(item.cantidad),
         precio_unitario: producto.precio,
       });
 
-      await producto.update({ stock: producto.stock - item.cantidad });
+      await producto.update({ stock: parseFloat(producto.stock) - Number(item.cantidad) });
     }
 
     const salidaCompleta = await SalidaCamion.findByPk(salida.id, {
@@ -590,7 +599,8 @@ export const getStockCamion = async (req, res) => {
       if (!stockDisponible[productoId]) {
         stockDisponible[productoId] = {
           productoId,
-          nombre: item.Producto?.nombre,
+           nombre: item.Producto?.nombre,
+           unidad: item.Producto?.unidad,
           precio: parseFloat(item.precio_unitario),
           cargado: item.cantidad,
           vendido: 0,
