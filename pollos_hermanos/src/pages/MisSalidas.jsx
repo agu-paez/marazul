@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { salidasAPI, ventasAPI } from "../api";
+import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI } from "../api";
+import ClienteAutocomplete from "../components/ClienteAutocomplete";
 
 
 export default function MisSalidas() {
@@ -13,10 +14,32 @@ export default function MisSalidas() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelandoId, setCancelandoId] = useState(null);
   const [cancelarConRegreso, setCancelarConRegreso] = useState(false);
+  const [resumenCaja, setResumenCaja] = useState(null);
+  const [clientes, setClientes] = useState([]);
+  const [bancos, setBancos] = useState([]);
+  const [showPagoCliente, setShowPagoCliente] = useState(false);
+  const [clientePago, setClientePago] = useState("");
+  const [pagoCliente, setPagoCliente] = useState({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", banco: "", notas: "" });
 
   useEffect(() => {
     loadSalidas();
+    loadDatosPago();
   }, []);
+
+  const loadDatosPago = async () => {
+    try {
+      const [clientesRes, resumenRes, bancosRes] = await Promise.all([
+        clientesAPI.getAll(),
+        cierreCajaAPI.getResumenHoy(),
+        bancosAPI.getAll(),
+      ]);
+      setClientes(clientesRes.data);
+      setResumenCaja(resumenRes.data);
+      setBancos(bancosRes.data.map((banco) => banco.nombre));
+    } catch (error) {
+      console.error("Error al cargar datos de pagos:", error);
+    }
+  };
 
   const loadSalidas = async () => {
     try {
@@ -26,6 +49,55 @@ export default function MisSalidas() {
       console.error("Error:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const abrirPagoCliente = () => {
+    if (resumenCaja?.cerrado) {
+      alert("No se pueden registrar pagos porque la caja está cerrada");
+      return;
+    }
+    setClientePago("");
+    setPagoCliente({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", banco: "", notas: "" });
+    setShowPagoCliente(true);
+  };
+
+  const registrarPagoCliente = async (event) => {
+    event.preventDefault();
+    const cliente = clientes.find((item) => String(item.id) === String(clientePago));
+    const monto = parseFloat(pagoCliente.monto) || 0;
+    if (!cliente) return alert("Debe seleccionar un cliente");
+    if (monto <= 0 || monto > parseFloat(cliente.saldo_pendiente || 0)) {
+      return alert("El monto debe ser mayor a 0 y no superar la deuda del cliente");
+    }
+    if (["transferencia", "tarjeta"].includes(pagoCliente.medio_pago) && (!pagoCliente.nombre_cuenta.trim() || !pagoCliente.banco)) {
+      return alert("Debe completar la cuenta y el banco del pago");
+    }
+
+    const datosBancarios = ["transferencia", "tarjeta"].includes(pagoCliente.medio_pago)
+      ? {
+          nombre_cuenta: pagoCliente.nombre_cuenta.trim(),
+          banco: pagoCliente.banco,
+          fecha_hora: new Date().toISOString(),
+          monto,
+        }
+      : null;
+
+    try {
+      await clientesAPI.registrarPagoCC(cliente.id, {
+        pagos: [{
+          medio_pago: pagoCliente.medio_pago,
+          monto,
+          notas: pagoCliente.notas || null,
+          datos_transferencia: pagoCliente.medio_pago === "transferencia" ? datosBancarios : null,
+          datos_tarjeta: pagoCliente.medio_pago === "tarjeta" ? datosBancarios : null,
+        }],
+      });
+      setShowPagoCliente(false);
+      await loadDatosPago();
+      alert("Pago registrado correctamente");
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -135,8 +207,74 @@ export default function MisSalidas() {
 
   return (
     <div>
-      <h2>Mis Salidas de Camion</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+        <h2>Mis Salidas de Camion</h2>
+        <button className="btn btn-primary" onClick={abrirPagoCliente} disabled={!resumenCaja || resumenCaja.cerrado}>
+          Registrar pago de cliente
+        </button>
+      </div>
+      {resumenCaja?.cerrado && <p className="subtitle">La caja está cerrada. No se pueden registrar pagos.</p>}
       <p className="subtitle">Solo puedes cambiar el estado de tus salidas</p>
+
+      {showPagoCliente && (
+        <div className="modal-overlay" onClick={() => setShowPagoCliente(false)}>
+          <form className="modal-card modal-responsive" onSubmit={registrarPagoCliente} onClick={(event) => event.stopPropagation()}>
+            <h3>Registrar pago de cliente</h3>
+            <div className="form-group">
+              <label>Cliente *</label>
+              <ClienteAutocomplete
+                value={clientePago}
+                onChange={setClientePago}
+                clientes={clientes.filter((cliente) => parseFloat(cliente.saldo_pendiente || 0) > 0)}
+                onAddCliente={() => {}}
+                placeholder="Buscar cliente con deuda"
+              />
+            </div>
+            {clientePago && (
+              <p className="subtitle">
+                Deuda pendiente: ${(parseFloat(clientes.find((cliente) => String(cliente.id) === String(clientePago))?.saldo_pendiente) || 0).toFixed(2)}
+              </p>
+            )}
+            <div className="form-group">
+              <label>Monto *</label>
+              <input type="number" min="0.01" step="0.01" value={pagoCliente.monto} onChange={(event) => setPagoCliente({ ...pagoCliente, monto: event.target.value })} required />
+            </div>
+            <div className="form-group">
+              <label>Forma de pago *</label>
+              <select value={pagoCliente.medio_pago} onChange={(event) => setPagoCliente({ ...pagoCliente, medio_pago: event.target.value })}>
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            {["transferencia", "tarjeta"].includes(pagoCliente.medio_pago) && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Cuenta / titular *</label>
+                  <input value={pagoCliente.nombre_cuenta} onChange={(event) => setPagoCliente({ ...pagoCliente, nombre_cuenta: event.target.value })} required />
+                </div>
+                <div className="form-group">
+                  <label>Banco *</label>
+                  <select value={pagoCliente.banco} onChange={(event) => setPagoCliente({ ...pagoCliente, banco: event.target.value })} required>
+                    <option value="">Seleccionar banco...</option>
+                    {bancos.map((banco) => <option key={banco} value={banco}>{banco}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+            <div className="form-group">
+              <label>Observaciones</label>
+              <input value={pagoCliente.notas} onChange={(event) => setPagoCliente({ ...pagoCliente, notas: event.target.value })} />
+            </div>
+            <p className="subtitle">Fecha del pago: {new Date().toLocaleDateString("es-AR")}</p>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowPagoCliente(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary">Registrar pago</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {showCancelConfirm && (
         <div className="modal-overlay" style={{ zIndex: 1001 }} onClick={() => { setShowCancelConfirm(false); setCancelMotivo(""); }}>

@@ -102,12 +102,12 @@ export default function ProveedoresPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("¿Eliminar este proveedor?")) return;
+    if (!confirm("¿Desactivar este proveedor? Sus productos, marcas y alias dejarán de aparecer.")) return;
     try {
       await proveedoresAPI.delete(id);
       loadProveedores();
     } catch (error) {
-      alert("Error al eliminar");
+      alert("Error al desactivar");
     }
   };
 
@@ -378,7 +378,7 @@ export default function ProveedoresPage() {
                       Saldos y Dif
                     </button>
                     <button className="btn btn-sm btn-cancel" onClick={() => handleDelete(p.id)}>
-                      Eliminar
+                      Desactivar
                     </button>
                   </td>
                   <td data-label="Dirección">{p.direccion || "-"}</td>

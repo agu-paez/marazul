@@ -1,4 +1,4 @@
-import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, Cliente, User, Role, Proveedor, GastoDia, PagoEmpleado, ProveedorMovimiento } from "../models/index.js";
+import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, Cliente, ClientePago, User, Role, Proveedor, GastoDia, PagoEmpleado, ProveedorMovimiento } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
 import { Op } from "sequelize";
 
@@ -422,6 +422,10 @@ export const getDetalleCierre = async (req, res) => {
       attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "medio_pago", "total", "tipo_venta", "proveedorId"],
       include: [{ model: Proveedor, attributes: ["id", "nombre", "alias"] }],
     });
+    const pagosClientesHoy = await ClientePago.findAll({
+      where: { fecha },
+      include: [{ model: Cliente, attributes: ["id", "nombre"] }],
+    });
     const proveedores = await Proveedor.findAll({ attributes: ["id", "nombre", "alias"] });
     const proveedoresPorId = new Map(proveedores.map((p) => [p.id, { id: p.id, nombre: p.nombre, alias: p.alias }]));
 
@@ -509,6 +513,22 @@ export const getDetalleCierre = async (req, res) => {
       }
     }
 
+    for (const pago of pagosClientesHoy) {
+      const transferencia = parseDatos(pago.datos_transferencia)[0];
+      const tarjeta = parseDatos(pago.datos_tarjeta)[0];
+      const datos = transferencia || tarjeta;
+      const medioPago = String(pago.medio_pago || "otro").toLowerCase();
+      pagos.push({
+        tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
+        fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
+        nombre_cuenta: datos?.nombre_cuenta || "-",
+        monto: parseFloat(pago.monto) || 0,
+        banco: datos?.banco || "-",
+        proveedor: null,
+        cliente: pago.Cliente?.nombre || "-",
+      });
+    }
+
     res.json({
       fecha: cierre.fecha,
       hora: cierre.hora,
@@ -543,6 +563,10 @@ export const getPagosHoy = async (req, res) => {
       where: { fecha, estado: "completada" },
       attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "medio_pago", "total", "proveedorId"],
       include: [{ model: Proveedor, attributes: ["id", "nombre", "alias"] }],
+    });
+    const pagosClientesHoy = await ClientePago.findAll({
+      where: { fecha },
+      include: [{ model: Cliente, attributes: ["id", "nombre"] }],
     });
     const proveedores = await Proveedor.findAll({ attributes: ["id", "nombre", "alias"] });
     const proveedoresPorId = new Map(proveedores.map((p) => [p.id, { id: p.id, nombre: p.nombre, alias: p.alias }]));
@@ -586,6 +610,22 @@ export const getPagosHoy = async (req, res) => {
         });
       }
 
+    }
+
+    for (const pago of pagosClientesHoy) {
+      const transferencia = parseDatos(pago.datos_transferencia)[0];
+      const tarjeta = parseDatos(pago.datos_tarjeta)[0];
+      const datos = transferencia || tarjeta;
+      const medioPago = String(pago.medio_pago || "otro").toLowerCase();
+      pagos.push({
+        tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
+        fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
+        nombre_cuenta: datos?.nombre_cuenta || "-",
+        monto: parseFloat(pago.monto) || 0,
+        banco: datos?.banco || "-",
+        proveedor: null,
+        cliente: pago.Cliente?.nombre || "-",
+      });
     }
 
     res.json(pagos);

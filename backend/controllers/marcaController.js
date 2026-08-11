@@ -11,7 +11,7 @@ const LOGO_PATH = path.resolve(__dirname, "../../pollos_hermanos/public/logo-mar
 export const getMarcas = async (req, res) => {
   try {
     const marcas = await Marca.findAll({
-      include: [{ model: Proveedor, attributes: ["id", "nombre"] }],
+      include: [{ model: Proveedor, attributes: ["id", "nombre"], where: { activo: true } }],
       order: [["nombre", "ASC"]],
     });
     res.json(marcas);
@@ -24,7 +24,7 @@ export const getMarcasByProveedor = async (req, res) => {
   try {
     const marcas = await Marca.findAll({
       where: { proveedorId: req.params.proveedorId },
-      include: [{ model: Producto }],
+      include: [{ model: Producto }, { model: Proveedor, attributes: ["id", "nombre"], where: { activo: true } }],
       order: [["nombre", "ASC"]],
     });
     res.json(marcas);
@@ -37,7 +37,7 @@ export const getMarcaById = async (req, res) => {
   try {
     const marca = await Marca.findByPk(req.params.id, {
       include: [
-        { model: Proveedor, attributes: ["id", "nombre"] },
+        { model: Proveedor, attributes: ["id", "nombre"], where: { activo: true } },
         { model: Producto },
       ],
     });
@@ -58,7 +58,7 @@ export const createMarca = async (req, res) => {
       return res.status(400).json({ message: "Nombre y proveedor son requeridos" });
     }
 
-    const proveedor = await Proveedor.findByPk(proveedorId);
+    const proveedor = await Proveedor.findOne({ where: { id: proveedorId, activo: true } });
     if (!proveedor) {
       return res.status(404).json({ message: "Proveedor no encontrado" });
     }
@@ -145,7 +145,8 @@ export const generarPDFMarcasProductos = async (req, res) => {
           where: { activo: true },
           required: false,
           attributes: ["id", "nombre", "descripcion", "precio", "stock", "unidad", "kg_por_caja"]
-        }
+        },
+        { model: Proveedor, attributes: [], where: { activo: true } }
       ],
       where: { activo: true },
       order: [["nombre", "ASC"]],

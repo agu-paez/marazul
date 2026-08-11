@@ -29,6 +29,14 @@ const ClientePago = sequelize.define("ClientePago", {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  datos_transferencia: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  datos_tarjeta: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
 });
 
 export default ClientePago;

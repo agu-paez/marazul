@@ -7,7 +7,7 @@ import {
   deleteProveedor,
   registrarMovimientoProveedor,
 } from "../controllers/proveedorController.js";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, authorize } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -15,9 +15,9 @@ router.use(authenticate);
 
 router.get("/", getAllProveedores);
 router.get("/:id", getProveedorById);
-router.post("/", createProveedor);
-router.put("/:id", updateProveedor);
-router.post("/:id/movimientos", registrarMovimientoProveedor);
-router.delete("/:id", deleteProveedor);
+router.post("/", authorize("admin"), createProveedor);
+router.put("/:id", authorize("admin"), updateProveedor);
+router.post("/:id/movimientos", authorize("admin"), registrarMovimientoProveedor);
+router.delete("/:id", authorize("admin"), deleteProveedor);
 
 export default router;

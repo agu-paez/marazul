@@ -1,4 +1,4 @@
-import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto } from "../models/index.js";
+import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
 
 export const getAllClientes = async (req, res) => {
@@ -152,6 +152,11 @@ export const getHistorialCuentaCorriente = async (req, res) => {
 export const registrarPagoCuentaCorriente = async (req, res) => {
   try {
     const { pagos } = req.body;
+    const fechaHoy = getFechaLocal();
+    const cierre = await CierreCaja.findOne({ where: { fecha: fechaHoy } });
+    if (cierre) {
+      return res.status(400).json({ message: "No se pueden registrar pagos: la caja del día está cerrada" });
+    }
 
     if (!pagos || pagos.length === 0) {
       return res.status(400).json({ message: "Debe registrar al menos un pago" });
@@ -162,13 +167,20 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
-    const totalPago = pagos.reduce((sum, p) => sum + parseFloat(p.monto), 0);
+    const montos = pagos.map((p) => parseFloat(p.monto));
+    if (montos.some((monto) => !Number.isFinite(monto) || monto <= 0)) {
+      return res.status(400).json({ message: "Todos los montos del pago deben ser válidos" });
+    }
+    const totalPago = montos.reduce((sum, monto) => sum + monto, 0);
 
     if (totalPago <= 0) {
       return res.status(400).json({ message: "El total del pago debe ser mayor a 0" });
     }
 
     const nuevoSaldo = parseFloat(cliente.saldo_pendiente) - totalPago;
+    if (nuevoSaldo < 0) {
+      return res.status(400).json({ message: "El pago no puede superar la deuda pendiente del cliente" });
+    }
     await cliente.update({ saldo_pendiente: nuevoSaldo.toFixed(2) });
 
     const now = new Date();
@@ -183,6 +195,8 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
         fecha,
         hora,
         notas: pago.notas || null,
+        datos_transferencia: pago.datos_transferencia ? JSON.stringify(pago.datos_transferencia) : null,
+        datos_tarjeta: pago.datos_tarjeta ? JSON.stringify(pago.datos_tarjeta) : null,
       });
     }
 

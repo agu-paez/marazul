@@ -11,7 +11,7 @@ import logger from "./utils/logger.js";
 
 import sequelize from "./config/database.js";
 import "./models/index.js";
-import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, Proveedor, CierreCaja, SalidaCamion } from "./models/index.js";
+import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, CierreCaja, SalidaCamion } from "./models/index.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import proveedorRoutes from "./routes/proveedorRoutes.js";
@@ -175,6 +175,8 @@ const start = async () => {
     await ensureColumn(CierreCaja, "gastos_otros", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "descripcion_otros_gastos", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(CierreCaja, "pagos_empleados", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(ClientePago, "datos_transferencia", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(ClientePago, "datos_tarjeta", { type: DataTypes.TEXT, allowNull: true });
 
     const bancosDefault = ["Banco Nación", "Banco Provincia", "Banco Galicia", "Banco Santander", "Banco BBVA", "Banco Macro", "Banco Ciudad", "Banco Patagonia", "Banco Supervielle", "Banco Hipotecario"];
     for (const nombre of bancosDefault) {

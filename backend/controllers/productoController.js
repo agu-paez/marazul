@@ -1,15 +1,28 @@
 import { Producto, Marca, Proveedor } from "../models/index.js";
 import { Op, literal } from "sequelize";
 
+const getActiveMarcaIds = async () => {
+  const marcas = await Marca.findAll({
+    attributes: ["id"],
+    include: [{ model: Proveedor, attributes: [], where: { activo: true } }],
+  });
+  return marcas.map((marca) => marca.id);
+};
+
 export const getAllProductos = async (req, res) => {
   try {
+    const activeMarcaIds = await getActiveMarcaIds();
     const productos = await Producto.findAll({
       include: [{ 
-        model: Marca, 
+        model: Marca,
         attributes: ["id", "nombre"],
-        include: [{ model: Proveedor, attributes: ["id", "nombre"] }]
+        required: false,
+        include: [{ model: Proveedor, attributes: ["id", "nombre"], where: { activo: true } }]
       }],
-      where: { activo: true },
+      where: {
+        activo: true,
+        [Op.or]: [{ marcaId: null }, { marcaId: { [Op.in]: activeMarcaIds } }],
+      },
     });
     res.json(productos);
   } catch (error) {
@@ -19,14 +32,16 @@ export const getAllProductos = async (req, res) => {
 
 export const getLowStock = async (req, res) => {
   try {
+    const activeMarcaIds = await getActiveMarcaIds();
     const productos = await Producto.findAll({
       include: [{ 
         model: Marca, 
         attributes: ["id", "nombre"],
-        include: [{ model: Proveedor, attributes: ["id", "nombre"] }]
+        include: [{ model: Proveedor, attributes: ["id", "nombre"], where: { activo: true } }]
       }],
       where: {
         activo: true,
+        [Op.or]: [{ marcaId: null }, { marcaId: { [Op.in]: activeMarcaIds } }],
         stock: { [Op.lte]: literal("stock_minimo") },
       },
     });

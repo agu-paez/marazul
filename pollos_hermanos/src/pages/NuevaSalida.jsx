@@ -12,6 +12,7 @@ export default function NuevaSalida() {
   const [productos, setProductos] = useState([]);
   const [success, setSuccess] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  const [mostrarSoloSeleccionados, setMostrarSoloSeleccionados] = useState(false);
   const [cantidades, setCantidades] = useState({});
   const [repartidores, setRepartidores] = useState([]);
   const [repartidorSeleccionado, setRepartidorSeleccionado] = useState("");
@@ -59,10 +60,11 @@ export default function NuevaSalida() {
 
   const productosFiltrados = productos.filter((p) => {
     const termino = busqueda.toLowerCase();
-    return (
+    const coincideBusqueda = (
       p.nombre.toLowerCase().includes(termino) ||
       (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino))
     );
+    return coincideBusqueda && (!mostrarSoloSeleccionados || (cantidades[p.id] || 0) > 0);
   });
 
   const productosSeleccionados = productos.filter((p) => (cantidades[p.id] || 0) > 0);
@@ -100,6 +102,7 @@ export default function NuevaSalida() {
         return reset;
       });
       setBusqueda("");
+      setMostrarSoloSeleccionados(false);
       cargarProductos();
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
@@ -203,6 +206,14 @@ export default function NuevaSalida() {
                   X
                 </button>
               )}
+              <button
+                type="button"
+                className={`btn btn-sm ${mostrarSoloSeleccionados ? "btn-primary" : "btn-secondary"}`}
+                onClick={() => setMostrarSoloSeleccionados((prev) => !prev)}
+                style={{ marginTop: "0.5rem" }}
+              >
+                {mostrarSoloSeleccionados ? "Mostrar todos los productos" : "Ocultar no seleccionados"}
+              </button>
             </div>
           </div>
 
