@@ -6,6 +6,7 @@ import ClienteAutocomplete from "../components/ClienteAutocomplete";
 
 export default function MisSalidas() {
   const { user } = useAuth();
+  const isOperador = user?.role === "operador";
   const [salidas, setSalidas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [regresando, setRegresando] = useState(null);
@@ -25,7 +26,7 @@ export default function MisSalidas() {
   useEffect(() => {
     loadSalidas();
     loadDatosPago();
-  }, []);
+  }, [isOperador]);
 
   const loadDatosPago = async () => {
     try {
@@ -46,7 +47,7 @@ export default function MisSalidas() {
 
   const loadSalidas = async () => {
     try {
-      const res = await salidasAPI.getMisSalidas();
+      const res = await (isOperador ? salidasAPI.getAll() : salidasAPI.getMisSalidas());
       setSalidas(res.data);
     } catch (error) {
       console.error("Error:", error);
@@ -74,8 +75,8 @@ export default function MisSalidas() {
       return alert("El monto debe ser mayor a 0 y no superar la deuda del cliente");
     }
     const proveedorPago = proveedores.find((proveedor) => String(proveedor.id) === String(pagoCliente.proveedorId));
-    if (pagoCliente.medio_pago === "transferencia" && (!proveedorPago || !proveedorPago.alias || !pagoCliente.nombre_cuenta.trim() || !pagoCliente.banco)) {
-      return alert("Debe seleccionar un proveedor con alias y completar la cuenta y banco");
+    if (["transferencia", "tarjeta"].includes(pagoCliente.medio_pago) && (!proveedorPago || !proveedorPago.alias || !pagoCliente.nombre_cuenta.trim() || !pagoCliente.banco)) {
+      return alert("Debe seleccionar un alias de proveedor y completar la cuenta y banco");
     }
 
     const datosBancarios = ["transferencia", "tarjeta"].includes(pagoCliente.medio_pago)
@@ -102,6 +103,15 @@ export default function MisSalidas() {
       setShowPagoCliente(false);
       await loadDatosPago();
       alert("Pago registrado correctamente");
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const enviarSalida = async (id) => {
+    try {
+      await salidasAPI.updateStatus(id, { estado: "en_camino" });
+      loadSalidas();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
     }
@@ -214,13 +224,13 @@ export default function MisSalidas() {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-        <h2>Mis Salidas de Camion</h2>
+      <h2>{isOperador ? "Salidas de Camion" : "Mis Salidas de Camion"}</h2>
         <button className="btn btn-primary" onClick={abrirPagoCliente} disabled={!resumenCaja || resumenCaja.cerrado}>
           Registrar pago de cliente
         </button>
       </div>
       {resumenCaja?.cerrado && <p className="subtitle">La caja está cerrada. No se pueden registrar pagos.</p>}
-      <p className="subtitle">Solo puedes cambiar el estado de tus salidas</p>
+      <p className="subtitle">{isOperador ? "Puedes enviar cualquier salida pendiente" : "Solo puedes cambiar el estado de tus salidas"}</p>
 
       {showPagoCliente && (
         <div className="modal-overlay" onClick={() => setShowPagoCliente(false)}>
@@ -255,22 +265,20 @@ export default function MisSalidas() {
               </select>
             </div>
             {["transferencia", "tarjeta"].includes(pagoCliente.medio_pago) && (
-              <div className="form-row">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", alignItems: "end" }}>
                 <div className="form-group">
                   <label>Cuenta / titular *</label>
                   <input value={pagoCliente.nombre_cuenta} onChange={(event) => setPagoCliente({ ...pagoCliente, nombre_cuenta: event.target.value })} required />
                 </div>
-                {pagoCliente.medio_pago === "transferencia" && (
-                  <div className="form-group">
-                    <label>Proveedor / alias *</label>
-                    <select value={pagoCliente.proveedorId} onChange={(event) => setPagoCliente({ ...pagoCliente, proveedorId: event.target.value })} required>
-                      <option value="">Seleccionar proveedor...</option>
-                      {proveedores.filter((proveedor) => proveedor.alias).map((proveedor) => (
-                        <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre} - {proveedor.alias}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div className="form-group">
+                  <label>Alias / proveedor *</label>
+                  <select value={pagoCliente.proveedorId} onChange={(event) => setPagoCliente({ ...pagoCliente, proveedorId: event.target.value })} required>
+                    <option value="">Seleccionar alias...</option>
+                    {proveedores.filter((proveedor) => proveedor.alias?.trim()).map((proveedor) => (
+                      <option key={proveedor.id} value={proveedor.id}>{proveedor.alias}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="form-group">
                   <label>Banco *</label>
                   <select value={pagoCliente.banco} onChange={(event) => setPagoCliente({ ...pagoCliente, banco: event.target.value })} required>
@@ -475,7 +483,12 @@ export default function MisSalidas() {
                   </td>
                   <td>
                     <div className="action-buttons">
-                      {s.estado === "en_camino" && (
+                      {isOperador && s.estado === "pendiente" && (
+                        <button className="btn btn-sm btn-camino" onClick={() => enviarSalida(s.id)}>
+                          Enviar
+                        </button>
+                      )}
+                      {!isOperador && s.estado === "en_camino" && (
                         <button
                           className="btn btn-sm btn-entregado"
                           onClick={() => openRegresoForm(s)}
@@ -483,7 +496,7 @@ export default function MisSalidas() {
                           Registrar Regreso
                         </button>
                       )}
-                      {s.estado === "en_camino" && (
+                      {!isOperador && s.estado === "en_camino" && (
                         <button
                           className="btn btn-sm btn-cancel"
                           onClick={() => { setCancelandoId(s.id); setShowCancelConfirm(true); }}
@@ -491,7 +504,7 @@ export default function MisSalidas() {
                           Cancelar
                         </button>
                       )}
-                      {s.estado === "pendiente" && (
+                      {!isOperador && s.estado === "pendiente" && (
                         <span style={{ fontSize: "0.8rem", color: "#888", fontStyle: "italic" }}>
                           Esperando autorización
                         </span>

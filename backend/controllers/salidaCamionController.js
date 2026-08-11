@@ -302,11 +302,19 @@ export const updateSalidaStatus = async (req, res) => {
       }
     }
 
+    if (req.userRole === "operador" && salida.estado !== "pendiente") {
+      return res.status(400).json({ message: "Solo se pueden enviar salidas pendientes" });
+    }
+
     if (await checkDayClosed(salida.fecha)) {
       return res.status(400).json({ message: "No se puede modificar, la caja del dia ya fue cerrada" });
     }
 
     const { estado, notas } = req.body;
+
+    if (req.userRole === "operador" && estado !== "en_camino") {
+      return res.status(403).json({ message: "Los operadores solo pueden marcar salidas como en camino" });
+    }
 
     if (estado && !["pendiente", "en_camino", "entregado", "cancelado", "sobrante"].includes(estado)) {
       return res.status(400).json({ message: "Estado no valido" });
