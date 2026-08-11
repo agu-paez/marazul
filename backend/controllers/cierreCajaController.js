@@ -431,6 +431,7 @@ export const getDetalleCierre = async (req, res) => {
     });
     const proveedores = await Proveedor.findAll({ attributes: ["id", "nombre", "alias"] });
     const proveedoresPorId = new Map(proveedores.map((p) => [p.id, { id: p.id, nombre: p.nombre, alias: p.alias }]));
+    const proveedoresPorAlias = new Map(proveedores.filter((p) => p.alias).map((p) => [p.alias.trim().toLowerCase(), { id: p.id, nombre: p.nombre, alias: p.alias }]));
 
     let kg_enviados = 0;
     let kg_devueltos = 0;
@@ -486,6 +487,7 @@ export const getDetalleCierre = async (req, res) => {
           tipo: "Transferencia",
           fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
           nombre_cuenta: t.nombre_cuenta || "-",
+          titular: t.nombre_cuenta || "-",
           monto: parseFloat(t.monto || 0),
           banco: t.banco || "-",
           proveedor: proveedorPago || null,
@@ -498,6 +500,7 @@ export const getDetalleCierre = async (req, res) => {
           tipo: "Tarjeta",
           fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
           nombre_cuenta: t.nombre_cuenta || "-",
+          titular: t.nombre_cuenta || "-",
           monto: parseFloat(t.monto || 0),
           banco: t.banco || "-",
           proveedor: proveedorPago || null,
@@ -523,7 +526,9 @@ export const getDetalleCierre = async (req, res) => {
       const medioPago = String(pago.medio_pago || "otro").toLowerCase();
       const proveedorPago = pago.Proveedor
         ? { id: pago.Proveedor.id, nombre: pago.Proveedor.nombre, alias: pago.Proveedor.alias }
-        : datos?.proveedorId ? proveedoresPorId.get(Number(datos.proveedorId)) : null;
+        : datos?.proveedorId
+          ? proveedoresPorId.get(Number(datos.proveedorId))
+          : datos?.alias ? proveedoresPorAlias.get(String(datos.alias).trim().toLowerCase()) : null;
       pagos.push({
         tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
@@ -581,6 +586,7 @@ export const getPagosHoy = async (req, res) => {
     });
     const proveedores = await Proveedor.findAll({ attributes: ["id", "nombre", "alias"] });
     const proveedoresPorId = new Map(proveedores.map((p) => [p.id, { id: p.id, nombre: p.nombre, alias: p.alias }]));
+    const proveedoresPorAlias = new Map(proveedores.filter((p) => p.alias).map((p) => [p.alias.trim().toLowerCase(), { id: p.id, nombre: p.nombre, alias: p.alias }]));
 
     const pagos = [];
 
@@ -630,7 +636,9 @@ export const getPagosHoy = async (req, res) => {
       const medioPago = String(pago.medio_pago || "otro").toLowerCase();
       const proveedorPago = pago.Proveedor
         ? { id: pago.Proveedor.id, nombre: pago.Proveedor.nombre, alias: pago.Proveedor.alias }
-        : datos?.proveedorId ? proveedoresPorId.get(Number(datos.proveedorId)) : null;
+        : datos?.proveedorId
+          ? proveedoresPorId.get(Number(datos.proveedorId))
+          : datos?.alias ? proveedoresPorAlias.get(String(datos.alias).trim().toLowerCase()) : null;
       pagos.push({
         tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,

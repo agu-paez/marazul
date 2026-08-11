@@ -444,7 +444,7 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
     y = addPageIfNeeded(y);
     const p = pagos[i];
     const rowData = [
-      (p.fecha_hora || "").replace("T", " ").replace(/(\d{2}:\d{2}):\d{2}/, "$1"),
+       String(p.fecha_hora || "").replace("T", " ").split(" ")[0],
        p.titular || p.nombre_cuenta || "-",
        p.banco || "-",
        p.tipo || "-",
@@ -615,7 +615,7 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
       y = addPageIfNeeded(y);
       const p = grupo.pagos[i];
       const rowData = [
-        (p.fecha_hora || "").replace("T", " ").replace(/(\d{2}:\d{2}):\d{2}/, "$1"),
+        String(p.fecha_hora || "").replace("T", " ").split(" ")[0],
          p.titular || p.nombre_cuenta || "-",
          p.banco || "-",
          p.tipo || "-",

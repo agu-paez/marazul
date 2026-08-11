@@ -16,9 +16,12 @@ export const getAllProveedores = async (req, res) => {
       attributes: ["datos_transferencia", "proveedorId"],
     });
     const pagosClientes = await ClientePago.findAll({
-      attributes: ["datos_transferencia"],
+      attributes: ["datos_transferencia", "datos_tarjeta"],
     });
     const transferenciasPorProveedor = new Map();
+    const proveedoresPorAlias = new Map(proveedores
+      .filter((proveedor) => proveedor.alias)
+      .map((proveedor) => [String(proveedor.alias).trim().toLowerCase(), proveedor.id]));
 
     for (const venta of ventas) {
       let transferencias = venta.datos_transferencia || [];
@@ -43,23 +46,25 @@ export const getAllProveedores = async (req, res) => {
     }
 
     for (const pago of pagosClientes) {
-      let transferencias = pago.datos_transferencia || [];
-      if (typeof transferencias === "string") {
-        try {
-          transferencias = JSON.parse(transferencias);
-        } catch {
-          transferencias = [];
+      for (const datos of [pago.datos_transferencia, pago.datos_tarjeta]) {
+        let transferencias = datos || [];
+        if (typeof transferencias === "string") {
+          try {
+            transferencias = JSON.parse(transferencias);
+          } catch {
+            transferencias = [];
+          }
         }
-      }
 
-      for (const transferencia of Array.isArray(transferencias) ? transferencias : []) {
-        const proveedorId = transferencia.proveedorId;
-        const monto = parseFloat(transferencia.monto) || 0;
-        if (proveedorId && monto > 0) {
-          transferenciasPorProveedor.set(
-            Number(proveedorId),
-            (transferenciasPorProveedor.get(Number(proveedorId)) || 0) + monto
-          );
+        for (const transferencia of Array.isArray(transferencias) ? transferencias : []) {
+          const proveedorId = transferencia.proveedorId || proveedoresPorAlias.get(String(transferencia.alias || "").trim().toLowerCase());
+          const monto = parseFloat(transferencia.monto) || 0;
+          if (proveedorId && monto > 0) {
+            transferenciasPorProveedor.set(
+              Number(proveedorId),
+              (transferenciasPorProveedor.get(Number(proveedorId)) || 0) + monto
+            );
+          }
         }
       }
     }
