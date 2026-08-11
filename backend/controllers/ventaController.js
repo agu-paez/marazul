@@ -142,23 +142,33 @@ export const crearVenta = async (req, res) => {
         .reduce((sum, p) => sum + parseFloat(p.monto), 0);
 
       if (montoCC > 0) {
-        const nuevoSaldo = parseFloat(cliente.saldo_pendiente) + montoCC;
+        const saldoFavor = parseFloat(cliente.saldo_favor) || 0;
+        const creditoAplicado = Math.min(saldoFavor, montoCC);
+        const nuevoSaldo = (parseFloat(cliente.saldo_pendiente) || 0) + montoCC - creditoAplicado;
         if (nuevoSaldo > parseFloat(cliente.limite_credito)) {
           return res.status(400).json({
             message: `El cliente excede su limite de credito. Debe actual: $${cliente.saldo_pendiente}, limite: $${cliente.limite_credito}, monto CC: $${montoCC.toFixed(2)}`,
           });
         }
-        await cliente.update({ saldo_pendiente: nuevoSaldo.toFixed(2) });
+        await cliente.update({
+          saldo_pendiente: nuevoSaldo.toFixed(2),
+          saldo_favor: (saldoFavor - creditoAplicado).toFixed(2),
+        });
       }
     } else {
       if (medio_pago === "cuenta_corriente") {
-        const nuevoSaldo = parseFloat(cliente.saldo_pendiente) + subtotalCalc;
+        const saldoFavor = parseFloat(cliente.saldo_favor) || 0;
+        const creditoAplicado = Math.min(saldoFavor, subtotalCalc);
+        const nuevoSaldo = (parseFloat(cliente.saldo_pendiente) || 0) + subtotalCalc - creditoAplicado;
         if (nuevoSaldo > parseFloat(cliente.limite_credito)) {
           return res.status(400).json({
             message: `El cliente excede su limite de credito. Debe actual: $${cliente.saldo_pendiente}, limite: $${cliente.limite_credito}, compra: $${subtotalCalc.toFixed(2)}`,
           });
         }
-        await cliente.update({ saldo_pendiente: nuevoSaldo.toFixed(2) });
+        await cliente.update({
+          saldo_pendiente: nuevoSaldo.toFixed(2),
+          saldo_favor: (saldoFavor - creditoAplicado).toFixed(2),
+        });
       }
     }
 
@@ -253,7 +263,7 @@ export const crearVenta = async (req, res) => {
         },
         { model: VentaPago },
         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
-        { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "limite_credito"] },
+         { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor", "limite_credito"] },
       ],
     });
 

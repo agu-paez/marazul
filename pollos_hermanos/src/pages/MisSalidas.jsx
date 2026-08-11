@@ -72,8 +72,8 @@ export default function MisSalidas() {
     const cliente = clientes.find((item) => String(item.id) === String(clientePago));
     const monto = parseFloat(pagoCliente.monto) || 0;
     if (!cliente) return alert("Debe seleccionar un cliente");
-    if (monto <= 0 || monto > parseFloat(cliente.saldo_pendiente || 0)) {
-      return alert("El monto debe ser mayor a 0 y no superar la deuda del cliente");
+    if (monto <= 0) {
+      return alert("El monto debe ser mayor a 0");
     }
     const proveedorPago = proveedores.find((proveedor) => String(proveedor.id) === String(pagoCliente.proveedorId));
     if (["transferencia", "tarjeta"].includes(pagoCliente.medio_pago) && (!proveedorPago || !proveedorPago.alias || !pagoCliente.nombre_cuenta.trim() || !pagoCliente.banco)) {
@@ -259,6 +259,7 @@ export default function MisSalidas() {
             {clientePago && (
               <p className="subtitle">
                 Deuda pendiente: ${(parseFloat(clientes.find((cliente) => String(cliente.id) === String(clientePago))?.saldo_pendiente) || 0).toFixed(2)}
+                {" | Saldo a favor: $"}{(parseFloat(clientes.find((cliente) => String(cliente.id) === String(clientePago))?.saldo_favor) || 0).toFixed(2)}
               </p>
             )}
             <div className="form-group">

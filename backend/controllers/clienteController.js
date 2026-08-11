@@ -141,8 +141,9 @@ export const getHistorialCuentaCorriente = async (req, res) => {
       ventas,
       pagos: pagosCC,
       saldo_pendiente: parseFloat(cliente.saldo_pendiente),
+      saldo_favor: parseFloat(cliente.saldo_favor) || 0,
       limite_credito: parseFloat(cliente.limite_credito),
-      credito_disponible: parseFloat(cliente.limite_credito) - parseFloat(cliente.saldo_pendiente),
+      credito_disponible: parseFloat(cliente.limite_credito) - parseFloat(cliente.saldo_pendiente) + (parseFloat(cliente.saldo_favor) || 0),
     });
   } catch (error) {
     res.status(500).json({ message: "Error al obtener historial", error: error.message });
@@ -177,11 +178,14 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
       return res.status(400).json({ message: "El total del pago debe ser mayor a 0" });
     }
 
-    const nuevoSaldo = parseFloat(cliente.saldo_pendiente) - totalPago;
-    if (nuevoSaldo < 0) {
-      return res.status(400).json({ message: "El pago no puede superar la deuda pendiente del cliente" });
-    }
-    await cliente.update({ saldo_pendiente: nuevoSaldo.toFixed(2) });
+    const saldoPendienteActual = parseFloat(cliente.saldo_pendiente) || 0;
+    const saldoFavorActual = parseFloat(cliente.saldo_favor) || 0;
+    const nuevoSaldo = Math.max(0, saldoPendienteActual - totalPago);
+    const nuevoSaldoFavor = saldoFavorActual + Math.max(0, totalPago - saldoPendienteActual);
+    await cliente.update({
+      saldo_pendiente: nuevoSaldo.toFixed(2),
+      saldo_favor: nuevoSaldoFavor.toFixed(2),
+    });
 
     const now = new Date();
     const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -203,7 +207,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
     const clienteActualizado = await Cliente.findByPk(cliente.id);
 
     res.json({
-      message: `Pago de $${totalPago.toFixed(2)} registrado. Saldo pendiente: $${nuevoSaldo.toFixed(2)}`,
+      message: `Pago de $${totalPago.toFixed(2)} registrado. Saldo pendiente: $${nuevoSaldo.toFixed(2)}. Saldo a favor: $${nuevoSaldoFavor.toFixed(2)}`,
       cliente: clienteActualizado,
     });
   } catch (error) {

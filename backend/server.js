@@ -160,6 +160,7 @@ const start = async () => {
       references: { model: "Marcas", key: "id" },
     });
     await ensureColumn(Cliente, "zona", { type: DataTypes.STRING, allowNull: true });
+    await ensureColumn(Cliente, "saldo_favor", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(Cliente, "pendiente_revision", { type: DataTypes.BOOLEAN, defaultValue: false });
     await ensureColumn(SalidaCamion, "autorizadoPorId", {
       type: DataTypes.INTEGER,

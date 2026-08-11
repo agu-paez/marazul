@@ -314,6 +314,7 @@ export default function ClientesPage() {
             <h3>Historial de {historial.cliente.nombre}</h3>
             <div className="cc-resumen">
               <div className="cc-item"><span>Saldo pendiente:</span><strong className="monto-salida">${historial.saldo_pendiente.toFixed(2)}</strong></div>
+              <div className="cc-item"><span>Saldo a favor:</span><strong className="monto-regreso">${(historial.saldo_favor || 0).toFixed(2)}</strong></div>
               <div className="cc-item"><span>Limite de credito:</span><strong>${historial.limite_credito.toFixed(2)}</strong></div>
               <div className="cc-item"><span>Credito disponible:</span><strong className="monto-regreso">${historial.credito_disponible.toFixed(2)}</strong></div>
             </div>
@@ -482,6 +483,7 @@ export default function ClientesPage() {
                 <th>Nombre</th>
                 <th>Zona</th>
                 <th>Saldo Pendiente</th>
+                <th>Saldo a Favor</th>
                 <th>Limite Credito</th>
                 <th>Credito Disponible</th>
                 <th>Acciones</th>
@@ -490,8 +492,9 @@ export default function ClientesPage() {
             <tbody>
               {filtrados.map((c) => {
                 const saldo = parseFloat(c.saldo_pendiente) || 0;
+                const saldoFavor = parseFloat(c.saldo_favor) || 0;
                 const limite = parseFloat(c.limite_credito) || 30000;
-                const disponible = limite - saldo;
+                const disponible = limite - saldo + saldoFavor;
                 return (
                   <tr key={c.id} className={c.pendiente_revision ? "cliente-pendiente-revision" : ""}>
                     <td>
@@ -509,6 +512,7 @@ export default function ClientesPage() {
                     >
                       {saldo > 0 ? <strong>${saldo.toFixed(2)}</strong> : saldo < 0 ? <strong className="monto-regreso">A favor: $${Math.abs(saldo).toFixed(2)}</strong> : "$0.00"}
                     </td>
+                    <td className={saldoFavor > 0 ? "monto-regreso" : ""}>${saldoFavor.toFixed(2)}</td>
                     <td>${limite.toFixed(2)}</td>
                     <td className="monto-regreso">${disponible.toFixed(2)}</td>
                     <td>
