@@ -410,7 +410,12 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
     doc.setTextColor(50, 50, 60);
     let x = x0 + 3;
     for (let i = 0; i < rowData.length; i++) {
-      doc.text(String(rowData[i]), x + 3, yPos + rowH / 2 + 1.2);
+      let cellText = String(rowData[i]);
+      const maxWidth = colWidths[i] - 6;
+      while (cellText.length > 1 && doc.getTextWidth(cellText) > maxWidth) {
+        cellText = `${cellText.slice(0, -2)}...`;
+      }
+      doc.text(cellText, x + 3, yPos + rowH / 2 + 1.2);
       if (i < rowData.length - 1) {
         doc.setDrawColor(210, 212, 218);
         doc.setLineWidth(0.15);
@@ -439,7 +444,7 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
     y = addPageIfNeeded(y);
     const p = pagos[i];
     const rowData = [
-      (p.fecha_hora || "").replace("T", " "),
+      (p.fecha_hora || "").replace("T", " ").replace(/(\d{2}:\d{2}):\d{2}/, "$1"),
        p.nombre_cuenta || "-",
        p.alias || "-",
       `$${(p.monto || 0).toFixed(2)}`,
@@ -577,7 +582,12 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
       doc.setTextColor(50, 50, 60);
       let x = x0 + 3;
       for (let i = 0; i < rowData.length; i++) {
-        doc.text(String(rowData[i]), x + 3, yPos + rowH / 2 + 1.2);
+        let cellText = String(rowData[i]);
+        const maxWidth = colWidths[i] - 6;
+        while (cellText.length > 1 && doc.getTextWidth(cellText) > maxWidth) {
+          cellText = `${cellText.slice(0, -2)}...`;
+        }
+        doc.text(cellText, x + 3, yPos + rowH / 2 + 1.2);
         if (i < rowData.length - 1) {
           doc.setDrawColor(210, 212, 218);
           doc.setLineWidth(0.15);
@@ -606,7 +616,7 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
       y = addPageIfNeeded(y);
       const p = grupo.pagos[i];
       const rowData = [
-        (p.fecha_hora || "").replace("T", " "),
+        (p.fecha_hora || "").replace("T", " ").replace(/(\d{2}:\d{2}):\d{2}/, "$1"),
          p.nombre_cuenta || "-",
          p.alias || "-",
         `$${(p.monto || 0).toFixed(2)}`,
