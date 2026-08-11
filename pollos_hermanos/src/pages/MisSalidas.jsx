@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI, proveedoresAPI } from "../api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
+import BancoAutocomplete from "../components/BancoAutocomplete";
 
 
 export default function MisSalidas() {
@@ -114,6 +115,15 @@ export default function MisSalidas() {
       loadSalidas();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const agregarBanco = async (nombre) => {
+    try {
+      await bancosAPI.create({ nombre });
+      setBancos((actuales) => actuales.includes(nombre) ? actuales : [...actuales, nombre]);
+    } catch (error) {
+      alert("Error al agregar banco: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -281,10 +291,13 @@ export default function MisSalidas() {
                 </div>
                 <div className="form-group">
                   <label>Banco *</label>
-                  <select value={pagoCliente.banco} onChange={(event) => setPagoCliente({ ...pagoCliente, banco: event.target.value })} required>
-                    <option value="">Seleccionar banco...</option>
-                    {bancos.map((banco) => <option key={banco} value={banco}>{banco}</option>)}
-                  </select>
+                  <BancoAutocomplete
+                    value={pagoCliente.banco}
+                    onChange={(banco) => setPagoCliente({ ...pagoCliente, banco })}
+                    bancos={bancos}
+                    onAddBanco={agregarBanco}
+                    placeholder="Buscar o agregar banco"
+                  />
                 </div>
               </div>
             )}
