@@ -1,4 +1,4 @@
-import { Venta, VentaItem, VentaPago, Producto, User, Cliente, ClientePago, SalidaCamion, SalidaCamionItem } from "../models/index.js";
+import { Venta, VentaItem, VentaPago, Producto, User, Cliente, ClientePago, CierreCaja, SalidaCamion, SalidaCamionItem } from "../models/index.js";
 import { Op } from "sequelize";
 import { getFechaLocal } from "../utils/fecha.js";
 
@@ -13,6 +13,11 @@ const generarNumeroComprobante = async () => {
 
 export const crearVenta = async (req, res) => {
   try {
+    const fechaVenta = getFechaLocal();
+    if (await CierreCaja.findOne({ where: { fecha: fechaVenta } })) {
+      return res.status(400).json({ message: "No se pueden registrar ventas: la caja del día ya fue cerrada" });
+    }
+
     const {
       tipo_venta,
       cliente_nombre,

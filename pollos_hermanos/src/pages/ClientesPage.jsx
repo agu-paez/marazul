@@ -319,10 +319,9 @@ export default function ClientesPage() {
               <div className="cc-item"><span>Credito disponible:</span><strong className="monto-regreso">${historial.credito_disponible.toFixed(2)}</strong></div>
             </div>
 
-            {historial.pagos && historial.pagos.length > 0 && (
-              <>
-                <h4>Pagos de Cuenta Corriente</h4>
-                <div className="table-container">
+            <h4>Movimientos de Cuenta Corriente</h4>
+            {historial.pagos && historial.pagos.length > 0 ? (
+                <div className="table-container" style={{ maxHeight: "260px", overflowY: "auto", marginBottom: "1rem" }}>
                   <table>
                     <thead>
                       <tr>
@@ -344,14 +343,15 @@ export default function ClientesPage() {
                     </tbody>
                   </table>
                 </div>
-              </>
+            ) : (
+              <p className="empty">No hay movimientos registrados</p>
             )}
 
             <h4>Todas las Compras</h4>
             {historial.ventas.length === 0 ? (
               <p className="empty">No hay compras registradas</p>
             ) : (
-              <div className="table-container">
+              <div className="table-container" style={{ maxHeight: "260px", overflowY: "auto" }}>
                 <table>
                   <thead>
                     <tr>
