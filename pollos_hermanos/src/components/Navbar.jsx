@@ -38,10 +38,10 @@ export default function Navbar() {
       <div className={`nav-links ${menuOpen ? "nav-links-open" : ""}`}>
         {isRepartidor || isOperador ? (
           <>
-            {isRepartidor && <Link to="/" className={isActive("/")}>Dashboard</Link>}
+            <Link to="/" className={isActive("/")}>Dashboard</Link>
             <Link to="/salida/nueva" className={isActive("/salida/nueva")}>Registro Salidas</Link>
             <Link to="/ventas" className={isActive("/ventas")}>Ventas</Link>
-            {isRepartidor && <Link to="/historial" className={isActive("/historial")}>Historial</Link>}
+            <Link to="/historial" className={isActive("/historial")}>Historial</Link>
           </>
         ) : (
           <>

@@ -10,14 +10,14 @@ import HistorialPagosEmpleadosPage from "./HistorialPagosEmpleadosPage";
 
 export default function HistorialPage() {
   const { user } = useAuth();
-  const isAdminOrOperador = user?.role === "admin" || user?.role === "operador";
+  const isAdmin = user?.role === "admin";
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "ventas");
 
   const tabs = [
     { key: "ventas", label: "Historial de Ventas" },
   ];
-  if (isAdminOrOperador) {
+    if (isAdmin) {
     tabs.push({ key: "salidas", label: "Historial de Salidas" });
     tabs.push({ key: "cierres", label: "Historial de Cierres de Caja" });
     tabs.push({ key: "gastos", label: "Historial de Gastos" });
@@ -46,11 +46,11 @@ export default function HistorialPage() {
 
       <div className="tab-content">
         {activeTab === "ventas" && <HistorialVentasPage />}
-        {activeTab === "salidas" && isAdminOrOperador && <HistorialSalidas />}
-        {activeTab === "cierres" && isAdminOrOperador && <HistorialCierres />}
-        {activeTab === "gastos" && isAdminOrOperador && <HistorialGastosPage />}
-        {activeTab === "pagos-empleados" && isAdminOrOperador && <HistorialPagosEmpleadosPage />}
-        {activeTab === "promedios" && isAdminOrOperador && <ProduccionHistorialPage />}
+        {activeTab === "salidas" && isAdmin && <HistorialSalidas />}
+        {activeTab === "cierres" && isAdmin && <HistorialCierres />}
+        {activeTab === "gastos" && isAdmin && <HistorialGastosPage />}
+        {activeTab === "pagos-empleados" && isAdmin && <HistorialPagosEmpleadosPage />}
+        {activeTab === "promedios" && isAdmin && <ProduccionHistorialPage />}
       </div>
     </div>
   );

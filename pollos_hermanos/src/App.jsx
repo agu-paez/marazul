@@ -78,7 +78,7 @@ function AppRoutes() {
       } />
 
       <Route path="/historial" element={
-        <PrivateRoute allowedRoles={["admin"]}>
+        <PrivateRoute allowedRoles={["admin", "operador", "repartidor"]}>
           <div className="app">
             <Navbar />
             <main className="main-content"><HistorialPage /></main>

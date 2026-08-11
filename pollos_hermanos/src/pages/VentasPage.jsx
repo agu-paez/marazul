@@ -18,6 +18,7 @@ export default function VentasPage() {
   const [ultimaVenta, setUltimaVenta] = useState(null);
   const [loading, setLoading] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  const [mostrarSoloSeleccionados, setMostrarSoloSeleccionados] = useState(false);
   const [cantidades, setCantidades] = useState({});
   const [form, setForm] = useState({
     tipo_venta: user?.role === "repartidor" ? "reparto" : "local",
@@ -296,10 +297,11 @@ export default function VentasPage() {
 
   const productosFiltrados = productosBase.filter((p) => {
     const termino = busqueda.toLowerCase();
-    return (
+    const coincideBusqueda = (
       p.nombre.toLowerCase().includes(termino) ||
       (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino))
     );
+    return coincideBusqueda && (!mostrarSoloSeleccionados || (cantidades[p.id] || 0) > 0);
   });
 
   const productosSeleccionados = productosBase.filter((p) => (cantidades[p.id] || 0) > 0);
@@ -515,6 +517,7 @@ export default function VentasPage() {
       setCamionSeleccionado("");
       setStockCamion([]);
       setBusqueda("");
+      setMostrarSoloSeleccionados(false);
 
       if (esRepartidor) {
         const camionesRes = await salidasAPI.getCamionesActivos();
@@ -570,8 +573,8 @@ export default function VentasPage() {
             </p>
           )}
 
-          <div className="producto-search">
-            <div className="search-with-clear">
+            <div className="producto-search">
+              <div className="search-with-clear">
               <input
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
@@ -582,9 +585,17 @@ export default function VentasPage() {
                 <button type="button" className="search-clear" onClick={() => setBusqueda("")} aria-label="Borrar búsqueda">
                   X
                 </button>
-              )}
+                )}
+              </div>
+              <button
+                type="button"
+                className={`btn btn-sm ${mostrarSoloSeleccionados ? "btn-primary" : "btn-secondary"}`}
+                onClick={() => setMostrarSoloSeleccionados((prev) => !prev)}
+                style={{ marginTop: "0.5rem" }}
+              >
+                {mostrarSoloSeleccionados ? "Mostrar todos los productos" : "Ocultar no seleccionados"}
+              </button>
             </div>
-          </div>
 
           {productosFiltrados.length === 0 ? (
             <p className="empty">{esReparto && !camionSeleccionado ? "Seleccione un camion primero" : "No se encontraron productos"}</p>
