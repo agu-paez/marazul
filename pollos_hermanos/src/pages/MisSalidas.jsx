@@ -30,20 +30,18 @@ export default function MisSalidas() {
   }, [isOperador]);
 
   const loadDatosPago = async () => {
-    try {
-      const [clientesRes, resumenRes, bancosRes, proveedoresRes] = await Promise.all([
-        clientesAPI.getAll(),
-        cierreCajaAPI.getResumenHoy(),
-        bancosAPI.getAll(),
-        proveedoresAPI.getAll(),
-      ]);
-      setClientes(clientesRes.data);
-      setResumenCaja(resumenRes.data);
-      setBancos(bancosRes.data.map((banco) => banco.nombre));
-      setProveedores(proveedoresRes.data);
-    } catch (error) {
-      console.error("Error al cargar datos de pagos:", error);
-    }
+    const resultados = await Promise.allSettled([
+      clientesAPI.getAll(),
+      cierreCajaAPI.getResumenHoy(),
+      bancosAPI.getAll(),
+      proveedoresAPI.getAll(),
+    ]);
+    const [clientesRes, resumenRes, bancosRes, proveedoresRes] = resultados;
+    if (clientesRes.status === "fulfilled") setClientes(clientesRes.value.data);
+    if (resumenRes.status === "fulfilled") setResumenCaja(resumenRes.value.data);
+    if (bancosRes.status === "fulfilled") setBancos(bancosRes.value.data.map((banco) => banco.nombre));
+    if (proveedoresRes.status === "fulfilled") setProveedores(proveedoresRes.value.data);
+    resultados.filter((resultado) => resultado.status === "rejected").forEach((resultado) => console.error("Error al cargar datos de pagos:", resultado.reason));
   };
 
   const loadSalidas = async () => {
@@ -57,8 +55,19 @@ export default function MisSalidas() {
     }
   };
 
-  const abrirPagoCliente = () => {
-    if (resumenCaja?.cerrado) {
+  const abrirPagoCliente = async () => {
+    let caja = resumenCaja;
+    if (!caja) {
+      try {
+        const res = await cierreCajaAPI.getResumenHoy();
+        caja = res.data;
+        setResumenCaja(caja);
+      } catch (error) {
+        alert("No se pudo verificar el estado de la caja");
+        return;
+      }
+    }
+    if (caja.cerrado) {
       alert("No se pueden registrar pagos porque la caja está cerrada");
       return;
     }
@@ -235,7 +244,7 @@ export default function MisSalidas() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
       <h2>{isOperador ? "Salidas de Camion" : "Mis Salidas de Camion"}</h2>
-        <button className="btn btn-primary" onClick={abrirPagoCliente} disabled={!resumenCaja || resumenCaja.cerrado}>
+        <button className="btn btn-primary" onClick={abrirPagoCliente} disabled={resumenCaja?.cerrado}>
           Registrar pago de cliente
         </button>
       </div>
