@@ -297,6 +297,7 @@ export default function MisSalidas() {
                     bancos={bancos}
                     onAddBanco={agregarBanco}
                     placeholder="Buscar o agregar banco"
+                    inputStyle={{ minHeight: "42px" }}
                   />
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function BancoAutocomplete({ value, onChange, bancos, onAddBanco, exclude = [], placeholder = "Seleccionar banco" }) {
+export default function BancoAutocomplete({ value, onChange, bancos, onAddBanco, exclude = [], placeholder = "Seleccionar banco", inputStyle = {} }) {
   const [inputValue, setInputValue] = useState(value || "");
   const [showDropdown, setShowDropdown] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -102,14 +102,16 @@ export default function BancoAutocomplete({ value, onChange, bancos, onAddBanco,
         placeholder={placeholder}
         style={{
           width: "100%",
-          padding: "4px 8px",
-          fontSize: "0.85rem",
+          padding: "0.6rem 0.75rem",
+          fontSize: "1rem",
+          minHeight: "42px",
           borderRadius: "4px",
           border: "1px solid var(--border)",
           background: "var(--bg-input)",
           color: "var(--text)",
           boxSizing: "border-box",
           outline: "none",
+          ...inputStyle,
         }}
       />
       {showDropdown && (
