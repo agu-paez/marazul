@@ -41,6 +41,14 @@ const ClientePago = sequelize.define("ClientePago", {
     type: DataTypes.INTEGER,
     allowNull: true,
   },
+  titular: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  banco: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 });
 
 export default ClientePago;

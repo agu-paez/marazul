@@ -179,6 +179,28 @@ const start = async () => {
     await ensureColumn(ClientePago, "datos_transferencia", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(ClientePago, "datos_tarjeta", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(ClientePago, "proveedorId", { type: DataTypes.INTEGER, allowNull: true });
+    await ensureColumn(ClientePago, "titular", { type: DataTypes.STRING, allowNull: true });
+    await ensureColumn(ClientePago, "banco", { type: DataTypes.STRING, allowNull: true });
+
+    const pagosClientes = await ClientePago.findAll({ where: { titular: null } });
+    for (const pago of pagosClientes) {
+      const datosTexto = pago.datos_transferencia || pago.datos_tarjeta;
+      if (!datosTexto) continue;
+      try {
+        let datos = typeof datosTexto === "string" ? JSON.parse(datosTexto) : datosTexto;
+        if (typeof datos === "string") datos = JSON.parse(datos);
+        if (Array.isArray(datos)) datos = datos[0];
+        if (datos && typeof datos === "object") {
+          await pago.update({
+            titular: datos.titular || datos.nombre_cuenta || datos.cuenta || null,
+            banco: datos.banco || datos.nombre_banco || null,
+            proveedorId: pago.proveedorId || datos.proveedorId || null,
+          });
+        }
+      } catch {
+        logger.warn(`No se pudieron migrar los datos bancarios del pago ${pago.id}`);
+      }
+    }
 
     const bancosDefault = ["Banco Nación", "Banco Provincia", "Banco Galicia", "Banco Santander", "Banco BBVA", "Banco Macro", "Banco Ciudad", "Banco Patagonia", "Banco Supervielle", "Banco Hipotecario"];
     for (const nombre of bancosDefault) {

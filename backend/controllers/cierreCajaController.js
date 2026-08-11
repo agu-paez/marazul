@@ -539,11 +539,11 @@ export const getDetalleCierre = async (req, res) => {
       pagos.push({
         tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
-        nombre_cuenta: datos?.nombre_cuenta || datos?.titular || datos?.cuenta || "-",
-        titular: datos?.titular || datos?.nombre_cuenta || datos?.cuenta || "-",
+        nombre_cuenta: pago.titular || datos?.nombre_cuenta || datos?.titular || datos?.cuenta || "-",
+        titular: pago.titular || datos?.titular || datos?.nombre_cuenta || datos?.cuenta || "-",
         alias: datos?.alias || proveedorPago?.alias || "-",
         monto: parseFloat(pago.monto) || 0,
-        banco: datos?.banco || datos?.nombre_banco || "-",
+        banco: pago.banco || datos?.banco || datos?.nombre_banco || "-",
         proveedor: proveedorPago,
         cliente: pago.Cliente?.nombre || "-",
       });
@@ -656,11 +656,11 @@ export const getPagosHoy = async (req, res) => {
       pagos.push({
         tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
-        nombre_cuenta: datos?.nombre_cuenta || datos?.titular || datos?.cuenta || "-",
-        titular: datos?.titular || datos?.nombre_cuenta || datos?.cuenta || "-",
+        nombre_cuenta: pago.titular || datos?.nombre_cuenta || datos?.titular || datos?.cuenta || "-",
+        titular: pago.titular || datos?.titular || datos?.nombre_cuenta || datos?.cuenta || "-",
         alias: datos?.alias || proveedorPago?.alias || "-",
         monto: parseFloat(pago.monto) || 0,
-        banco: datos?.banco || datos?.nombre_banco || "-",
+        banco: pago.banco || datos?.banco || datos?.nombre_banco || "-",
         proveedor: proveedorPago,
         cliente: pago.Cliente?.nombre || "-",
       });
