@@ -153,6 +153,7 @@ export default function ProductosPage() {
     !terminoBusqueda
     || producto.nombre.toLowerCase().includes(terminoBusqueda)
     || String(producto.codigo_barras || "").toLowerCase().includes(terminoBusqueda)
+    || String(producto.Marca?.nombre || "").toLowerCase().includes(terminoBusqueda)
   ));
 
   return (
@@ -425,14 +426,14 @@ export default function ProductosPage() {
       )}
 
       <div className="producto-search">
-        <label htmlFor="buscar-producto">Buscar producto</label>
+        <label htmlFor="buscar-producto">Buscar producto o marca</label>
         <div className="search-with-clear">
           <input
             id="buscar-producto"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por nombre o código de barras..."
-            aria-label="Buscar producto por nombre o código de barras"
+            placeholder="Buscar por nombre, marca o código de barras..."
+            aria-label="Buscar producto por nombre, marca o código de barras"
           />
           {busqueda && (
             <button type="button" className="search-clear" onClick={() => setBusqueda("")} aria-label="Limpiar búsqueda">
