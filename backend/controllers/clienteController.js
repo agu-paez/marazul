@@ -174,7 +174,7 @@ export const getHistorialDeudas = async (req, res) => {
         where: {
           asignadoRepartidorId: req.user.id,
           destino: { [Op.ne]: null },
-          estado: { [Op.in]: ["pendiente", "en_camino", "entregado", "sobrante"] },
+          estado: { [Op.in]: ["pendiente", "en_camino"] },
         },
         attributes: ["destino"],
       });
