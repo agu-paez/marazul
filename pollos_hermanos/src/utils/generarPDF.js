@@ -1595,15 +1595,55 @@ export const generarDeudaVentaPDF = async (venta, historial) => {
   if (deudaGenerada > 0) estados.push("Se agrego a cuenta corriente");
   if (deudaPagada > 0) estados.push("Se pago deuda en esta venta");
   const estado = estados.join(" y ") || "Venta sin movimiento de deuda";
+  const rows = [
+    ["Comprobante", venta.numero_comprobante || "-"],
+    ["Fecha", `${venta.fecha} ${venta.hora || ""}`],
+    ["Total de la venta", `$${Number(venta.total || 0).toFixed(2)}`],
+    ["Agregado a cuenta corriente", `$${deudaGenerada.toFixed(2)}`],
+    ["Pagado de deuda en la venta", `$${deudaPagada.toFixed(2)}`],
+    ["Deuda actual del cliente", `$${Number(historial.saldo_pendiente || 0).toFixed(2)}`],
+    ["Estado", estado],
+  ];
   let y = 55;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(45, 58, 30); doc.text(venta.numero_comprobante || "Venta", 15, y); y += 12;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(55, 55, 65);
-  [`Fecha: ${venta.fecha} ${venta.hora || ""}`, `Total de la venta: $${Number(venta.total || 0).toFixed(2)}`, `Monto agregado a cuenta corriente: $${deudaGenerada.toFixed(2)}`, `Monto pagado de deuda en la venta: $${deudaPagada.toFixed(2)}`, `Deuda actual del cliente: $${Number(historial.saldo_pendiente || 0).toFixed(2)}`].forEach((line) => { doc.text(line, 15, y); y += 9; });
-  y += 7;
-  doc.setFillColor(deudaGenerada > 0 ? 254 : 236, deudaGenerada > 0 ? 249 : 248, deudaGenerada > 0 ? 237 : 240);
-  doc.rect(15, y, pw - 30, 24, "F");
-  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(deudaGenerada > 0 ? 180 : 50, deudaGenerada > 0 ? 120 : 120, deudaGenerada > 0 ? 20 : 50); doc.text(estado, 22, y + 10);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(70, 70, 75); doc.text("El estado refleja los movimientos registrados al momento de generar este documento.", 22, y + 18);
+  const tableX = 15;
+  const tableW = pw - 30;
+  const labelW = 72;
+  const rowH = 11;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(45, 58, 30);
+  doc.text("Detalle de la deuda", tableX, y);
+  y += 6;
+  doc.setFillColor(230, 232, 240);
+  doc.rect(tableX, y, tableW, 10, "F");
+  doc.setDrawColor(190, 192, 200);
+  doc.rect(tableX, y, tableW, 10, "S");
+  doc.setFontSize(8);
+  doc.setTextColor(40, 40, 50);
+  doc.text("Concepto", tableX + 4, y + 6.5);
+  doc.text("Valor", tableX + labelW + 4, y + 6.5);
+  y += 10;
+  rows.forEach(([label, value], index) => {
+    if (index % 2 === 1) {
+      doc.setFillColor(248, 249, 250);
+      doc.rect(tableX, y, tableW, rowH, "F");
+    }
+    doc.setDrawColor(215, 217, 223);
+    doc.rect(tableX, y, tableW, rowH, "S");
+    doc.line(tableX + labelW, y, tableX + labelW, y + rowH);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(70, 70, 75);
+    doc.text(label, tableX + 4, y + 7);
+    doc.setFont("helvetica", index === rows.length - 1 ? "bold" : "normal");
+    doc.setTextColor(index === rows.length - 1 && deudaGenerada > 0 ? 180 : 50, index === rows.length - 1 && deudaGenerada > 0 ? 120 : 50, index === rows.length - 1 && deudaGenerada > 0 ? 20 : 60);
+    doc.text(String(value), tableX + labelW + 4, y + 7);
+    y += rowH;
+  });
+  y += 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(70, 70, 75);
+  doc.text("El estado refleja los movimientos registrados al momento de generar este documento.", tableX, y);
   doc.setFontSize(7); doc.setTextColor(160, 160, 160); doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, 285, { align: "center" });
   doc.save(`deuda-venta-${venta.numero_comprobante || venta.id}.pdf`);
 };
