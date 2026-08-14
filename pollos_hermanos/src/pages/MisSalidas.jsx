@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI, proveedoresAPI } from "../api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 import BancoAutocomplete from "../components/BancoAutocomplete";
+import { generarHistorialDeudasPDF } from "../utils/generarPDF";
 
 
 export default function MisSalidas() {
@@ -23,6 +24,9 @@ export default function MisSalidas() {
   const [showPagoCliente, setShowPagoCliente] = useState(false);
   const [clientePago, setClientePago] = useState("");
   const [pagoCliente, setPagoCliente] = useState({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", alias: "", banco: "", notas: "" });
+  const [clienteDetalle, setClienteDetalle] = useState(null);
+  const [clienteDetalleLoading, setClienteDetalleLoading] = useState(false);
+  const [clienteDetalleError, setClienteDetalleError] = useState("");
 
   useEffect(() => {
     loadSalidas();
@@ -113,7 +117,17 @@ export default function MisSalidas() {
       });
       setShowPagoCliente(false);
       await loadDatosPago();
-      alert("Pago registrado correctamente");
+      setClienteDetalleError("");
+      setClienteDetalleLoading(true);
+      try {
+        const historialRes = await clientesAPI.getHistorialCC(cliente.id);
+        setClienteDetalle(historialRes.data);
+      } catch (historialError) {
+        setClienteDetalle({ cliente });
+        setClienteDetalleError(historialError.response?.data?.message || "No se pudo cargar el historial del cliente");
+      } finally {
+        setClienteDetalleLoading(false);
+      }
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
     }
@@ -323,6 +337,40 @@ export default function MisSalidas() {
               <button type="submit" className="btn btn-primary">Registrar pago</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {clienteDetalle && (
+        <div className="modal-overlay" onClick={() => setClienteDetalle(null)}>
+          <div className="modal-card modal-wide cliente-historial-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="cliente-historial-header">
+              <div>
+                <span className="modal-eyebrow">Cuenta corriente</span>
+                <h3>{clienteDetalle.cliente?.nombre}</h3>
+              </div>
+              <button type="button" className="modal-close" onClick={() => setClienteDetalle(null)} aria-label="Cerrar">X</button>
+            </div>
+            {clienteDetalleLoading ? (
+              <div className="loading">Cargando movimientos...</div>
+            ) : clienteDetalleError ? (
+              <p className="error-msg">{clienteDetalleError}</p>
+            ) : (
+              <>
+                <div className="cc-resumen cliente-historial-resumen">
+                  <div className="cc-item"><span>Deuda actual</span><strong className="monto-salida">${Number(clienteDetalle.saldo_pendiente || 0).toFixed(2)}</strong></div>
+                  <div className="cc-item"><span>Saldo a favor</span><strong className="monto-regreso">${Number(clienteDetalle.saldo_favor || 0).toFixed(2)}</strong></div>
+                  <div className="cc-item"><span>Credito disponible</span><strong>${Number(clienteDetalle.credito_disponible || 0).toFixed(2)}</strong></div>
+                </div>
+                <p className="cliente-historial-ayuda">El pago fue registrado correctamente. Puedes descargar el historial actualizado.</p>
+                <div className="cliente-historial-actions">
+                  <button className="btn btn-primary" onClick={() => generarHistorialDeudasPDF(clienteDetalle)}>Historial de deudas</button>
+                </div>
+              </>
+            )}
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setClienteDetalle(null)}>Cerrar</button>
+            </div>
+          </div>
         </div>
       )}
 
