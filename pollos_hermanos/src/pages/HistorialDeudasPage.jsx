@@ -7,6 +7,8 @@ export default function HistorialDeudasPage() {
   const [zonas, setZonas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [buscar, setBuscar] = useState("");
+  const [zonaFiltro, setZonaFiltro] = useState("");
 
   const cargarHistorial = async () => {
     setLoading(true);
@@ -26,6 +28,14 @@ export default function HistorialDeudasPage() {
     cargarHistorial();
   }, []);
 
+  const historialesFiltrados = historiales.filter((historial) => {
+    const termino = buscar.trim().toLowerCase();
+    const nombre = String(historial.cliente.nombre || "").toLowerCase();
+    const zona = String(historial.cliente.zona || "");
+    return (!termino || nombre.includes(termino) || zona.toLowerCase().includes(termino))
+      && (!zonaFiltro || zona === zonaFiltro);
+  });
+
   if (loading) return <div className="loading">Cargando historial de deudas...</div>;
 
   return (
@@ -38,8 +48,27 @@ export default function HistorialDeudasPage() {
         <button className="btn btn-secondary" onClick={cargarHistorial}>Actualizar</button>
       </div>
 
+      <div className="form-card historial-deudas-filtros">
+        <div className="form-group">
+          <label htmlFor="buscar-deudas">Buscar por nombre o zona</label>
+          <input
+            id="buscar-deudas"
+            value={buscar}
+            onChange={(event) => setBuscar(event.target.value)}
+            placeholder="Ej.: Juan o Zona 1"
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="filtro-zona-deudas">Filtrar por zona</label>
+          <select id="filtro-zona-deudas" value={zonaFiltro} onChange={(event) => setZonaFiltro(event.target.value)}>
+            <option value="">Todas las zonas</option>
+            {zonas.map((zona) => <option key={zona} value={zona}>{zona}</option>)}
+          </select>
+        </div>
+      </div>
+
       {error && <p className="error-msg">{error}</p>}
-      {!error && historiales.length === 0 ? (
+      {!error && historialesFiltrados.length === 0 ? (
         <p className="empty">No hay clientes disponibles para mostrar. Los clientes de un repartidor aparecen cuando tiene una salida asignada.</p>
       ) : (
         <div className="table-container">
@@ -55,7 +84,7 @@ export default function HistorialDeudasPage() {
               </tr>
             </thead>
             <tbody>
-              {historiales.map((historial) => (
+              {historialesFiltrados.map((historial) => (
                 <tr key={historial.cliente.id}>
                   <td><strong>{historial.cliente.nombre}</strong></td>
                   <td>{historial.cliente.zona || "-"}</td>
