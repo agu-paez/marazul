@@ -363,7 +363,7 @@ export default function MisSalidas() {
                 </div>
                 <p className="cliente-historial-ayuda">El pago fue registrado correctamente. Puedes descargar el historial actualizado.</p>
                 <div className="cliente-historial-actions">
-                  <button className="btn btn-primary" onClick={() => generarHistorialDeudasPDF(clienteDetalle)}>Historial de deudas</button>
+                  <button className="btn btn-primary" onClick={() => generarHistorialDeudasPDF(clienteDetalle)}>Descargar historial de deudas</button>
                   {clienteDetalle.pago && <button className="btn btn-cierre-pdf" onClick={() => generarPagoClientePDF(clienteDetalle.pago, clienteDetalle)}>Comprobante del pago</button>}
                 </div>
               </>
