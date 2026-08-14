@@ -169,7 +169,7 @@ export const getHistorialDeudas = async (req, res) => {
     let whereClientes = { activo: true };
     let zonas = [];
 
-    if (req.userRole === "repartidor") {
+    if (["repartidor", "operador"].includes(req.userRole)) {
       const salidas = await SalidaCamion.findAll({
         where: { asignadoRepartidorId: req.user.id },
         attributes: ["destino"],
