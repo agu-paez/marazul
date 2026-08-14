@@ -566,9 +566,7 @@ h2 {
 .cliente-historial-ayuda { color: var(--text-muted); margin-bottom: 1rem; }
 .cliente-historial-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 .historial-deudas-filtros {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1rem;
+  display: block;
   margin-bottom: 1.25rem;
 }
 .cliente-deudas-link {
@@ -1726,10 +1724,6 @@ input[type="number"] {
   }
   .filtros-grid {
     grid-template-columns: 1fr 1fr;
-  }
-  .historial-deudas-filtros {
-    grid-template-columns: 1fr;
-    gap: 0;
   }
   .filtros-btns {
     grid-column: span 2;

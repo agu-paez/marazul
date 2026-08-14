@@ -8,7 +8,6 @@ export default function HistorialDeudasPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [buscar, setBuscar] = useState("");
-  const [zonaFiltro, setZonaFiltro] = useState("");
   const [clienteExpandido, setClienteExpandido] = useState(null);
 
   const cargarHistorial = async () => {
@@ -33,8 +32,7 @@ export default function HistorialDeudasPage() {
     const termino = buscar.trim().toLowerCase();
     const nombre = String(historial.cliente.nombre || "").toLowerCase();
     const zona = String(historial.cliente.zona || "");
-    return (!termino || nombre.includes(termino) || zona.toLowerCase().includes(termino))
-      && (!zonaFiltro || zona === zonaFiltro);
+    return !termino || nombre.includes(termino) || zona.toLowerCase().includes(termino);
   });
 
   if (loading) return <div className="loading">Cargando historial de deudas...</div>;
@@ -58,13 +56,6 @@ export default function HistorialDeudasPage() {
             onChange={(event) => setBuscar(event.target.value)}
             placeholder="Ej.: Juan o Zona 1"
           />
-        </div>
-        <div className="form-group">
-          <label htmlFor="filtro-zona-deudas">Filtrar por zona</label>
-          <select id="filtro-zona-deudas" value={zonaFiltro} onChange={(event) => setZonaFiltro(event.target.value)}>
-            <option value="">Todas las zonas</option>
-            {zonas.map((zona) => <option key={zona} value={zona}>{zona}</option>)}
-          </select>
         </div>
       </div>
 
