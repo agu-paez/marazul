@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI, proveedoresAPI } from "../api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 import BancoAutocomplete from "../components/BancoAutocomplete";
-import { generarHistorialDeudasPDF } from "../utils/generarPDF";
+import { generarHistorialDeudasPDF, generarPagoClientePDF } from "../utils/generarPDF";
 
 
 export default function MisSalidas() {
@@ -121,7 +121,7 @@ export default function MisSalidas() {
       setClienteDetalleLoading(true);
       try {
         const historialRes = await clientesAPI.getHistorialCC(cliente.id);
-        setClienteDetalle(historialRes.data);
+        setClienteDetalle({ ...historialRes.data, pago: historialRes.data.pagos?.[0] || null });
       } catch (historialError) {
         setClienteDetalle({ cliente });
         setClienteDetalleError(historialError.response?.data?.message || "No se pudo cargar el historial del cliente");
@@ -364,6 +364,7 @@ export default function MisSalidas() {
                 <p className="cliente-historial-ayuda">El pago fue registrado correctamente. Puedes descargar el historial actualizado.</p>
                 <div className="cliente-historial-actions">
                   <button className="btn btn-primary" onClick={() => generarHistorialDeudasPDF(clienteDetalle)}>Historial de deudas</button>
+                  {clienteDetalle.pago && <button className="btn btn-cierre-pdf" onClick={() => generarPagoClientePDF(clienteDetalle.pago, clienteDetalle)}>Comprobante del pago</button>}
                 </div>
               </>
             )}

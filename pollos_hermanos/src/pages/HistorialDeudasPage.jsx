@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { clientesAPI } from "../api";
-import { generarHistorialDeudasPDF } from "../utils/generarPDF";
+import { generarHistorialDeudasPDF, generarPagoClientePDF } from "../utils/generarPDF";
 
 export default function HistorialDeudasPage() {
   const [historiales, setHistoriales] = useState([]);
@@ -9,6 +9,7 @@ export default function HistorialDeudasPage() {
   const [error, setError] = useState("");
   const [buscar, setBuscar] = useState("");
   const [zonaFiltro, setZonaFiltro] = useState("");
+  const [clienteExpandido, setClienteExpandido] = useState(null);
 
   const cargarHistorial = async () => {
     setLoading(true);
@@ -84,9 +85,17 @@ export default function HistorialDeudasPage() {
               </tr>
             </thead>
             <tbody>
-              {historialesFiltrados.map((historial) => (
+              {historialesFiltrados.map((historial) => {
+                const operacionesPago = (historial.pagos || []).filter((pago) => !String(pago.notas || "").toLowerCase().includes("incluido en venta"));
+                const expandido = clienteExpandido === historial.cliente.id;
+                return (
+                  <Fragment key={historial.cliente.id}>
                 <tr key={historial.cliente.id}>
-                  <td><strong>{historial.cliente.nombre}</strong></td>
+                  <td>
+                    <button type="button" className="cliente-deudas-link" onClick={() => setClienteExpandido(expandido ? null : historial.cliente.id)}>
+                      {expandido ? "-" : "+"} {historial.cliente.nombre}
+                    </button>
+                  </td>
                   <td>{historial.cliente.zona || "-"}</td>
                   <td className="monto-salida">${Number(historial.saldo_pendiente || 0).toFixed(2)}</td>
                   <td className="monto-regreso">${Number(historial.saldo_favor || 0).toFixed(2)}</td>
@@ -97,7 +106,38 @@ export default function HistorialDeudasPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                {expandido && (
+                  <tr key={`${historial.cliente.id}-pagos`} className="cliente-deudas-detalle-row">
+                    <td colSpan="6">
+                      <div className="cliente-deudas-detalle">
+                        <h4>Operaciones de Registrar pago de cliente</h4>
+                        {operacionesPago.length === 0 ? (
+                          <p className="empty">No hay pagos registrados desde este formulario.</p>
+                        ) : (
+                          <div className="table-container cliente-deudas-operaciones">
+                            <table>
+                              <thead><tr><th>Fecha</th><th>Medio</th><th>Monto</th><th>Observaciones</th><th>PDF</th></tr></thead>
+                              <tbody>
+                                {operacionesPago.map((pago) => (
+                                  <tr key={pago.id}>
+                                    <td>{pago.fecha} {pago.hora || ""}</td>
+                                    <td>{pago.medio_pago}</td>
+                                    <td className="monto-regreso">-${Number(pago.monto || 0).toFixed(2)}</td>
+                                    <td>{pago.notas || "-"}</td>
+                                    <td><button className="btn btn-sm btn-cierre-pdf" onClick={() => generarPagoClientePDF(pago, historial)}>PDF</button></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

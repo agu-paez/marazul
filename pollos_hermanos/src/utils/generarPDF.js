@@ -1649,27 +1649,36 @@ export const generarDeudaVentaPDF = async (venta, historial) => {
   doc.save(`deuda-venta-${venta.numero_comprobante || venta.id}.pdf`);
 };
 
-export const generarDeudaActualPDF = async (historial) => {
+export const generarPagoClientePDF = async (pago, historial) => {
   const doc = createPdf();
   const pw = doc.internal.pageSize.getWidth();
   const cliente = historial.cliente;
-  await prepararEncabezadoCliente(doc, "Estado actual de deuda", cliente);
+  await prepararEncabezadoCliente(doc, "Comprobante de pago de cliente", cliente);
+  const datosBancarios = pago?.datos_transferencia || pago?.datos_tarjeta;
+  const parseDatos = (datos) => {
+    if (!datos) return null;
+    if (typeof datos === "string") { try { return JSON.parse(datos); } catch { return null; } }
+    return datos;
+  };
+  const datos = parseDatos(datosBancarios) || {};
   const rows = [
-    ["Cliente", cliente?.nombre || "-"],
-    ["Deuda pendiente", `$${Number(historial.saldo_pendiente || 0).toFixed(2)}`],
-    ["Saldo a favor", `$${Number(historial.saldo_favor || 0).toFixed(2)}`],
-    ["Limite de credito", `$${Number(historial.limite_credito || 0).toFixed(2)}`],
-    ["Credito disponible", `$${Number(historial.credito_disponible || 0).toFixed(2)}`],
+    ["Fecha", `${pago?.fecha || "-"} ${pago?.hora || ""}`],
+    ["Medio de pago", pago?.medio_pago || "-"],
+    ["Monto pagado", `$${Number(pago?.monto || 0).toFixed(2)}`],
+    ["Cuenta / titular", pago?.titular || datos.titular || datos.nombre_cuenta || "-"],
+    ["Banco", pago?.banco || datos.banco || datos.nombre_banco || "-"],
+    ["Observaciones", pago?.notas || "-"],
+    ["Deuda posterior", `$${Number(historial.saldo_pendiente || 0).toFixed(2)}`],
   ];
   const tableX = 15;
   const tableW = pw - 30;
   const labelW = 72;
-  const rowH = 11;
+  const rowH = 12;
   let y = 58;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(45, 58, 30);
-  doc.text("Estado de cuenta", tableX, y);
+  doc.text("Datos del pago registrado", tableX, y);
   y += 6;
   doc.setFillColor(230, 232, 240);
   doc.rect(tableX, y, tableW, 10, "F");
@@ -1685,10 +1694,10 @@ export const generarDeudaActualPDF = async (historial) => {
     doc.setDrawColor(215, 217, 223);
     doc.rect(tableX, y, tableW, rowH, "S");
     doc.line(tableX + labelW, y, tableX + labelW, y + rowH);
-    doc.setFont("helvetica", "bold"); doc.setTextColor(70, 70, 75); doc.text(label, tableX + 4, y + 7);
-    doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 60); doc.text(value, tableX + labelW + 4, y + 7);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(70, 70, 75); doc.text(label, tableX + 4, y + 7.5);
+    doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 60); doc.text(String(value), tableX + labelW + 4, y + 7.5);
     y += rowH;
   });
   doc.setFontSize(7); doc.setTextColor(160, 160, 160); doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, 285, { align: "center" });
-  doc.save(`deuda-actual-${nombreArchivoSeguro(cliente?.nombre)}.pdf`);
+  doc.save(`pago-cliente-${nombreArchivoSeguro(cliente?.nombre)}-${pago?.id || pago?.fecha || "registro"}.pdf`);
 };

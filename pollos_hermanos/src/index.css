@@ -571,6 +571,20 @@ h2 {
   gap: 1rem;
   margin-bottom: 1.25rem;
 }
+.cliente-deudas-link {
+  background: none;
+  border: 0;
+  color: var(--primary-dark);
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+}
+.cliente-deudas-link:hover { text-decoration: underline; }
+.cliente-deudas-detalle-row td { background: rgba(74, 107, 90, 0.05); padding: 0.75rem; }
+.cliente-deudas-detalle h4 { color: var(--primary); margin-bottom: 0.75rem; }
+.cliente-deudas-operaciones { max-height: 220px; overflow-y: auto; }
 
 .modal-actions {
   display: flex;
