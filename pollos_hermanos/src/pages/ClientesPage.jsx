@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { clientesAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
-import { generarResumenZonasPDF } from "../utils/generarPDF";
+import { generarResumenZonasPDF, generarHistorialDeudasPDF, generarDeudaActualPDF } from "../utils/generarPDF";
 
 const zonas = [
   ...Array.from({ length: 7 }, (_, index) => `Zona ${index + 1}`),
@@ -146,6 +146,7 @@ export default function ClientesPage() {
       alert(res.data.message);
       setShowPagoForm(false);
       setClientePago(null);
+      await verHistorial(clientePago);
       loadClientes();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -375,6 +376,8 @@ export default function ClientesPage() {
               </div>
             )}
             <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => generarHistorialDeudasPDF(historial)}>Historial de deudas</button>
+              <button className="btn btn-cierre-pdf" onClick={() => generarDeudaActualPDF(historial)}>Deuda actual</button>
               <button className="btn btn-secondary" onClick={() => setHistorial(null)}>Cerrar</button>
             </div>
           </div>
