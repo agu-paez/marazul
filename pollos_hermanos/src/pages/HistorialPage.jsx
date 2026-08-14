@@ -7,6 +7,7 @@ import HistorialCierres from "./HistorialCierres";
 import ProduccionHistorialPage from "./ProduccionHistorialPage";
 import HistorialGastosPage from "./HistorialGastosPage";
 import HistorialPagosEmpleadosPage from "./HistorialPagosEmpleadosPage";
+import HistorialDeudasPage from "./HistorialDeudasPage";
 
 export default function HistorialPage() {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ export default function HistorialPage() {
 
   const tabs = [
     { key: "ventas", label: "Historial de Ventas" },
+    { key: "deudas", label: "Historial de Deudas" },
   ];
     if (isAdmin) {
     tabs.push({ key: "salidas", label: "Historial de Salidas" });
@@ -46,6 +48,7 @@ export default function HistorialPage() {
 
       <div className="tab-content">
         {activeTab === "ventas" && <HistorialVentasPage />}
+        {activeTab === "deudas" && <HistorialDeudasPage />}
         {activeTab === "salidas" && isAdmin && <HistorialSalidas />}
         {activeTab === "cierres" && isAdmin && <HistorialCierres />}
         {activeTab === "gastos" && isAdmin && <HistorialGastosPage />}

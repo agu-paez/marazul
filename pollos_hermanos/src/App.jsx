@@ -10,7 +10,6 @@ import VentasPage from "./pages/VentasPage";
 import HistorialVentasPage from "./pages/HistorialVentasPage";
 import ClientesPage from "./pages/ClientesPage";
 import HistorialPage from "./pages/HistorialPage";
-import HistorialDeudasPage from "./pages/HistorialDeudasPage";
 import UsuariosPage from "./pages/UsuariosPage";
 import ProveedoresPage from "./pages/ProveedoresPage";
 import ProductosPage from "./pages/ProductosPage";
@@ -143,10 +142,7 @@ function AppRoutes() {
 
       <Route path="/historial-deudas" element={
         <PrivateRoute allowedRoles={["admin", "operador", "repartidor"]}>
-          <div className="app">
-            <Navbar />
-            <main className="main-content"><HistorialDeudasPage /></main>
-          </div>
+          <Navigate to="/historial?tab=deudas" replace />
         </PrivateRoute>
       } />
 
