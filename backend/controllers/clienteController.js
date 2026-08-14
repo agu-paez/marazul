@@ -1,4 +1,5 @@
-import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor } from "../models/index.js";
+import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor, SalidaCamion } from "../models/index.js";
+import { Op } from "sequelize";
 import { getFechaLocal } from "../utils/fecha.js";
 
 const normalizarSaldos = async (cliente) => {
@@ -160,6 +161,53 @@ export const getHistorialCuentaCorriente = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Error al obtener historial", error: error.message });
+  }
+};
+
+export const getHistorialDeudas = async (req, res) => {
+  try {
+    let whereClientes = { activo: true };
+    let zonas = [];
+
+    if (req.userRole === "repartidor") {
+      const salidas = await SalidaCamion.findAll({
+        where: { asignadoRepartidorId: req.user.id },
+        attributes: ["destino"],
+      });
+      zonas = [...new Set(salidas.map((salida) => String(salida.destino || "").trim()).filter(Boolean))];
+      if (zonas.length === 0) {
+        return res.json({ clientes: [], zonas });
+      }
+      whereClientes.zona = { [Op.in]: zonas };
+    }
+
+    const clientes = await Cliente.findAll({ where: whereClientes, order: [["nombre", "ASC"]] });
+    await Promise.all(clientes.map(normalizarSaldos));
+    const clientesConHistorial = await Promise.all(clientes.map(async (cliente) => {
+      const [ventas, pagos] = await Promise.all([
+        Venta.findAll({
+          where: { clienteId: cliente.id, estado: "completada" },
+          include: [{ model: VentaPago }, { model: VentaItem, include: [{ model: Producto, attributes: ["id", "nombre"] }] }],
+          order: [["createdAt", "DESC"]],
+        }),
+        ClientePago.findAll({ where: { clienteId: cliente.id }, order: [["createdAt", "DESC"]] }),
+      ]);
+      const saldoPendiente = parseFloat(cliente.saldo_pendiente) || 0;
+      const saldoFavor = parseFloat(cliente.saldo_favor) || 0;
+      return {
+        cliente,
+        ventas,
+        pagos,
+        saldo_pendiente: saldoPendiente,
+        saldo_favor: saldoFavor,
+        limite_credito: parseFloat(cliente.limite_credito) || 0,
+        credito_disponible: (parseFloat(cliente.limite_credito) || 0) - saldoPendiente + saldoFavor,
+      };
+    }));
+
+    res.json({ clientes: clientesConHistorial, zonas });
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener historial de deudas", error: error.message });
   }
 };
 

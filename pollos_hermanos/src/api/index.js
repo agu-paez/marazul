@@ -138,6 +138,7 @@ export const clientesAPI = {
   revisar: (id) => API.put(`/clientes/${id}/revisar`),
   delete: (id) => API.delete(`/clientes/${id}`),
   getHistorialCC: (id) => API.get(`/clientes/${id}/historial-cc`),
+  getHistorialDeudas: () => API.get("/clientes/historial-deudas"),
   registrarPagoCC: (id, data) => API.post(`/clientes/${id}/pago-cc`, data),
 };
 

@@ -42,6 +42,7 @@ export default function Navbar() {
             <Link to="/salida/nueva" className={isActive("/salida/nueva")}>Registro Salidas</Link>
             <Link to="/ventas" className={isActive("/ventas")}>Ventas</Link>
             <Link to="/historial" className={isActive("/historial")}>Historial</Link>
+            <Link to="/historial-deudas" className={isActive("/historial-deudas")}>Historial deudas</Link>
           </>
         ) : (
           <>
@@ -50,6 +51,7 @@ export default function Navbar() {
             <Link to="/ventas" className={isActive("/ventas")}>Ventas</Link>
             <Link to="/clientes" className={isActive("/clientes")}>Clientes</Link>
             <Link to="/historial" className={isActive("/historial")}>Historial</Link>
+            <Link to="/historial-deudas" className={isActive("/historial-deudas")}>Historial deudas</Link>
             <Link to="/proveedores" className={isActive("/proveedores")}>Proveedores</Link>
             <Link to="/productos" className={isActive("/productos")}>Productos</Link>
              <Link to="/produccion" className={isActive("/produccion")}>Estadísticas</Link>

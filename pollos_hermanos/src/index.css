@@ -1601,6 +1601,11 @@ input[type="number"] {
   max-width: 360px;
 }
 
+.modal-scrollable {
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
 @media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: 1fr 1fr;

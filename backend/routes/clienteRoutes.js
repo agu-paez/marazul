@@ -6,6 +6,7 @@ import {
   updateCliente,
   updateMontosCliente,
   getHistorialCuentaCorriente,
+  getHistorialDeudas,
   registrarPagoCuentaCorriente,
   revisarCliente,
   deleteCliente,
@@ -17,6 +18,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/", getAllClientes);
+router.get("/historial-deudas", getHistorialDeudas);
 router.get("/:id", getClienteById);
 router.get("/:id/historial-cc", getHistorialCuentaCorriente);
 router.post("/", createCliente);

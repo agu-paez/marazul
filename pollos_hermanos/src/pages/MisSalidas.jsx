@@ -268,7 +268,7 @@ export default function MisSalidas() {
 
       {showPagoCliente && (
         <div className="modal-overlay" onClick={() => setShowPagoCliente(false)}>
-          <form className="modal-card modal-responsive" onSubmit={registrarPagoCliente} onClick={(event) => event.stopPropagation()}>
+          <form className="modal-card modal-responsive modal-scrollable" onSubmit={registrarPagoCliente} onClick={(event) => event.stopPropagation()}>
             <h3>Registrar pago de cliente</h3>
             <div className="form-group">
               <label>Cliente *</label>
