@@ -173,6 +173,16 @@ body {
 .btn-cierre-pdf:hover { background: #b45309; }
 .btn-abrir { background: #6fae8a; color: white; }
 .btn-abrir:hover { background: #5e9d79; }
+.cliente-historial-btn {
+  background: rgba(74, 107, 90, 0.12);
+  border: 1px solid var(--primary);
+  color: var(--primary-dark);
+  font-weight: 600;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .cajones-producto-card {
   display: flex;
@@ -525,6 +535,36 @@ h2 {
   color: var(--primary);
   margin-bottom: 0.5rem;
 }
+
+.cliente-historial-modal { max-width: 650px; }
+.cliente-historial-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.modal-eyebrow {
+  color: var(--text-muted);
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+.modal-close {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  height: 30px;
+  width: 30px;
+}
+.cliente-historial-resumen { margin-bottom: 1rem; }
+.cliente-historial-ayuda { color: var(--text-muted); margin-bottom: 1rem; }
+.cliente-historial-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 
 .modal-actions {
   display: flex;
@@ -1600,6 +1640,7 @@ input[type="number"] {
   .modal-wide {
     max-width: 92vw;
   }
+  .cliente-historial-actions .btn { flex: 1 1 100%; }
   .dashboard-actions {
     justify-content: stretch;
   }

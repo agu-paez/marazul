@@ -1,12 +1,19 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { ventasAPI } from "../api";
-import { generarComprobantePDF } from "../utils/generarPDF";
+import { ventasAPI, clientesAPI } from "../api";
+import {
+  generarComprobantePDF,
+  generarHistorialDeudasPDF,
+  generarDeudaVentaPDF,
+} from "../utils/generarPDF";
 
 export default function HistorialVentasPage() {
   const { user } = useAuth();
   const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [clienteDetalle, setClienteDetalle] = useState(null);
+  const [clienteDetalleLoading, setClienteDetalleLoading] = useState(false);
+  const [clienteDetalleError, setClienteDetalleError] = useState("");
   const [filtros, setFiltros] = useState({
     fecha: "",
     buscar: "",
@@ -58,13 +65,20 @@ export default function HistorialVentasPage() {
     }
   };
 
-  const medioPagoLabels = {
-    efectivo: "Efectivo",
-    transferencia: "Transferencia",
-    tarjeta: "Tarjeta",
-    cuenta_corriente: "Cuenta Corriente",
-    otro: "Otro",
-    dividido: "Dividido",
+  const abrirDetalleCliente = async (venta) => {
+    const cliente = venta.cliente;
+    if (!cliente?.id) return;
+    setClienteDetalle({ cliente, venta });
+    setClienteDetalleError("");
+    setClienteDetalleLoading(true);
+    try {
+      const res = await clientesAPI.getHistorialCC(cliente.id);
+      setClienteDetalle({ ...res.data, venta });
+    } catch (error) {
+      setClienteDetalleError(error.response?.data?.message || "No se pudo cargar el historial del cliente");
+    } finally {
+      setClienteDetalleLoading(false);
+    }
   };
 
   if (loading) return <div className="loading">Cargando...</div>;
@@ -135,7 +149,18 @@ export default function HistorialVentasPage() {
                     </span>
                   </td>
                   <td>{v.salida_camion?.camion || "-"}</td>
-                  <td>{v.cliente?.nombre || v.cliente_nombre}</td>
+                   <td>
+                     {v.cliente?.id ? (
+                       <button
+                         type="button"
+                         className="btn btn-sm cliente-historial-btn"
+                         onClick={() => abrirDetalleCliente(v)}
+                         title={`Ver deudas de ${v.cliente.nombre}`}
+                       >
+                         {v.cliente.nombre}
+                       </button>
+                     ) : (v.cliente_nombre || "-")}
+                   </td>
                   <td>{v.vendedor?.nombre || "-"}</td>
                   <td>
                     <div className="action-buttons">
@@ -168,6 +193,40 @@ export default function HistorialVentasPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {clienteDetalle && (
+        <div className="modal-overlay" onClick={() => setClienteDetalle(null)}>
+          <div className="modal-card modal-wide cliente-historial-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cliente-historial-header">
+              <div>
+                <span className="modal-eyebrow">Cuenta corriente</span>
+                <h3>{clienteDetalle.cliente?.nombre}</h3>
+              </div>
+              <button type="button" className="modal-close" onClick={() => setClienteDetalle(null)} aria-label="Cerrar">X</button>
+            </div>
+            {clienteDetalleLoading ? (
+              <div className="loading">Cargando movimientos...</div>
+            ) : clienteDetalleError ? (
+              <p className="error-msg">{clienteDetalleError}</p>
+            ) : (
+              <>
+                <div className="cc-resumen cliente-historial-resumen">
+                  <div className="cc-item"><span>Deuda actual</span><strong className="monto-salida">${Number(clienteDetalle.saldo_pendiente || 0).toFixed(2)}</strong></div>
+                  <div className="cc-item"><span>Saldo a favor</span><strong className="monto-regreso">${Number(clienteDetalle.saldo_favor || 0).toFixed(2)}</strong></div>
+                  <div className="cc-item"><span>Credito disponible</span><strong>${Number(clienteDetalle.credito_disponible || 0).toFixed(2)}</strong></div>
+                </div>
+                <p className="cliente-historial-ayuda">Selecciona el comprobante que deseas descargar.</p>
+                <div className="cliente-historial-actions">
+                  <button className="btn btn-primary" onClick={() => generarHistorialDeudasPDF(clienteDetalle)}>Historial de deudas</button>
+                  <button className="btn btn-cierre-pdf" onClick={() => generarDeudaVentaPDF(clienteDetalle.venta, clienteDetalle)}>Deuda de esta venta</button>
+                </div>
+              </>
+            )}
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setClienteDetalle(null)}>Cerrar</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
