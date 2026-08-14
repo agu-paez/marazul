@@ -1540,11 +1540,11 @@ export const generarHistorialDeudasPDF = async (historial) => {
   for (const venta of historial.ventas || []) {
     const deuda = montoCuentaCorriente(venta);
     if (deuda > 0) {
-      movimientos.push({ fecha: `${venta.fecha} ${venta.hora || ""}`, tipo: "Deuda por venta", comprobante: venta.numero_comprobante, detalle: "Cuenta corriente", monto: deuda, signo: "+" });
+      movimientos.push({ fecha: `${venta.fecha} ${venta.hora || ""}`, tipo: "Deuda por venta", operacion: venta.tipo_venta === "reparto" ? "Venta reparto" : "Venta local", detalle: `${venta.numero_comprobante} - Cuenta corriente`, monto: deuda, signo: "+" });
     }
   }
   for (const pago of historial.pagos || []) {
-    movimientos.push({ fecha: `${pago.fecha} ${pago.hora || ""}`, tipo: "Pago de deuda", comprobante: "-", detalle: pago.medio_pago || "-", monto: Number(pago.monto || 0), signo: "-" });
+    movimientos.push({ fecha: `${pago.fecha} ${pago.hora || ""}`, tipo: "Pago de deuda", operacion: "Registro de pago de cliente", detalle: pago.medio_pago || "-", monto: Number(pago.monto || 0), signo: "-" });
   }
   movimientos.sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
 
@@ -1554,8 +1554,8 @@ export const generarHistorialDeudasPDF = async (historial) => {
   doc.text(`Deuda actual: $${Number(historial.saldo_pendiente || 0).toFixed(2)}`, ml, 53);
   doc.text(`Saldo a favor: $${Number(historial.saldo_favor || 0).toFixed(2)}`, ml + 75, 53);
 
-  const headers = ["Fecha", "Tipo", "Comprobante", "Detalle", "Monto"];
-  const widths = [42, 46, 48, cw - 42 - 46 - 48 - 35, 35];
+  const headers = ["Fecha", "Tipo", "Tipo de operacion", "Detalle", "Monto"];
+  const widths = [42, 38, 58, cw - 42 - 38 - 58 - 35, 35];
   let y = 62;
   const drawHeader = () => {
     doc.setFillColor(230, 232, 240);
@@ -1575,7 +1575,7 @@ export const generarHistorialDeudasPDF = async (historial) => {
     const movimiento = movimientos[index];
     if (index % 2) { doc.setFillColor(248, 249, 250); doc.rect(ml, y, cw, 8, "F"); }
     let x = ml + 3;
-    const values = [movimiento.fecha, movimiento.tipo, movimiento.comprobante, movimiento.detalle, `${movimiento.signo}$${movimiento.monto.toFixed(2)}`];
+    const values = [movimiento.fecha, movimiento.tipo, movimiento.operacion, movimiento.detalle, `${movimiento.signo}$${movimiento.monto.toFixed(2)}`];
     values.forEach((value, cellIndex) => { doc.setTextColor(cellIndex === 4 && movimiento.signo === "+" ? 180 : 50, cellIndex === 4 && movimiento.signo === "+" ? 100 : 50, cellIndex === 4 && movimiento.signo === "+" ? 40 : 60); doc.text(String(value), x, y + 5.5); x += widths[cellIndex]; });
     doc.setDrawColor(215, 217, 223); doc.line(ml, y + 8, ml + cw, y + 8); y += 8;
   }
