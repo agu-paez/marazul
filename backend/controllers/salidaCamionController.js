@@ -107,6 +107,9 @@ export const createSalida = async (req, res) => {
     if (!destino || !String(destino).trim()) {
       return res.status(400).json({ message: "Debe seleccionar una zona para la salida" });
     }
+    if (!asignadoRepartidorId) {
+      return res.status(400).json({ message: "Debe seleccionar el repartidor asignado a la salida" });
+    }
 
     let clienteNombre = null;
     let clienteIdVal = null;
@@ -158,7 +161,7 @@ export const createSalida = async (req, res) => {
       notas,
       precio_total: precioTotal,
       monto_salida: montoSalidaCalc,
-      asignadoRepartidorId: asignadoRepartidorId || req.user.id,
+      asignadoRepartidorId,
       creadoPorId: req.user.id,
     });
 

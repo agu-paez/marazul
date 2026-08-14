@@ -86,7 +86,7 @@ export default function NuevaSalida() {
         camion: form.camion,
         destino: form.destino,
         notas: form.notas,
-        asignadoRepartidorId: isRepartidor ? user.id : (repartidorSeleccionado || user.id),
+        asignadoRepartidorId: isRepartidor ? user.id : repartidorSeleccionado,
         items: productosSeleccionados.map((p) => ({
           productoId: p.id,
           cantidad: cantidades[p.id],
