@@ -102,7 +102,7 @@ export default function HistorialDeudasPage() {
                   <td>{(historial.ventas?.length || 0) + (historial.pagos?.length || 0)}</td>
                   <td>
                     <button className="btn btn-sm btn-primary" onClick={() => generarHistorialDeudasPDF(historial)}>
-                      Descargar PDF
+                      Descargar historial de deuda completo
                     </button>
                   </td>
                 </tr>
