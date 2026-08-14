@@ -1547,12 +1547,13 @@ export const generarHistorialDeudasPDF = async (historial) => {
     const pagoDesdeVenta = String(pago.notas || "").toLowerCase().includes("incluido en venta");
     movimientos.push({ fecha: `${pago.fecha} ${pago.hora || ""}`, tipo: "Pago de deuda", operacion: pagoDesdeVenta ? "Pago en ventas" : "Registro de pago de cliente", detalle: pago.medio_pago || "-", monto: Number(pago.monto || 0), signo: "-" });
   }
-  movimientos.sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+  movimientos.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(45, 58, 30);
+  doc.setTextColor(220, 38, 38);
   doc.text(`Deuda actual: $${Number(historial.saldo_pendiente || 0).toFixed(2)}`, ml, 53);
+  doc.setTextColor(16, 140, 80);
   doc.text(`Saldo a favor: $${Number(historial.saldo_favor || 0).toFixed(2)}`, ml + 75, 53);
 
   const headers = ["Fecha", "Tipo", "Tipo de operacion", "Detalle", "Monto"];
