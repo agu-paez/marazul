@@ -171,7 +171,11 @@ export const getHistorialDeudas = async (req, res) => {
 
     if (req.userRole !== "admin") {
       const salidas = await SalidaCamion.findAll({
-        where: { asignadoRepartidorId: req.user.id },
+        where: {
+          asignadoRepartidorId: req.user.id,
+          destino: { [Op.ne]: null },
+          estado: { [Op.in]: ["pendiente", "en_camino", "entregado", "sobrante"] },
+        },
         attributes: ["destino"],
       });
       zonas = [...new Set(salidas.map((salida) => String(salida.destino || "").trim()).filter(Boolean))];
