@@ -144,13 +144,16 @@ export const generarPDFMarcasProductos = async (req, res) => {
           model: Producto,
           where: { activo: true },
           required: false,
-          attributes: ["id", "nombre", "descripcion", "precio", "stock", "unidad", "kg_por_caja"]
+          attributes: ["id", "nombre", "descripcion", "precio", "stock", "unidad", "kg_por_caja", "excluir_de_lista_pdf"]
         },
         { model: Proveedor, attributes: [], where: { activo: true } }
       ],
       where: { activo: true },
       order: [["nombre", "ASC"]],
-    })).filter((m) => (m.Productos || []).length > 0);
+    })).map((marca) => {
+      marca.Productos = (marca.Productos || []).filter((producto) => !producto.excluir_de_lista_pdf);
+      return marca;
+    }).filter((m) => (m.Productos || []).length > 0);
 
     const doc = new PDFDocument({ margin: 50, size: "A4" });
 

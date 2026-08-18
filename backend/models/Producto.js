@@ -48,6 +48,11 @@ const Producto = sequelize.define("Producto", {
     allowNull: true,
     unique: true,
   },
+  excluir_de_lista_pdf: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
   marcaId: {
     type: DataTypes.INTEGER,
     allowNull: true,

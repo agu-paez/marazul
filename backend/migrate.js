@@ -52,6 +52,7 @@ try {
 
 const nuevasColumnasProductos = [
   ['kg_por_caja', 'DECIMAL(10,2)'],
+  ['excluir_de_lista_pdf', 'BOOLEAN NOT NULL DEFAULT 0'],
 ];
 for (const [columna, tipo] of nuevasColumnasProductos) {
   try {

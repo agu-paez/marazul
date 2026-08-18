@@ -53,7 +53,7 @@ export const getLowStock = async (req, res) => {
 
 export const createProducto = async (req, res) => {
   try {
-    const { nombre, descripcion, precio, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja } = req.body;
+    const { nombre, descripcion, precio, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, excluir_de_lista_pdf } = req.body;
 
     if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio)) || !Number.isFinite(Number(costo)) || Number(costo) < 0) {
       return res.status(400).json({ message: "Nombre, precio y costo valido son requeridos" });
@@ -74,6 +74,7 @@ export const createProducto = async (req, res) => {
       marcaId: marca ? marca.id : null,
       codigo_barras: codigo_barras?.trim() || null,
       kg_por_caja: Number.isFinite(Number(kg_por_caja)) ? Number(kg_por_caja) : null,
+      excluir_de_lista_pdf: Boolean(excluir_de_lista_pdf),
     });
 
     res.status(201).json({ message: "Producto creado", producto });

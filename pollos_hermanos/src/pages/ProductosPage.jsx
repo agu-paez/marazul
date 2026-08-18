@@ -29,6 +29,7 @@ export default function ProductosPage() {
     marcaId: "",
     codigo_barras: "",
     kg_por_caja: "",
+    excluir_de_lista_pdf: false,
   });
 
   useEffect(() => {
@@ -61,6 +62,7 @@ export default function ProductosPage() {
         marcaId: form.marcaId ? parseInt(form.marcaId) : null,
         codigo_barras: form.codigo_barras.trim() || null,
         kg_por_caja: form.kg_por_caja === "" ? null : parseFloat(form.kg_por_caja),
+        excluir_de_lista_pdf: form.excluir_de_lista_pdf,
       };
       if (editing) {
         await productosAPI.update(editing.id, data);
@@ -69,7 +71,7 @@ export default function ProductosPage() {
       }
       setShowForm(false);
       setEditing(null);
-      setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
+      setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false });
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -87,6 +89,7 @@ export default function ProductosPage() {
       marcaId: producto.Marca?.id || "",
       codigo_barras: producto.codigo_barras || "",
       kg_por_caja: producto.kg_por_caja ?? "",
+      excluir_de_lista_pdf: Boolean(producto.excluir_de_lista_pdf),
     });
     setShowForm(true);
   };
@@ -175,7 +178,7 @@ export default function ProductosPage() {
             onClick={() => {
               setShowForm(!showForm);
               setEditing(null);
-                 setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "" });
+                setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false });
             }}
           >
             {showForm ? "Cancelar" : "+ Nuevo Producto"}
@@ -330,6 +333,17 @@ export default function ProductosPage() {
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
         <form onSubmit={handleSubmit} className="form-card modal-card modal-wide" onClick={(e) => e.stopPropagation()}>
           <h3>{editing ? "Editar Producto" : "Nuevo Producto"}</h3>
+          <div className="form-group pdf-list-option">
+            <label>
+              <input
+                type="checkbox"
+                checked={form.excluir_de_lista_pdf}
+                onChange={(e) => setForm({ ...form, excluir_de_lista_pdf: e.target.checked })}
+              />
+              Agregar a la lista en PDF
+            </label>
+            <small>Si se marca, este producto no aparecerá en la lista de precios PDF.</small>
+          </div>
           <div className="form-row">
             <div className="form-group">
               <label>Nombre *</label>
