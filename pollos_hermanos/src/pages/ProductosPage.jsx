@@ -330,8 +330,8 @@ export default function ProductosPage() {
       )}
 
       {showForm && (
-        <div className="modal-overlay" onClick={() => setShowForm(false)}>
-        <form onSubmit={handleSubmit} className="form-card modal-card modal-wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay product-modal-overlay" onClick={() => setShowForm(false)}>
+        <form onSubmit={handleSubmit} className="form-card modal-card modal-wide product-form-modal" onClick={(e) => e.stopPropagation()}>
           <h3>{editing ? "Editar Producto" : "Nuevo Producto"}</h3>
           <div className="form-group pdf-list-option">
             <label>

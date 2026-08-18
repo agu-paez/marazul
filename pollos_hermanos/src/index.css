@@ -173,16 +173,6 @@ body {
 .btn-cierre-pdf:hover { background: #b45309; }
 .btn-abrir { background: #6fae8a; color: white; }
 .btn-abrir:hover { background: #5e9d79; }
-.cliente-historial-btn {
-  background: rgba(74, 107, 90, 0.12);
-  border: 1px solid var(--primary);
-  color: var(--primary-dark);
-  font-weight: 600;
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .cajones-producto-card {
   display: flex;
@@ -260,6 +250,26 @@ body {
   color: var(--text);
   font-size: 0.9rem;
   transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.pdf-list-option label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.pdf-list-option input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--primary);
+}
+
+.pdf-list-option small {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
 }
 
 .form-group input:focus,
@@ -536,54 +546,6 @@ h2 {
   margin-bottom: 0.5rem;
 }
 
-.cliente-historial-modal { max-width: 650px; }
-.cliente-historial-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-.modal-eyebrow {
-  color: var(--text-muted);
-  display: block;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 0.25rem;
-}
-.modal-close {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  color: var(--text-muted);
-  cursor: pointer;
-  height: 30px;
-  width: 30px;
-}
-.cliente-historial-resumen { margin-bottom: 1rem; }
-.cliente-historial-ayuda { color: var(--text-muted); margin-bottom: 1rem; }
-.cliente-historial-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-.historial-deudas-filtros {
-  display: block;
-  margin-bottom: 1.25rem;
-}
-.cliente-deudas-link {
-  background: none;
-  border: 0;
-  color: var(--primary-dark);
-  cursor: pointer;
-  font-size: inherit;
-  font-weight: 700;
-  padding: 0;
-  text-align: left;
-}
-.cliente-deudas-link:hover { text-decoration: underline; }
-.cliente-deudas-detalle-row td { background: rgba(74, 107, 90, 0.05); padding: 0.75rem; }
-.cliente-deudas-detalle h4 { color: var(--primary); margin-bottom: 0.75rem; }
-.cliente-deudas-operaciones { max-height: 220px; overflow-y: auto; }
-
 .modal-actions {
   display: flex;
   gap: 0.5rem;
@@ -693,6 +655,19 @@ h2 {
 /* Modal wide */
 .modal-wide {
   max-width: 650px;
+}
+
+.product-modal-overlay {
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.product-form-modal {
+  max-height: calc(100vh - 2rem);
+  margin: 0 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .dashboard-actions {
@@ -1619,11 +1594,6 @@ input[type="number"] {
   max-width: 360px;
 }
 
-.modal-scrollable {
-  max-height: calc(100vh - 2rem);
-  overflow-y: auto;
-}
-
 @media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: 1fr 1fr;
@@ -1663,7 +1633,15 @@ input[type="number"] {
   .modal-wide {
     max-width: 92vw;
   }
-  .cliente-historial-actions .btn { flex: 1 1 100%; }
+  .product-modal-overlay {
+    padding: 1rem;
+  }
+  .product-form-modal {
+    width: 100%;
+    max-width: 650px;
+    max-height: calc(100dvh - 2rem);
+    margin: 0 auto;
+  }
   .dashboard-actions {
     justify-content: stretch;
   }
@@ -2001,15 +1979,6 @@ input[type="number"] {
   min-height: 34px;
   margin: 0.15rem;
   text-align: center;
-}
-
-.proveedores-table-container tr.proveedor-inactivo {
-  color: var(--text-muted);
-  opacity: 0.62;
-}
-
-.proveedores-table-container tr.proveedor-inactivo td:first-child {
-  text-decoration: line-through;
 }
 
 @media (max-width: 1024px) {
