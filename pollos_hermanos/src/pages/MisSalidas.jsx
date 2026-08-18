@@ -359,7 +359,6 @@ export default function MisSalidas() {
                 <div className="cc-resumen cliente-historial-resumen">
                   <div className="cc-item"><span>Deuda actual</span><strong className="monto-salida">${Number(clienteDetalle.saldo_pendiente || 0).toFixed(2)}</strong></div>
                   <div className="cc-item"><span>Saldo a favor</span><strong className="monto-regreso">${Number(clienteDetalle.saldo_favor || 0).toFixed(2)}</strong></div>
-                  <div className="cc-item"><span>Credito disponible</span><strong>${Number(clienteDetalle.credito_disponible || 0).toFixed(2)}</strong></div>
                 </div>
                 <p className="cliente-historial-ayuda">El pago fue registrado correctamente. Puedes descargar el historial actualizado.</p>
                 <div className="cliente-historial-actions">

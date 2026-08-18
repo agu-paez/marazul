@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { clientesAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
-import { generarResumenZonasPDF, generarHistorialDeudasPDF, generarDeudaActualPDF } from "../utils/generarPDF";
+import { generarResumenZonasPDF } from "../utils/generarPDF";
 
 const zonas = [
   ...Array.from({ length: 7 }, (_, index) => `Zona ${index + 1}`),
@@ -19,13 +19,12 @@ export default function ClientesPage() {
   const [historial, setHistorial] = useState(null);
   const [nombre, setNombre] = useState("");
   const [zona, setZona] = useState("");
-  const [limiteCredito, setLimiteCredito] = useState("30000");
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [clientePago, setClientePago] = useState(null);
   const [pagosCC, setPagosCC] = useState([{ medio_pago: "efectivo", monto: 0 }]);
   const [showDeudaModal, setShowDeudaModal] = useState(false);
   const [clienteDeuda, setClienteDeuda] = useState(null);
-  const [montos, setMontos] = useState({ saldo_pendiente: "0", limite_credito: "0" });
+  const [montos, setMontos] = useState({ saldo_pendiente: "0" });
 
   useEffect(() => {
     loadClientes();
@@ -48,19 +47,15 @@ export default function ClientesPage() {
       if (editando) {
         await clientesAPI.update(editando.id, { nombre, zona });
         if (isAdmin) {
-          await clientesAPI.updateMontos(editando.id, {
-            saldo_pendiente: parseFloat(montos.saldo_pendiente),
-            limite_credito: parseFloat(montos.limite_credito),
-          });
+          await clientesAPI.updateMontos(editando.id, { saldo_pendiente: parseFloat(montos.saldo_pendiente) });
         }
       } else {
-        await clientesAPI.create({ nombre, zona, limite_credito: parseFloat(limiteCredito) });
+        await clientesAPI.create({ nombre, zona });
       }
       setShowForm(false);
       setEditando(null);
       setNombre("");
       setZona("");
-      setLimiteCredito("30000");
       loadClientes();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -79,10 +74,8 @@ export default function ClientesPage() {
     setEditando(c);
     setNombre(c.nombre);
     setZona(c.zona || "");
-    setLimiteCredito(parseFloat(c.limite_credito || 30000).toFixed(2));
     setMontos({
       saldo_pendiente: parseFloat(c.saldo_pendiente || 0).toFixed(2),
-      limite_credito: parseFloat(c.limite_credito || 30000).toFixed(2),
     });
     setShowForm(true);
   };
@@ -91,7 +84,6 @@ export default function ClientesPage() {
     setEditando(null);
     setNombre("");
     setZona("");
-    setLimiteCredito("30000");
     setShowForm(true);
   };
 
@@ -146,7 +138,6 @@ export default function ClientesPage() {
       alert(res.data.message);
       setShowPagoForm(false);
       setClientePago(null);
-      await verHistorial(clientePago);
       loadClientes();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -205,19 +196,6 @@ export default function ClientesPage() {
                   {zonas.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
               </div>
-              {!editando && (
-                <div className="form-group">
-                  <label>Limite de credito</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={limiteCredito}
-                    onChange={(e) => setLimiteCredito(e.target.value)}
-                    required
-                  />
-                </div>
-              )}
               {editando && (
                 <>
                   <div className="form-group">
@@ -227,18 +205,6 @@ export default function ClientesPage() {
                       step="0.01"
                       value={montos.saldo_pendiente}
                       onChange={(e) => setMontos({ ...montos, saldo_pendiente: e.target.value })}
-                      disabled={!isAdmin}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Limite de credito</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={montos.limite_credito}
-                      onChange={(e) => setMontos({ ...montos, limite_credito: e.target.value })}
                       disabled={!isAdmin}
                       required
                     />
@@ -316,8 +282,6 @@ export default function ClientesPage() {
             <div className="cc-resumen">
               <div className="cc-item"><span>Saldo pendiente:</span><strong className="monto-salida">${historial.saldo_pendiente.toFixed(2)}</strong></div>
               <div className="cc-item"><span>Saldo a favor:</span><strong className="monto-regreso">${(historial.saldo_favor || 0).toFixed(2)}</strong></div>
-              <div className="cc-item"><span>Limite de credito:</span><strong>${historial.limite_credito.toFixed(2)}</strong></div>
-              <div className="cc-item"><span>Credito disponible:</span><strong className="monto-regreso">${historial.credito_disponible.toFixed(2)}</strong></div>
             </div>
 
             <h4>Movimientos de Cuenta Corriente</h4>
@@ -376,8 +340,6 @@ export default function ClientesPage() {
               </div>
             )}
             <div className="modal-actions">
-              <button className="btn btn-primary" onClick={() => generarHistorialDeudasPDF(historial)}>Historial de deudas</button>
-              <button className="btn btn-cierre-pdf" onClick={() => generarDeudaActualPDF(historial)}>Deuda actual</button>
               <button className="btn btn-secondary" onClick={() => setHistorial(null)}>Cerrar</button>
             </div>
           </div>
@@ -487,8 +449,6 @@ export default function ClientesPage() {
                 <th>Zona</th>
                 <th>Saldo Pendiente</th>
                 <th>Saldo a Favor</th>
-                <th>Limite Credito</th>
-                <th>Credito Disponible</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -496,8 +456,6 @@ export default function ClientesPage() {
               {filtrados.map((c) => {
                 const saldo = parseFloat(c.saldo_pendiente) || 0;
                 const saldoFavor = parseFloat(c.saldo_favor) || 0;
-                const limite = parseFloat(c.limite_credito) || 30000;
-                const disponible = limite - saldo + saldoFavor;
                 return (
                   <tr key={c.id} className={c.pendiente_revision ? "cliente-pendiente-revision" : ""}>
                     <td>
@@ -516,8 +474,6 @@ export default function ClientesPage() {
                       {saldo > 0 ? <strong>${saldo.toFixed(2)}</strong> : saldo < 0 ? <strong className="monto-regreso">A favor: $${Math.abs(saldo).toFixed(2)}</strong> : "$0.00"}
                     </td>
                     <td className={saldoFavor > 0 ? "monto-regreso" : ""}>${saldoFavor.toFixed(2)}</td>
-                    <td>${limite.toFixed(2)}</td>
-                    <td className="monto-regreso">${disponible.toFixed(2)}</td>
                     <td>
                       <div className="action-buttons">
                          <button className="btn btn-sm btn-primary" onClick={() => openEdit(c)}>Editar</button>

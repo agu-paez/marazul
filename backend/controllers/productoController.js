@@ -134,7 +134,16 @@ export const actualizarPreciosPorcentaje = async (req, res) => {
     let actualizados = 0;
 
     for (const producto of productos) {
-      const nuevoPrecio = Math.round(producto.precio * factor * 100) / 100;
+      const totalCentavos = Math.round(Number(producto.precio) * factor * 100);
+      const pesos = Math.floor(totalCentavos / 100);
+      const centavos = totalCentavos % 100;
+      const nuevoPrecio = centavos === 5
+        ? pesos + 0.05
+        : centavos > 50
+        ? pesos + 1
+        : centavos < 50
+        ? pesos
+        : pesos + 0.5;
       if (nuevoPrecio > 0) {
         await producto.update({ precio: nuevoPrecio });
         actualizados++;

@@ -214,7 +214,6 @@ export default function HistorialVentasPage() {
                 <div className="cc-resumen cliente-historial-resumen">
                   <div className="cc-item"><span>Deuda actual</span><strong className="monto-salida">${Number(clienteDetalle.saldo_pendiente || 0).toFixed(2)}</strong></div>
                   <div className="cc-item"><span>Saldo a favor</span><strong className="monto-regreso">${Number(clienteDetalle.saldo_favor || 0).toFixed(2)}</strong></div>
-                  <div className="cc-item"><span>Credito disponible</span><strong>${Number(clienteDetalle.credito_disponible || 0).toFixed(2)}</strong></div>
                 </div>
                 <p className="cliente-historial-ayuda">Selecciona el comprobante que deseas descargar.</p>
                 <div className="cliente-historial-actions">

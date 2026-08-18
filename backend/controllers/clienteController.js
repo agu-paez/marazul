@@ -41,20 +41,14 @@ export const getClienteById = async (req, res) => {
 
 export const createCliente = async (req, res) => {
   try {
-    const { nombre, zona, limite_credito } = req.body;
+    const { nombre, zona } = req.body;
     if (!nombre || nombre.trim() === "") {
       return res.status(400).json({ message: "El nombre del cliente es requerido" });
-    }
-
-    const limiteCredito = limite_credito === undefined ? 30000 : Number(limite_credito);
-    if (!Number.isFinite(limiteCredito) || limiteCredito < 0) {
-      return res.status(400).json({ message: "El limite de credito no es valido" });
     }
 
     const cliente = await Cliente.create({
       nombre: nombre.trim(),
       zona: zona?.trim() || null,
-      limite_credito: limiteCredito.toFixed(2),
       pendiente_revision: req.userRole === "repartidor",
     });
     res.status(201).json({ message: "Cliente creado", cliente });
@@ -106,15 +100,13 @@ export const updateMontosCliente = async (req, res) => {
     }
 
     const saldoPendiente = Number(req.body.saldo_pendiente);
-    const limiteCredito = Number(req.body.limite_credito);
 
-    if (!Number.isFinite(saldoPendiente) || !Number.isFinite(limiteCredito) || limiteCredito < 0) {
+    if (!Number.isFinite(saldoPendiente)) {
       return res.status(400).json({ message: "Los montos no son validos" });
     }
 
     await cliente.update({
       saldo_pendiente: saldoPendiente.toFixed(2),
-      limite_credito: limiteCredito.toFixed(2),
     });
 
     res.json({ message: "Montos del cliente actualizados", cliente });

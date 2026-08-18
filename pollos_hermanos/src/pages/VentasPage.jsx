@@ -344,8 +344,6 @@ export default function VentasPage() {
     : 0;
 
   const totalAcumulado = deudaAnterior + montoCC;
-  const limiteCredito = clienteSeleccionado ? parseFloat(clienteSeleccionado.limite_credito) || 30000 : 30000;
-  const excedeCredito = (tieneCCSimple || tieneCCDividido) && totalAcumulado > limiteCredito;
 
   const handleClienteChange = (clienteId, nombre) => {
     setForm((prev) => ({ ...prev, clienteId }));
@@ -391,10 +389,6 @@ export default function VentasPage() {
     }
     if (esReparto && !camionSeleccionado) {
       alert("Debe seleccionar un camion para venta por reparto");
-      return;
-    }
-    if (excedeCredito) {
-      alert(`El cliente excede su limite de credito. Debe: $${deudaAnterior.toFixed(2)}, monto CC: $${montoCC.toFixed(2)}, limite: $${limiteCredito.toFixed(2)}`);
       return;
     }
     if (pagoDividido && !sumaPagosValida) {
@@ -1062,17 +1056,12 @@ export default function VentasPage() {
             </div>
           )}
 
-          {excedeCredito && (
-            <div className="error-msg" style={{ marginTop: "0.5rem" }}>
-              El cliente excede su limite de credito. Debe reducir la deuda o que un administrador autorice.
-            </div>
-          )}
         </div>
 
         <button
           type="submit"
           className="btn btn-primary btn-full"
-          disabled={loading || excedeCredito || (pagoDividido && !sumaPagosValida) || productosSeleccionados.length === 0}
+          disabled={loading || (pagoDividido && !sumaPagosValida) || productosSeleccionados.length === 0}
         >
           {loading ? "Procesando..." : "Finalizar Venta"}
         </button>

@@ -153,11 +153,6 @@ export const crearVenta = async (req, res) => {
         const saldoFavor = Math.max(0, favorOriginal - deudaOriginal);
         const creditoAplicado = Math.min(saldoFavor, montoCC);
         const nuevoSaldo = saldoPendiente + montoCC - creditoAplicado;
-        if (nuevoSaldo > parseFloat(cliente.limite_credito)) {
-          return res.status(400).json({
-            message: `El cliente excede su limite de credito. Debe actual: $${cliente.saldo_pendiente}, limite: $${cliente.limite_credito}, monto CC: $${montoCC.toFixed(2)}`,
-          });
-        }
         await cliente.update({
           saldo_pendiente: nuevoSaldo.toFixed(2),
           saldo_favor: (saldoFavor - creditoAplicado).toFixed(2),
@@ -171,11 +166,6 @@ export const crearVenta = async (req, res) => {
         const saldoFavor = Math.max(0, favorOriginal - deudaOriginal);
         const creditoAplicado = Math.min(saldoFavor, subtotalCalc);
         const nuevoSaldo = saldoPendiente + subtotalCalc - creditoAplicado;
-        if (nuevoSaldo > parseFloat(cliente.limite_credito)) {
-          return res.status(400).json({
-            message: `El cliente excede su limite de credito. Debe actual: $${cliente.saldo_pendiente}, limite: $${cliente.limite_credito}, compra: $${subtotalCalc.toFixed(2)}`,
-          });
-        }
         await cliente.update({
           saldo_pendiente: nuevoSaldo.toFixed(2),
           saldo_favor: (saldoFavor - creditoAplicado).toFixed(2),
