@@ -171,6 +171,7 @@ const start = async () => {
     await ensureColumn(Proveedor, "dinero_ventas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "diferencia_acumulada", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Producto, "costo", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(Producto, "excluir_de_lista_pdf", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
     await ensureColumn(VentaItem, "costo_unitario", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_combustible", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_otros", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });

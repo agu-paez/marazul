@@ -340,7 +340,7 @@ export default function ProductosPage() {
                 checked={form.excluir_de_lista_pdf}
                 onChange={(e) => setForm({ ...form, excluir_de_lista_pdf: e.target.checked })}
               />
-              Agregar a la lista en PDF
+              Quitar de la lista PDF
             </label>
             <small>Si se marca, este producto no aparecerá en la lista de precios PDF.</small>
           </div>
