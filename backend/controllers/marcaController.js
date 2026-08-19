@@ -272,7 +272,8 @@ export const generarPDFMarcasProductos = async (req, res) => {
       const precio = precioConDescuento(producto);
       const kg = Number(producto.kg_por_caja);
       if (Number.isFinite(precio) && precio > 0 && Number.isFinite(kg) && kg > 0) {
-        return precio / kg;
+        const precioKg = precio / kg;
+        return descuento > 0 ? Math.floor(precioKg + 0.5) : precioKg;
       }
       return null;
     };
