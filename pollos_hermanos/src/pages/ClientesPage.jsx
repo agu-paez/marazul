@@ -444,12 +444,15 @@ export default function ClientesPage() {
                 outline: "none",
               }}
             />
-            <select value={orden} onChange={(e) => setOrden(e.target.value)} style={{ margin: "0 1rem 0.8rem", width: "calc(100% - 2rem)" }}>
-              <option value="todos">Todos los clientes</option>
-              <option value="deudores">Más deudores primero</option>
-              <option value="favor">Mayor saldo a favor primero</option>
-            </select>
-          </div>
+           </div>
+           <div className="clientes-filtros">
+             <label htmlFor="orden-clientes">Ordenar clientes</label>
+             <select id="orden-clientes" value={orden} onChange={(e) => setOrden(e.target.value)}>
+               <option value="todos">Todos los clientes</option>
+               <option value="deudores">Más deudores primero</option>
+               <option value="favor">Mayor saldo a favor primero</option>
+             </select>
+           </div>
           {filtrados.length === 0 ? (
             <p className="empty">No se encontraron clientes para "{busqueda}"</p>
           ) : (
