@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { cierreCajaAPI } from "../api";
 import { generarGastosDiaPDF } from "../utils/generarPDF";
+import { dinero } from "../utils/numero";
 
 export default function HistorialGastosPage() {
   const [gastos, setGastos] = useState([]);
@@ -22,9 +23,9 @@ export default function HistorialGastosPage() {
             <thead><tr><th>Fecha</th><th>Combustible</th><th>Otros</th><th>Total</th><th>Descripción</th><th>PDF</th></tr></thead>
             <tbody>{gastos.map((gasto) => <tr key={gasto.id}>
               <td><strong>{gasto.fecha}</strong></td>
-              <td>${parseFloat(gasto.gastos_combustible || 0).toFixed(2)}</td>
-              <td>${parseFloat(gasto.gastos_otros || 0).toFixed(2)}</td>
-              <td><strong>${parseFloat(gasto.total || 0).toFixed(2)}</strong></td>
+               <td>{dinero(gasto.gastos_combustible)}</td>
+               <td>{dinero(gasto.gastos_otros)}</td>
+               <td><strong>{dinero(gasto.total)}</strong></td>
               <td>{gasto.descripcion_otros_gastos || "-"}</td>
               <td><button className="btn btn-sm btn-primary" onClick={() => generarGastosDiaPDF(gasto)}>PDF</button></td>
             </tr>)}</tbody>

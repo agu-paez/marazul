@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { clientesAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { generarResumenZonasPDF } from "../utils/generarPDF";
+import { dinero, parseNumero } from "../utils/numero";
 
 const zonas = [
   ...Array.from({ length: 7 }, (_, index) => `Zona ${index + 1}`),
@@ -25,6 +26,7 @@ export default function ClientesPage() {
   const [showDeudaModal, setShowDeudaModal] = useState(false);
   const [clienteDeuda, setClienteDeuda] = useState(null);
   const [montos, setMontos] = useState({ saldo_pendiente: "0" });
+  const [orden, setOrden] = useState("todos");
 
   useEffect(() => {
     loadClientes();
@@ -47,7 +49,7 @@ export default function ClientesPage() {
       if (editando) {
         await clientesAPI.update(editando.id, { nombre, zona });
         if (isAdmin) {
-          await clientesAPI.updateMontos(editando.id, { saldo_pendiente: parseFloat(montos.saldo_pendiente) });
+          await clientesAPI.updateMontos(editando.id, { saldo_pendiente: parseNumero(montos.saldo_pendiente) });
         }
       } else {
         await clientesAPI.create({ nombre, zona });
@@ -75,7 +77,7 @@ export default function ClientesPage() {
     setNombre(c.nombre);
     setZona(c.zona || "");
     setMontos({
-      saldo_pendiente: parseFloat(c.saldo_pendiente || 0).toFixed(2),
+      saldo_pendiente: String(c.saldo_pendiente ?? 0),
     });
     setShowForm(true);
   };
@@ -118,8 +120,8 @@ export default function ClientesPage() {
     }
   };
 
-  const totalPagosCC = pagosCC.reduce((sum, p) => sum + (parseFloat(p.monto) || 0), 0);
-  const deudaActual = clientePago ? parseFloat(clientePago.saldo_pendiente) || 0 : 0;
+  const totalPagosCC = pagosCC.reduce((sum, p) => sum + parseNumero(p.monto), 0);
+  const deudaActual = clientePago ? parseNumero(clientePago.saldo_pendiente) : 0;
   const pagoValido = totalPagosCC > 0;
 
   const submitPagoCC = async (e) => {
@@ -132,7 +134,7 @@ export default function ClientesPage() {
       const res = await clientesAPI.registrarPagoCC(clientePago.id, {
         pagos: pagosCC.map((p) => ({
           medio_pago: p.medio_pago,
-          monto: parseFloat(p.monto) || 0,
+           monto: parseNumero(p.monto),
         })),
       });
       alert(res.data.message);
@@ -163,6 +165,10 @@ export default function ClientesPage() {
       (c.nombre || "").toLowerCase().includes(q) ||
       (c.zona || "").toLowerCase().includes(q)
     );
+  }).sort((a, b) => {
+    if (orden === "deudores") return parseNumero(b.saldo_pendiente) - parseNumero(a.saldo_pendiente);
+    if (orden === "favor") return parseNumero(b.saldo_favor) - parseNumero(a.saldo_favor);
+    return 0;
   });
 
   return (
@@ -201,8 +207,8 @@ export default function ClientesPage() {
                   <div className="form-group">
                     <label>Saldo pendiente</label>
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
                       value={montos.saldo_pendiente}
                       onChange={(e) => setMontos({ ...montos, saldo_pendiente: e.target.value })}
                       disabled={!isAdmin}
@@ -238,7 +244,7 @@ export default function ClientesPage() {
               <h3 style={{ color: "var(--danger)", marginBottom: "0.3rem" }}>Deuda Pendiente</h3>
               <p style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>{clienteDeuda.nombre}</p>
               <div style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--danger)", marginTop: "0.5rem" }}>
-                ${(parseFloat(clienteDeuda.saldo_pendiente) || 0).toFixed(2)}
+                {dinero(clienteDeuda.saldo_pendiente)}
               </div>
             </div>
             <div className="modal-actions" style={{ flexDirection: "column", gap: "0.5rem" }}>
@@ -247,7 +253,7 @@ export default function ClientesPage() {
                 onClick={async () => {
                   try {
                     await clientesAPI.registrarPagoCC(clienteDeuda.id, {
-                      pagos: [{ medio_pago: "efectivo", monto: parseFloat(clienteDeuda.saldo_pendiente) || 0 }],
+                      pagos: [{ medio_pago: "efectivo", monto: parseNumero(clienteDeuda.saldo_pendiente) }],
                     });
                     setShowDeudaModal(false);
                     loadClientes();
@@ -280,8 +286,8 @@ export default function ClientesPage() {
           <div className="modal-card modal-wide" onClick={(e) => e.stopPropagation()}>
             <h3>Historial de {historial.cliente.nombre}</h3>
             <div className="cc-resumen">
-              <div className="cc-item"><span>Saldo pendiente:</span><strong className="monto-salida">${historial.saldo_pendiente.toFixed(2)}</strong></div>
-              <div className="cc-item"><span>Saldo a favor:</span><strong className="monto-regreso">${(historial.saldo_favor || 0).toFixed(2)}</strong></div>
+              <div className="cc-item"><span>Saldo pendiente:</span><strong className="monto-salida">{dinero(historial.saldo_pendiente)}</strong></div>
+              <div className="cc-item"><span>Saldo a favor:</span><strong className="monto-regreso">{dinero(historial.saldo_favor)}</strong></div>
             </div>
 
             <h4>Movimientos de Cuenta Corriente</h4>
@@ -302,7 +308,7 @@ export default function ClientesPage() {
                           <td>{p.fecha}</td>
                           <td>{p.hora}</td>
                           <td>{p.medio_pago}</td>
-                          <td className="monto-regreso">-${parseFloat(p.monto).toFixed(2)}</td>
+                          <td className="monto-regreso">-{dinero(p.monto)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -353,7 +359,7 @@ export default function ClientesPage() {
             <div className="cc-resumen" style={{ marginBottom: "1rem" }}>
               <div className="cc-item">
                 <span>Deuda actual:</span>
-                <strong className="monto-salida">${deudaActual.toFixed(2)}</strong>
+                <strong className="monto-salida">{dinero(deudaActual)}</strong>
               </div>
             </div>
             <form onSubmit={submitPagoCC}>
@@ -371,7 +377,8 @@ export default function ClientesPage() {
                     <option value="otro">Otro</option>
                   </select>
                   <input
-                    type="number"
+                     type="text"
+                     inputMode="decimal"
                     name="monto"
                     value={pago.monto}
                     onChange={(e) => handlePagoChange(index, e)}
@@ -391,13 +398,13 @@ export default function ClientesPage() {
               <div className="resumen-row">
                 <span>Total a pagar:</span>
                 <strong className={pagoValido ? "monto-regreso" : "monto-salida"}>
-                  ${totalPagosCC.toFixed(2)}
+                  {dinero(totalPagosCC)}
                 </strong>
               </div>
               <div className="resumen-row">
                 <span>Saldo restante:</span>
                 <strong className={(deudaActual - totalPagosCC) < 0 ? "monto-regreso" : ""}>
-                  ${(deudaActual - totalPagosCC).toFixed(2)}
+                  {dinero(deudaActual - totalPagosCC)}
                   {(deudaActual - totalPagosCC) < 0 ? " (a favor)" : ""}
                 </strong>
               </div>
@@ -437,6 +444,11 @@ export default function ClientesPage() {
                 outline: "none",
               }}
             />
+            <select value={orden} onChange={(e) => setOrden(e.target.value)} style={{ margin: "0 1rem 0.8rem", width: "calc(100% - 2rem)" }}>
+              <option value="todos">Todos los clientes</option>
+              <option value="deudores">Más deudores primero</option>
+              <option value="favor">Mayor saldo a favor primero</option>
+            </select>
           </div>
           {filtrados.length === 0 ? (
             <p className="empty">No se encontraron clientes para "{busqueda}"</p>
@@ -454,8 +466,8 @@ export default function ClientesPage() {
             </thead>
             <tbody>
               {filtrados.map((c) => {
-                const saldo = parseFloat(c.saldo_pendiente) || 0;
-                const saldoFavor = parseFloat(c.saldo_favor) || 0;
+                const saldo = parseNumero(c.saldo_pendiente);
+                const saldoFavor = parseNumero(c.saldo_favor);
                 return (
                   <tr key={c.id} className={c.pendiente_revision ? "cliente-pendiente-revision" : ""}>
                     <td>
@@ -471,9 +483,9 @@ export default function ClientesPage() {
                       onClick={() => { if (saldo > 0) { setClienteDeuda(c); setShowDeudaModal(true); } }}
                       title={saldo < 0 ? "Saldo a favor" : ""}
                     >
-                      {saldo > 0 ? <strong>${saldo.toFixed(2)}</strong> : saldo < 0 ? <strong className="monto-regreso">A favor: $${Math.abs(saldo).toFixed(2)}</strong> : "$0.00"}
+                      {saldo > 0 ? <strong>{dinero(saldo)}</strong> : saldo < 0 ? <strong className="monto-regreso">A favor: {dinero(Math.abs(saldo))}</strong> : dinero(0)}
                     </td>
-                    <td className={saldoFavor > 0 ? "monto-regreso" : ""}>${saldoFavor.toFixed(2)}</td>
+                    <td className={saldoFavor > 0 ? "monto-regreso" : ""}>{dinero(saldoFavor)}</td>
                     <td>
                       <div className="action-buttons">
                          <button className="btn btn-sm btn-primary" onClick={() => openEdit(c)}>Editar</button>

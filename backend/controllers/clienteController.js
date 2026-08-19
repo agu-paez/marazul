@@ -2,6 +2,15 @@ import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja
 import { Op } from "sequelize";
 import { getFechaLocal } from "../utils/fecha.js";
 
+const parseMonto = (valor) => {
+  if (typeof valor === "number") return valor;
+  const texto = String(valor ?? "").trim().replace(/\s/g, "");
+  const normalizado = texto.includes(",")
+    ? texto.replace(/\./g, "").replace(",", ".")
+    : texto.replace(/\.(?=\d{3}(?:\.|$))/g, "");
+  return Number(normalizado);
+};
+
 const normalizarSaldos = async (cliente) => {
   const deuda = parseFloat(cliente.saldo_pendiente) || 0;
   const favor = parseFloat(cliente.saldo_favor) || 0;
@@ -99,7 +108,7 @@ export const updateMontosCliente = async (req, res) => {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
-    const saldoPendiente = Number(req.body.saldo_pendiente);
+    const saldoPendiente = parseMonto(req.body.saldo_pendiente);
 
     if (!Number.isFinite(saldoPendiente)) {
       return res.status(400).json({ message: "Los montos no son validos" });
@@ -225,7 +234,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
-    const montos = pagos.map((p) => parseFloat(p.monto));
+    const montos = pagos.map((p) => parseMonto(p.monto));
     if (montos.some((monto) => !Number.isFinite(monto) || monto <= 0)) {
       return res.status(400).json({ message: "Todos los montos del pago deben ser válidos" });
     }
@@ -265,7 +274,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
       const proveedorId = datosBancarios?.proveedorId || null;
       await ClientePago.create({
         clienteId: cliente.id,
-        monto: parseFloat(pago.monto).toFixed(2),
+        monto: parseMonto(pago.monto).toFixed(2),
         medio_pago: pago.medio_pago,
         fecha,
         hora,

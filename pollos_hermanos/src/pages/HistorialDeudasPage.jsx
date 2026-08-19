@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { dinero } from "../utils/numero";
 import { clientesAPI } from "../api";
 import { generarHistorialDeudasPDF, generarPagoClientePDF } from "../utils/generarPDF";
 
@@ -88,8 +89,8 @@ export default function HistorialDeudasPage() {
                     </button>
                   </td>
                   <td>{historial.cliente.zona || "-"}</td>
-                  <td className="monto-salida">${Number(historial.saldo_pendiente || 0).toFixed(2)}</td>
-                  <td className="monto-regreso">${Number(historial.saldo_favor || 0).toFixed(2)}</td>
+                   <td className="monto-salida">{dinero(historial.saldo_pendiente)}</td>
+                   <td className="monto-regreso">{dinero(historial.saldo_favor)}</td>
                   <td>{(historial.ventas?.length || 0) + (historial.pagos?.length || 0)}</td>
                   <td>
                     <button className="btn btn-sm btn-primary" onClick={() => generarHistorialDeudasPDF(historial)}>
@@ -113,7 +114,7 @@ export default function HistorialDeudasPage() {
                                   <tr key={pago.id}>
                                     <td>{pago.fecha} {pago.hora || ""}</td>
                                     <td>{pago.medio_pago}</td>
-                                    <td className="monto-regreso">-${Number(pago.monto || 0).toFixed(2)}</td>
+                                     <td className="monto-regreso">-{dinero(pago.monto)}</td>
                                     <td>{pago.notas || "-"}</td>
                                     <td><button className="btn btn-sm btn-cierre-pdf" onClick={() => generarPagoClientePDF(pago, historial)}>PDF</button></td>
                                   </tr>

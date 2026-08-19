@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { cierreCajaAPI } from "../api";
+import { dinero } from "../utils/numero";
 
 const fechaLocal = (date = new Date()) => {
   const year = date.getFullYear();
@@ -9,8 +10,6 @@ const fechaLocal = (date = new Date()) => {
 };
 
 const primerDiaMes = () => fechaLocal(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-const dinero = (valor) => `$${Number(valor || 0).toFixed(2)}`;
-
 export default function IngresosEgresosPage() {
   const [fechas, setFechas] = useState({ desde: primerDiaMes(), hasta: fechaLocal() });
   const [data, setData] = useState(null);

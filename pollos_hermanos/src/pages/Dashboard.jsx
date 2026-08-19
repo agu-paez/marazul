@@ -1,16 +1,13 @@
 import { useState, useEffect } from "react";
 import { salidasAPI, cierreCajaAPI, productosAPI, gastosAPI, pagosEmpleadosAPI, usuariosAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { dinero } from "../utils/numero";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const formatVentas = (valor) => {
-    const numero = Number(valor || 0);
-    if (Number.isInteger(numero)) return `$${numero}`;
-    return `$${numero.toFixed(2).replace(/\.?0+$/, "")}`;
-  };
+  const formatVentas = dinero;
   const [editandoRegreso, setEditandoRegreso] = useState(false);
   const [stats, setStats] = useState(null);
   const [salidas, setSalidas] = useState([]);
