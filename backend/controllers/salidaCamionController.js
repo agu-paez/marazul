@@ -590,7 +590,7 @@ export const getStockCamion = async (req, res) => {
       include: [
         {
           model: SalidaCamionItem,
-          include: [{ model: Producto, attributes: ["id", "nombre", "precio"] }],
+          include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad"] }],
         },
       ],
     });
