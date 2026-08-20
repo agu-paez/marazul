@@ -126,7 +126,14 @@ export const crearVenta = async (req, res) => {
     let subtotalCalc = 0;
     for (const item of items) {
       const producto = await Producto.findByPk(item.productoId);
-      const precioUnitario = parseFloat(producto.precio);
+      const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
+      const precioPersonalizado = Number(item.precio_unitario);
+      if (esKilogramo && item.precio_unitario !== undefined && (!Number.isFinite(precioPersonalizado) || precioPersonalizado <= 0)) {
+        return res.status(400).json({ message: `El precio de "${producto.nombre}" no es válido` });
+      }
+      const precioUnitario = esKilogramo && Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
+        ? precioPersonalizado
+        : parseFloat(producto.precio);
       subtotalCalc += precioUnitario * Number(item.cantidad);
     }
 
@@ -243,7 +250,11 @@ export const crearVenta = async (req, res) => {
 
     for (const item of items) {
       const producto = await Producto.findByPk(item.productoId);
-       const precioUnitario = parseFloat(producto.precio);
+      const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
+      const precioPersonalizado = Number(item.precio_unitario);
+      const precioUnitario = esKilogramo && Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
+        ? precioPersonalizado
+        : parseFloat(producto.precio);
       await VentaItem.create({
         ventaId: venta.id,
         productoId: item.productoId,

@@ -41,6 +41,9 @@ export default function VentasPage() {
   const [datosTarjeta, setDatosTarjeta] = useState([]);
   const [bancos, setBancos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
+  const [preciosPersonalizados, setPreciosPersonalizados] = useState({});
+  const [productoPrecioEditando, setProductoPrecioEditando] = useState(null);
+  const [precioEditando, setPrecioEditando] = useState("");
 
   useEffect(() => {
     productosAPI.getAll().then((res) => {
@@ -306,9 +309,27 @@ export default function VentasPage() {
 
   const productosSeleccionados = productosBase.filter((p) => (cantidades[p.id] || 0) > 0);
 
+  const esProductoKg = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
+  const getPrecioVenta = (producto) => preciosPersonalizados[producto.id] ?? Number(producto.precio);
+
+  const abrirEdicionPrecio = (producto) => {
+    setProductoPrecioEditando(producto);
+    setPrecioEditando(String(getPrecioVenta(producto)));
+  };
+
+  const guardarPrecioPersonalizado = () => {
+    const precio = Number(precioEditando);
+    if (!Number.isFinite(precio) || precio <= 0) {
+      alert("Ingrese un precio unitario válido");
+      return;
+    }
+    setPreciosPersonalizados((prev) => ({ ...prev, [productoPrecioEditando.id]: precio }));
+    setProductoPrecioEditando(null);
+  };
+
   const calcularSubtotal = () => {
     return productosSeleccionados.reduce((sum, p) => {
-      return sum + p.precio * (cantidades[p.id] || 0);
+      return sum + getPrecioVenta(p) * (cantidades[p.id] || 0);
     }, 0);
   };
 
@@ -445,7 +466,7 @@ export default function VentasPage() {
         items: productosSeleccionados.map((p) => ({
           productoId: p.id,
           cantidad: cantidades[p.id],
-          precio_unitario: p.precio,
+          precio_unitario: getPrecioVenta(p),
         })),
       };
       const proveedorSeleccionado = esTransferencia
@@ -508,6 +529,8 @@ export default function VentasPage() {
       setDatosTransferencia([]);
       setDatosTarjeta([]);
       setPagarDeuda(false);
+      setPreciosPersonalizados({});
+      setProductoPrecioEditando(null);
       setCamionSeleccionado("");
       setStockCamion([]);
       setBusqueda("");
@@ -988,10 +1011,19 @@ export default function VentasPage() {
           {productosSeleccionados.length > 0 && (
             <div style={{ marginBottom: "0.5rem" }}>
               {productosSeleccionados.map((p) => {
+                const precio = getPrecioVenta(p);
+                const esKg = esProductoKg(p);
                 return (
                   <div key={p.id} className="resumen-row">
-                    <span>{cantidades[p.id]}{["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase()) ? " kg" : "x"} {p.nombre}</span>
-                    <strong>${(p.precio * cantidades[p.id]).toFixed(2)}</strong>
+                    <span>
+                      {cantidades[p.id]}{esKg ? " kg" : "x"} {p.nombre}
+                      {esKg && (
+                        <button type="button" className="btn btn-sm btn-secondary" style={{ marginLeft: "0.5rem" }} onClick={() => abrirEdicionPrecio(p)}>
+                          Modificar precio
+                        </button>
+                      )}
+                    </span>
+                    <strong>${(precio * cantidades[p.id]).toFixed(2)}</strong>
                   </div>
                 );
               })}
@@ -1057,6 +1089,31 @@ export default function VentasPage() {
           )}
 
         </div>
+
+        {productoPrecioEditando && (
+          <div className="modal-overlay" onClick={() => setProductoPrecioEditando(null)}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+              <h3>Modificar precio</h3>
+              <p>{productoPrecioEditando.nombre}</p>
+              <div className="form-group">
+                <label htmlFor="precio-unitario-kg">Precio unitario por kilogramo</label>
+                <input
+                  id="precio-unitario-kg"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={precioEditando}
+                  onChange={(e) => setPrecioEditando(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => setProductoPrecioEditando(null)}>Cancelar</button>
+                <button type="button" className="btn btn-primary" onClick={guardarPrecioPersonalizado}>Guardar precio</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <button
           type="submit"
