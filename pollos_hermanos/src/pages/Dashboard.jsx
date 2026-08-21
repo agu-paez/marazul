@@ -150,12 +150,13 @@ export default function Dashboard() {
     const factor = Number(newItems[index].unidades_por_caja) || 1;
     const max = Number(newItems[index].max_devolver) || 0;
     const valor = Math.max(0, parseInt(value, 10) || 0);
-    newItems[index][campo] = valor;
-    const total = (campo === "cajas_regreso" ? valor : Number(newItems[index].cajas_regreso) || 0) * factor
-      + (campo === "unidades_sueltas_regreso" ? valor : Number(newItems[index].unidades_sueltas_regreso) || 0);
-    newItems[index].cantidad_regreso = Math.min(total, max);
-    if (total > max && campo === "cajas_regreso") newItems[index].cajas_regreso = Math.floor(max / factor);
-    if (total > max && campo === "unidades_sueltas_regreso") newItems[index].unidades_sueltas_regreso = Math.max(0, max - (Number(newItems[index].cajas_regreso) || 0) * factor);
+    let cajas = campo === "cajas_regreso" ? valor : Number(newItems[index].cajas_regreso) || 0;
+    let sueltas = campo === "unidades_sueltas_regreso" ? valor : Number(newItems[index].unidades_sueltas_regreso) || 0;
+    cajas = Math.min(cajas, Math.floor(max / factor));
+    sueltas = Math.min(sueltas, Math.max(0, Math.min(factor - 1, max - cajas * factor)));
+    newItems[index].cajas_regreso = cajas;
+    newItems[index].unidades_sueltas_regreso = sueltas;
+    newItems[index].cantidad_regreso = cajas * factor + sueltas;
     setItemsRegreso(newItems);
   };
 
