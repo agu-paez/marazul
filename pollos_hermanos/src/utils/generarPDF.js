@@ -1178,7 +1178,7 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
     const valor = tipo === "devuelto"
       ? (Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * factor)
       : (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad || 0) * factor);
-    if (String(item.Producto?.unidad || "").toLowerCase() !== "caja" || factor <= 1) return Number(valor).toFixed(2);
+    if (factor <= 1) return Number(valor).toFixed(2);
     const cajas = Math.floor(valor / factor);
     const sueltas = valor % factor;
     return `${cajas} caja${cajas === 1 ? "" : "s"} (${valor.toFixed(2)} unid.)${sueltas ? ` + ${sueltas} sueltas` : ""}`;
