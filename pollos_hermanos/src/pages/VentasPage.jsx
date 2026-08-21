@@ -195,7 +195,9 @@ export default function VentasPage() {
   };
 
   const addPago = () => {
-    setPagos([...pagos, { medio_pago: "efectivo", monto: 0 }]);
+    const totalIngresado = pagos.reduce((sum, pago) => sum + (parseFloat(pago.monto) || 0), 0);
+    const montoRestante = Math.max(0, totalConDeuda - totalIngresado);
+    setPagos([...pagos, { medio_pago: "efectivo", monto: montoRestante.toFixed(2) }]);
     setDatosTransferencia([...datosTransferencia, null]);
     setDatosTarjeta([...datosTarjeta, null]);
   };
@@ -383,6 +385,12 @@ export default function VentasPage() {
     : 0;
 
   const totalAcumulado = deudaAnterior + montoCC;
+  const totalMediosNoCC = pagoDividido
+    ? totalPagosDivididos - montoCC
+    : 0;
+  const montoRestantePago = pagoDividido
+    ? Math.max(0, totalConDeuda - totalPagosDivididos)
+    : 0;
 
   const handleClienteChange = (clienteId, nombre) => {
     setForm((prev) => ({ ...prev, clienteId }));
@@ -1110,24 +1118,46 @@ export default function VentasPage() {
               <strong className="monto-regreso">${deudaAnterior.toFixed(2)}</strong>
             </div>
           )}
-          {(tieneCCSimple || tieneCCDividido) && totalAcumulado >= 0 && (
-            <div className="resumen-row resumen-total">
-              <span>Total a deber:</span>
-              <strong className="monto-regreso">${totalAcumulado.toFixed(2)}</strong>
-            </div>
-          )}
-          {(tieneCCSimple || tieneCCDividido) && totalAcumulado < 0 && (
-            <div className="resumen-row resumen-total">
-              <span>Saldo a favor:</span>
-              <strong style={{ color: "#10b981", fontWeight: "bold" }}>${Math.abs(totalAcumulado).toFixed(2)}</strong>
-            </div>
-          )}
-          {!(tieneCCSimple || tieneCCDividido) && (
-            <div className="resumen-row resumen-total">
-              <span>Total:</span>
-              <strong className="monto-ventas">${totalConDeuda.toFixed(2)}</strong>
-            </div>
-          )}
+           {pagoDividido && (
+             <>
+               <div className="resumen-row">
+                 <span>Pagado en efectivo y otros medios:</span>
+                 <strong>${totalMediosNoCC.toFixed(2)}</strong>
+               </div>
+               <div className="resumen-row">
+                 <span>Cuenta corriente de esta venta:</span>
+                 <strong className="monto-regreso">${montoCC.toFixed(2)}</strong>
+               </div>
+               <div className="resumen-row resumen-total">
+                 <span>Total de la venta:</span>
+                 <strong className="monto-ventas">${totalConDeuda.toFixed(2)}</strong>
+               </div>
+               {montoCC > 0 && (
+                 <div className="resumen-row">
+                   <span>Nuevo saldo en cuenta corriente:</span>
+                   <strong className="monto-regreso">${totalAcumulado.toFixed(2)}</strong>
+                 </div>
+               )}
+               {montoRestantePago > 0 && (
+                 <div className="resumen-row">
+                   <span>Importe restante por asignar:</span>
+                   <strong className="monto-salida">${montoRestantePago.toFixed(2)}</strong>
+                 </div>
+               )}
+             </>
+           )}
+           {!pagoDividido && !(tieneCCSimple || tieneCCDividido) && (
+             <div className="resumen-row resumen-total">
+               <span>Total:</span>
+               <strong className="monto-ventas">${totalConDeuda.toFixed(2)}</strong>
+             </div>
+           )}
+           {!pagoDividido && tieneCCSimple && (
+             <div className="resumen-row resumen-total">
+               <span>Nuevo saldo en cuenta corriente:</span>
+               <strong className="monto-regreso">${totalAcumulado.toFixed(2)}</strong>
+             </div>
+           )}
 
         </div>
 
