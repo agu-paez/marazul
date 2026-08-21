@@ -577,7 +577,7 @@ export default function VentasPage() {
 
       setTimeout(() => setSuccess(false), 5000);
     } catch (error) {
-      alert("Error: " + (error.response?.data?.message || error.message));
+      alert("Error: " + (error.response?.data?.message || error.message) + (error.response?.data?.error ? `\nDetalle: ${error.response.data.error}` : ""));
     } finally {
       setLoading(false);
     }

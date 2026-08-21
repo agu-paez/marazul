@@ -115,9 +115,6 @@ export const crearVenta = async (req, res) => {
         }
         const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
         const factor = getUnidadesPorCaja(producto);
-        if (esCaja(producto) && (!Number.isInteger(Number(producto.unidades_por_caja)) || Number(producto.unidades_por_caja) <= 0)) {
-          return res.status(400).json({ message: `El producto "${producto.nombre}" no tiene configuradas sus unidades por caja` });
-        }
         const cantidadUnidades = unidadVenta === "caja" ? cantidad * factor : cantidad;
         const disp = stockCamion[item.productoId] || 0;
         if (disp < cantidadUnidades) {
@@ -138,9 +135,6 @@ export const crearVenta = async (req, res) => {
         }
         const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
         const factor = getUnidadesPorCaja(producto);
-        if (esCaja(producto) && (!Number.isInteger(Number(producto.unidades_por_caja)) || Number(producto.unidades_por_caja) <= 0)) {
-          return res.status(400).json({ message: `El producto "${producto.nombre}" no tiene configuradas sus unidades por caja` });
-        }
         const cantidadUnidades = unidadVenta === "caja" ? cantidad * factor : cantidad;
         const cantidadStock = esCaja(producto) ? cantidadUnidades / factor : cantidadUnidades;
         if (producto.stock < cantidadStock) {
@@ -320,6 +314,7 @@ export const crearVenta = async (req, res) => {
 
     res.status(201).json({ message: "Venta registrada", venta: ventaCompleta });
   } catch (error) {
+    console.error("Error al crear venta:", error);
     res.status(500).json({ message: "Error al crear venta", error: error.message });
   }
 };
