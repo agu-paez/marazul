@@ -164,6 +164,29 @@ export const crearVenta = async (req, res) => {
 
     const esPagoDividido = pagos && pagos.length > 0;
 
+    const montoCC = esPagoDividido
+      ? pagos
+          .filter((p) => p.medio_pago === "cuenta_corriente")
+          .reduce((sum, p) => sum + (parseFloat(p.monto) || 0), 0)
+      : medio_pago === "cuenta_corriente"
+        ? subtotalCalc
+        : 0;
+
+    if (montoCC > 0) {
+      const deudaOriginal = parseFloat(cliente.saldo_pendiente) || 0;
+      const favorOriginal = parseFloat(cliente.saldo_favor) || 0;
+      const saldoPendiente = Math.max(0, deudaOriginal - favorOriginal);
+      const saldoFavor = Math.max(0, favorOriginal - deudaOriginal);
+      const limiteCredito = parseFloat(cliente.limite_credito) || 0;
+      const creditoDisponible = Math.max(0, limiteCredito - saldoPendiente + saldoFavor);
+
+      if (montoCC > creditoDisponible + 0.01) {
+        return res.status(400).json({
+          message: `El monto a crédito ($${montoCC.toFixed(2)}) excede el límite disponible ($${creditoDisponible.toFixed(2)})`,
+        });
+      }
+    }
+
     if (esPagoDividido) {
       const sumaPagos = pagos.reduce((sum, p) => sum + parseFloat(p.monto), 0);
       const montoDeudaPagar = pagar_deuda && monto_deuda ? parseFloat(monto_deuda) : 0;
@@ -173,10 +196,6 @@ export const crearVenta = async (req, res) => {
           message: `La suma de los pagos ($${sumaPagos.toFixed(2)}) no coincide con el total ($${totalEsperado.toFixed(2)})`,
         });
       }
-
-      const montoCC = pagos
-        .filter((p) => p.medio_pago === "cuenta_corriente")
-        .reduce((sum, p) => sum + parseFloat(p.monto), 0);
 
       if (montoCC > 0) {
         const deudaOriginal = parseFloat(cliente.saldo_pendiente) || 0;

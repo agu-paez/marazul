@@ -109,13 +109,17 @@ export const updateMontosCliente = async (req, res) => {
     }
 
     const saldoPendiente = parseMonto(req.body.saldo_pendiente);
+    const limiteCredito = req.body.limite_credito === undefined
+      ? parseFloat(cliente.limite_credito) || 0
+      : parseMonto(req.body.limite_credito);
 
-    if (!Number.isFinite(saldoPendiente)) {
+    if (!Number.isFinite(saldoPendiente) || !Number.isFinite(limiteCredito) || limiteCredito < 0) {
       return res.status(400).json({ message: "Los montos no son validos" });
     }
 
     await cliente.update({
       saldo_pendiente: saldoPendiente.toFixed(2),
+      limite_credito: limiteCredito.toFixed(2),
     });
 
     res.json({ message: "Montos del cliente actualizados", cliente });

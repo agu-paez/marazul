@@ -25,7 +25,7 @@ export default function ClientesPage() {
   const [pagosCC, setPagosCC] = useState([{ medio_pago: "efectivo", monto: 0 }]);
   const [showDeudaModal, setShowDeudaModal] = useState(false);
   const [clienteDeuda, setClienteDeuda] = useState(null);
-  const [montos, setMontos] = useState({ saldo_pendiente: "0" });
+  const [montos, setMontos] = useState({ saldo_pendiente: "0", limite_credito: "30000" });
   const [orden, setOrden] = useState("todos");
 
   useEffect(() => {
@@ -49,7 +49,10 @@ export default function ClientesPage() {
       if (editando) {
         await clientesAPI.update(editando.id, { nombre, zona });
         if (isAdmin) {
-          await clientesAPI.updateMontos(editando.id, { saldo_pendiente: parseNumero(montos.saldo_pendiente) });
+          await clientesAPI.updateMontos(editando.id, {
+            saldo_pendiente: parseNumero(montos.saldo_pendiente),
+            limite_credito: parseNumero(montos.limite_credito),
+          });
         }
       } else {
         await clientesAPI.create({ nombre, zona });
@@ -78,6 +81,7 @@ export default function ClientesPage() {
     setZona(c.zona || "");
     setMontos({
       saldo_pendiente: String(c.saldo_pendiente ?? 0),
+      limite_credito: String(c.limite_credito ?? 30000),
     });
     setShowForm(true);
   };
@@ -211,6 +215,17 @@ export default function ClientesPage() {
                       inputMode="decimal"
                       value={montos.saldo_pendiente}
                       onChange={(e) => setMontos({ ...montos, saldo_pendiente: e.target.value })}
+                      disabled={!isAdmin}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Limite de credito</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={montos.limite_credito}
+                      onChange={(e) => setMontos({ ...montos, limite_credito: e.target.value })}
                       disabled={!isAdmin}
                       required
                     />
