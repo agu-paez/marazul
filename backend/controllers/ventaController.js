@@ -22,8 +22,13 @@ const generarNumeroComprobante = async () => {
   const count = await Venta.count({
     where: { fecha: today },
   });
-  const num = String(count + 1).padStart(4, "0");
-  return `VTA-${today.replace(/-/g, "")}-${num}`;
+  let num = count + 1;
+  let numero = `VTA-${today.replace(/-/g, "")}-${String(num).padStart(4, "0")}`;
+  while (await Venta.count({ where: { numero_comprobante: numero } })) {
+    num += 1;
+    numero = `VTA-${today.replace(/-/g, "")}-${String(num).padStart(4, "0")}`;
+  }
+  return numero;
 };
 
 export const crearVenta = async (req, res) => {
@@ -318,8 +323,9 @@ export const crearVenta = async (req, res) => {
 
     res.status(201).json({ message: "Venta registrada", venta: ventaCompleta });
   } catch (error) {
-    console.error("Error al crear venta:", error);
-    res.status(500).json({ message: "Error al crear venta", error: error.message });
+    const detalle = error.parent?.sqlMessage || error.original?.sqlMessage || error.message;
+    console.error("Error al crear venta:", { message: error.message, detalle, code: error.parent?.code, sql: error.sql || error.parent?.sql });
+    res.status(500).json({ message: `Error al crear venta: ${detalle}`, error: detalle });
   }
 };
 
