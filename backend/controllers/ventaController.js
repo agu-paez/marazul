@@ -12,6 +12,10 @@ const getPrecioPorKilogramo = (producto) => {
   const kgPorCaja = Number(producto.kg_por_caja);
   return esKilogramo(producto) && kgPorCaja > 0 ? precio / kgPorCaja : precio;
 };
+const obtenerDatosPago = (pago) => ({
+  nombre_cuenta: String(pago.nombre_cuenta || "").trim(),
+  banco: String(pago.banco || "").trim(),
+});
 
 const generarNumeroComprobante = async () => {
   const today = getFechaLocal();
@@ -465,6 +469,15 @@ export const modificarPagoVenta = async (req, res) => {
       return res.status(404).json({ message: "Venta no encontrada" });
     }
 
+    if (req.userRole !== "admin" && venta.usuarioId !== req.user.id) {
+      await transaction.rollback();
+      return res.status(403).json({ message: "Solo puedes modificar tus propias facturas" });
+    }
+    if (venta.fecha !== getFechaLocal()) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Solo se pueden modificar facturas del día" });
+    }
+
     const cierre = await CierreCaja.findOne({ where: { fecha: venta.fecha }, transaction });
     if (cierre) {
       await transaction.rollback();
@@ -474,10 +487,16 @@ export const modificarPagoVenta = async (req, res) => {
     const pagosNuevos = pagos.map((pago) => ({
       medio_pago: pago.medio_pago,
       monto: Number(pago.monto),
+      nombre_cuenta: String(pago.nombre_cuenta || "").trim(),
+      banco: String(pago.banco || "").trim(),
     }));
     if (pagosNuevos.some((pago) => !["efectivo", "transferencia", "tarjeta", "cuenta_corriente", "otro"].includes(pago.medio_pago) || !Number.isFinite(pago.monto) || pago.monto < 0)) {
       await transaction.rollback();
       return res.status(400).json({ message: "Los pagos indicados no son válidos" });
+    }
+    if (pagosNuevos.some((pago) => ["transferencia", "tarjeta", "otro"].includes(pago.medio_pago) && (!pago.nombre_cuenta || !pago.banco))) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Transferencia, débito y otros pagos requieren nombre y banco" });
     }
 
     const totalEsperado = (parseFloat(venta.total) || 0) + (parseFloat(venta.monto_deuda_pagado) || 0);
@@ -494,6 +513,8 @@ export const modificarPagoVenta = async (req, res) => {
     const creditoNuevo = pagosNuevos
       .filter((pago) => pago.medio_pago === "cuenta_corriente")
       .reduce((sum, pago) => sum + pago.monto, 0);
+    const pagosAnterioresDetalle = pagosAnteriores.map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0 }));
+    const pagosNuevosDetalle = pagosNuevos.map((pago) => ({ medio_pago: pago.medio_pago, monto: pago.monto, nombre_cuenta: pago.nombre_cuenta, banco: pago.banco }));
 
     if (venta.clienteId && Math.abs(creditoNuevo - creditoAnterior) > 0.01) {
       const cliente = await Cliente.findByPk(venta.clienteId, { transaction });
@@ -517,8 +538,12 @@ export const modificarPagoVenta = async (req, res) => {
     await venta.update({
       medio_pago: pagosNuevos.length > 1 ? "dividido" : pagosNuevos[0].medio_pago,
       pago_dividido: pagosNuevos.length > 1,
+      datos_transferencia: pagosNuevos.filter((pago) => pago.medio_pago === "transferencia").map(obtenerDatosPago),
+      datos_tarjeta: pagosNuevos.filter((pago) => pago.medio_pago === "tarjeta").map(obtenerDatosPago),
+      datos_otro: pagosNuevos.filter((pago) => pago.medio_pago === "otro").map(obtenerDatosPago),
       pago_modificado_por_id: req.user.id,
       pago_modificado_en: ahora,
+      pago_modificacion_detalle: JSON.stringify({ anteriores: pagosAnterioresDetalle, nuevos: pagosNuevosDetalle }),
     }, { transaction });
     await transaction.commit();
 

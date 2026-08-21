@@ -87,6 +87,11 @@ const Venta = sequelize.define("Venta", {
     allowNull: true,
     comment: "Array de datos bancarios para pagos por tarjeta",
   },
+  datos_otro: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    comment: "Datos identificatorios de otros medios de pago",
+  },
   monto_deuda_pagado: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true,
@@ -110,6 +115,10 @@ const Venta = sequelize.define("Venta", {
   },
   pago_modificado_en: {
     type: DataTypes.DATE,
+    allowNull: true,
+  },
+  pago_modificacion_detalle: {
+    type: DataTypes.TEXT,
     allowNull: true,
   },
 });
