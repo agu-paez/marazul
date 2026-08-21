@@ -3,6 +3,16 @@ import { salidasAPI, cierreCajaAPI, productosAPI, gastosAPI, pagosEmpleadosAPI, 
 import { useAuth } from "../context/AuthContext";
 import { dinero } from "../utils/numero";
 
+const mostrarCantidadRegreso = (cantidadUnidades, item) => {
+  const factor = Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1;
+  const esCaja = String(item.Producto?.unidad || "").toLowerCase() === "caja" && factor > 1;
+  if (!esCaja) return `${Number(cantidadUnidades || 0).toFixed(2).replace(/\.00$/, "")}`;
+  const cantidad = Number(cantidadUnidades || 0);
+  const cajas = Math.floor(cantidad / factor);
+  const sueltas = cantidad % factor;
+  return `${cajas} caja${cajas === 1 ? "" : "s"} (${cantidad.toFixed(2).replace(/\.00$/, "")} unid.)${sueltas ? ` + ${sueltas} sueltas` : ""}`;
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -113,6 +123,7 @@ export default function Dashboard() {
             : parseFloat(item.precio_unitario),
           cantidad_enviada: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : item.cantidad * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
           cantidad_vendida: vendido,
+          unidades_por_caja: item.unidades_por_caja || item.Producto?.unidades_por_caja || null,
           max_devolver: maxDevolver,
           cantidad_regreso: Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : (item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
         };
@@ -426,10 +437,10 @@ export default function Dashboard() {
                   <tr>
                     <th>Producto</th>
                     <th>Precio Unit.</th>
-                    <th>Cargados (unid.)</th>
-                    <th>Vendidos (unid.)</th>
-                    <th>Max. devolver (unid.)</th>
-                    <th>Regresan (unid.)</th>
+                    <th>Cargados</th>
+                    <th>Vendidos</th>
+                    <th>Max. devolver</th>
+                    <th>Regresan</th>
                     <th>Subtotal</th>
                   </tr>
                 </thead>
@@ -437,12 +448,12 @@ export default function Dashboard() {
                   {itemsRegreso.map((item, index) => (
                     <tr key={item.productoId}>
                       <td><strong>{item.nombre}</strong></td>
-                      <td>${item.precio_unitario}</td>
-                      <td>{item.cantidad_enviada}</td>
+                       <td>${Number(item.precio_unitario).toFixed(2)}</td>
+                       <td>{mostrarCantidadRegreso(item.cantidad_enviada, item)}</td>
                       <td style={{ color: item.cantidad_vendida > 0 ? "var(--primary)" : "inherit", fontWeight: item.cantidad_vendida > 0 ? "bold" : "normal" }}>
-                        {item.cantidad_vendida}
+                         {mostrarCantidadRegreso(item.cantidad_vendida, item)}
                       </td>
-                      <td style={{ fontWeight: "bold" }}>{item.max_devolver}</td>
+                       <td style={{ fontWeight: "bold" }}>{mostrarCantidadRegreso(item.max_devolver, item)}</td>
                       <td>
                         <input
                           type="number"
@@ -452,6 +463,9 @@ export default function Dashboard() {
                           onChange={(e) => handleCantidadRegreso(index, e.target.value)}
                           className="input-cantidad"
                         />
+                        <small style={{ display: "block", color: "var(--text-muted)", marginTop: "0.2rem" }}>
+                          {mostrarCantidadRegreso(item.cantidad_regreso, item)}
+                        </small>
                       </td>
                       <td style={{ color: "var(--danger)", fontWeight: "bold" }}>
                         ${(item.precio_unitario * item.cantidad_regreso).toFixed(2)}

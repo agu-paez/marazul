@@ -1173,14 +1173,24 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
   // 1. Mercaderia enviada
   drawSectionTitle("Mercaderia Enviada");
   const enviados = salida.SalidaCamionItems || [];
+  const cantidadEnUnidades = (item, tipo) => {
+    const factor = Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1;
+    const valor = tipo === "devuelto"
+      ? (Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * factor)
+      : (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad || 0) * factor);
+    if (String(item.Producto?.unidad || "").toLowerCase() !== "caja" || factor <= 1) return Number(valor).toFixed(2).replace(/\.00$/, "");
+    const cajas = Math.floor(valor / factor);
+    const sueltas = valor % factor;
+    return `${cajas} caja${cajas === 1 ? "" : "s"} (${valor.toFixed(2).replace(/\.00$/, "")} unid.)${sueltas ? ` + ${sueltas} sueltas` : ""}`;
+  };
   drawSimpleTable(
-    ["Producto", "Cantidad", "P.Unit.", "Subtotal"],
+    ["Producto", "Cantidad / unidades", "P.Unit.", "Subtotal"],
     [cw - 28 - 26 - 30, 28, 26, 30],
     [
       (r) => r.Producto?.nombre || "N/A",
-      (r) => r.cantidad,
-      (r) => `$${parseFloat(r.precio_unitario).toFixed(2)}`,
-      (r) => `$${(r.cantidad * parseFloat(r.precio_unitario)).toFixed(2)}`,
+      (r) => cantidadEnUnidades(r, "cargado"),
+      (r) => `$${(parseFloat(r.precio_unitario) / (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1)).toFixed(2)}`,
+      (r) => `$${(Number(r.cantidad_unidades || r.cantidad * (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1)) * (parseFloat(r.precio_unitario) / (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1))).toFixed(2)}`,
     ],
     enviados
   );
@@ -1189,13 +1199,13 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
   drawSectionTitle("Mercaderia Devuelta");
   const devueltos = enviados.filter((item) => (item.cantidad_devuelta || 0) > 0);
   drawSimpleTable(
-    ["Producto", "Devuelto", "P.Unit.", "Subtotal"],
+    ["Producto", "Devuelto / unidades", "P.Unit.", "Subtotal"],
     [cw - 28 - 26 - 30, 28, 26, 30],
     [
       (r) => r.Producto?.nombre || "N/A",
-      (r) => r.cantidad_devuelta,
-      (r) => `$${parseFloat(r.precio_unitario).toFixed(2)}`,
-      (r) => `$${(r.cantidad_devuelta * parseFloat(r.precio_unitario)).toFixed(2)}`,
+      (r) => cantidadEnUnidades(r, "devuelto"),
+      (r) => `$${(parseFloat(r.precio_unitario) / (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1)).toFixed(2)}`,
+      (r) => `$${(Number(r.cantidad_devuelta_unidades || r.cantidad_devuelta * (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1)) * (parseFloat(r.precio_unitario) / (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1))).toFixed(2)}`,
     ],
     devueltos
   );
