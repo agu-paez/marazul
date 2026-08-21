@@ -547,6 +547,41 @@ tr.cliente-pendiente-revision td:first-child {
   width: 100%;
 }
 
+.historial-ventas-table th,
+.historial-ventas-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.historial-ventas-table .action-buttons {
+  align-items: center;
+}
+
+.historial-ventas-table .badge-grid {
+  justify-content: center;
+}
+
+.historial-ventas-table td:nth-child(7) {
+  min-width: 260px;
+  max-width: 360px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.historial-pago-modal {
+  width: min(720px, calc(100vw - 2rem));
+}
+
+.historial-pago-modal .item-row {
+  align-items: stretch;
+}
+
+.historial-pago-modal .item-row input,
+.historial-pago-modal .item-row select {
+  min-width: 0;
+  flex: 1;
+}
+
 h2 {
   margin-bottom: 0.5rem;
   color: var(--primary);

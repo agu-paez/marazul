@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { ventasAPI, clientesAPI } from "../api";
+import { ventasAPI, clientesAPI, bancosAPI, proveedoresAPI } from "../api";
+import BancoAutocomplete from "../components/BancoAutocomplete";
 import {
   generarComprobantePDF,
   generarHistorialDeudasPDF,
@@ -17,6 +18,8 @@ export default function HistorialVentasPage() {
   const [ventaPagoEditando, setVentaPagoEditando] = useState(null);
   const [pagosEditados, setPagosEditados] = useState([]);
   const [guardandoPago, setGuardandoPago] = useState(false);
+  const [bancos, setBancos] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
   const [filtros, setFiltros] = useState({
     fecha: "",
     buscar: "",
@@ -27,6 +30,8 @@ export default function HistorialVentasPage() {
 
   useEffect(() => {
     loadVentas();
+    bancosAPI.getAll().then((res) => setBancos(res.data.map((banco) => banco.nombre))).catch(console.error);
+    proveedoresAPI.getAll().then((res) => setProveedores(res.data)).catch(console.error);
   }, []);
 
   const loadVentas = async (params = {}) => {
@@ -87,9 +92,9 @@ export default function HistorialVentasPage() {
     const pagos = venta.VentaPagos?.length
       ? venta.VentaPagos.map((pago) => {
         const detalle = datosPorMedio[pago.medio_pago]?.[indices[pago.medio_pago]++] || {};
-        return { medio_pago: pago.medio_pago, monto: String(pago.monto), nombre_cuenta: detalle.nombre_cuenta || "", banco: detalle.banco || "" };
+        return { medio_pago: pago.medio_pago, monto: String(pago.monto), nombre_cuenta: detalle.nombre_cuenta || "", banco: detalle.banco || "", proveedorId: detalle.proveedorId || "", alias: detalle.alias || "", fecha_hora: detalle.fecha_hora || "" };
       })
-      : [{ medio_pago: venta.medio_pago, monto: String(venta.total), nombre_cuenta: "", banco: "" }];
+      : [{ medio_pago: venta.medio_pago, monto: String(venta.total), nombre_cuenta: "", banco: "", proveedorId: "", alias: "", fecha_hora: "" }];
     setVentaPagoEditando(venta);
     setPagosEditados(pagos);
   };
@@ -99,7 +104,7 @@ export default function HistorialVentasPage() {
     setGuardandoPago(true);
     try {
       await ventasAPI.modificarPago(ventaPagoEditando.id, {
-        pagos: pagosEditados.map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0, nombre_cuenta: pago.nombre_cuenta, banco: pago.banco })),
+        pagos: pagosEditados.map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0, nombre_cuenta: pago.nombre_cuenta, banco: pago.banco, proveedorId: pago.proveedorId || null, alias: pago.alias || "", fecha_hora: pago.fecha_hora || "" })),
       });
       setVentaPagoEditando(null);
       await loadVentas();
@@ -115,7 +120,7 @@ export default function HistorialVentasPage() {
     if (!venta.pago_modificacion_detalle) return "-";
     try {
       const detalle = typeof venta.pago_modificacion_detalle === "string" ? JSON.parse(venta.pago_modificacion_detalle) : venta.pago_modificacion_detalle;
-      const mostrarPago = (pago) => `${pago.medio_pago}: $${Number(pago.monto).toFixed(2)}${pago.nombre_cuenta ? ` (${pago.nombre_cuenta}${pago.banco ? `, ${pago.banco}` : ""})` : ""}`;
+      const mostrarPago = (pago) => `${pago.medio_pago}: $${Number(pago.monto).toFixed(2)}${pago.nombre_cuenta ? ` (${pago.nombre_cuenta}${pago.banco ? `, ${pago.banco}` : ""}${pago.alias ? `, alias ${pago.alias}` : ""})` : ""}`;
       return `${detalle.anteriores?.map(mostrarPago).join(", ")} → ${detalle.nuevos?.map(mostrarPago).join(", ")}`;
     } catch {
       return "Ver detalle no disponible";
@@ -183,8 +188,8 @@ export default function HistorialVentasPage() {
       {ventas.length === 0 ? (
         <p className="empty">No hay ventas registradas</p>
       ) : (
-        <div className="table-container">
-          <table>
+        <div className="table-container historial-ventas-container">
+          <table className="historial-ventas-table">
             <thead>
               <tr>
                 <th>Fecha</th>
@@ -296,7 +301,7 @@ export default function HistorialVentasPage() {
       )}
       {ventaPagoEditando && (
         <div className="modal-overlay" onClick={() => setVentaPagoEditando(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card historial-pago-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Modificar pago de {ventaPagoEditando.numero_comprobante}</h3>
             <p className="subtitle">Total esperado: ${((Number(ventaPagoEditando.total) || 0) + (Number(ventaPagoEditando.monto_deuda_pagado) || 0)).toFixed(2)}</p>
             <form onSubmit={guardarPago}>
@@ -331,13 +336,30 @@ export default function HistorialVentasPage() {
                   "otro",
                 ].includes(pago.medio_pago) && (
                   <div className="item-row" style={{ marginTop: "0.35rem" }}>
-                    <input placeholder="Nombre" value={pago.nombre_cuenta || ""} onChange={(e) => setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, nombre_cuenta: e.target.value } : item))} required />
-                    <input placeholder="Banco" value={pago.banco || ""} onChange={(e) => setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, banco: e.target.value } : item))} required />
+                    <select value={pago.proveedorId || ""} onChange={(e) => {
+                      const proveedor = proveedores.find((item) => String(item.id) === e.target.value);
+                      setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, proveedorId: e.target.value, alias: proveedor?.alias || "" } : item));
+                    }} required>
+                      <option value="">Seleccionar proveedor destino...</option>
+                      {proveedores.map((proveedor) => <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre} - Alias: {proveedor.alias || "Sin alias"}</option>)}
+                    </select>
+                    <input placeholder="Nombre de la cuenta" value={pago.nombre_cuenta || ""} onChange={(e) => setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, nombre_cuenta: e.target.value } : item))} required />
                   </div>
+                )}
+                {["transferencia", "tarjeta", "otro"].includes(pago.medio_pago) && (
+                  <BancoAutocomplete
+                    value={pago.banco || ""}
+                    onChange={(valor) => setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, banco: valor } : item))}
+                    bancos={bancos}
+                    onAddBanco={(valor) => {
+                      bancosAPI.create({ nombre: valor }).then(() => setBancos((prev) => prev.includes(valor) ? prev : [...prev, valor])).catch(console.error);
+                    }}
+                    placeholder="Seleccionar banco"
+                  />
                 )}
                 </div>
               ))}
-              <button type="button" className="btn btn-secondary" onClick={() => setPagosEditados((prev) => [...prev, { medio_pago: "efectivo", monto: "0", nombre_cuenta: "", banco: "" }])}>+ Agregar medio</button>
+              <button type="button" className="btn btn-secondary" onClick={() => setPagosEditados((prev) => [...prev, { medio_pago: "efectivo", monto: "0", nombre_cuenta: "", banco: "", proveedorId: "", alias: "", fecha_hora: "" }])}>+ Agregar medio</button>
               <div className="resumen-row" style={{ marginTop: "1rem" }}>
                 <span>Total ingresado:</span>
                 <strong>${totalPagosEditados.toFixed(2)}</strong>

@@ -1,4 +1,4 @@
-import { Venta, VentaItem, VentaPago, Producto, User, Cliente, ClientePago, CierreCaja, SalidaCamion, SalidaCamionItem } from "../models/index.js";
+import { Venta, VentaItem, VentaPago, Producto, User, Cliente, ClientePago, Proveedor, CierreCaja, SalidaCamion, SalidaCamionItem } from "../models/index.js";
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { getFechaLocal } from "../utils/fecha.js";
@@ -15,6 +15,9 @@ const getPrecioPorKilogramo = (producto) => {
 const obtenerDatosPago = (pago) => ({
   nombre_cuenta: String(pago.nombre_cuenta || "").trim(),
   banco: String(pago.banco || "").trim(),
+  proveedorId: pago.proveedorId ? Number(pago.proveedorId) : null,
+  alias: String(pago.alias || "").trim(),
+  fecha_hora: pago.fecha_hora || new Date().toISOString(),
 });
 
 const generarNumeroComprobante = async () => {
@@ -495,6 +498,9 @@ export const modificarPagoVenta = async (req, res) => {
       monto: Number(pago.monto),
       nombre_cuenta: String(pago.nombre_cuenta || "").trim(),
       banco: String(pago.banco || "").trim(),
+      proveedorId: pago.proveedorId ? Number(pago.proveedorId) : null,
+      alias: String(pago.alias || "").trim(),
+      fecha_hora: pago.fecha_hora || new Date().toISOString(),
     }));
     if (pagosNuevos.some((pago) => !["efectivo", "transferencia", "tarjeta", "cuenta_corriente", "otro"].includes(pago.medio_pago) || !Number.isFinite(pago.monto) || pago.monto < 0)) {
       await transaction.rollback();
@@ -504,6 +510,20 @@ export const modificarPagoVenta = async (req, res) => {
       await transaction.rollback();
       return res.status(400).json({ message: "Transferencia, débito y otros pagos requieren nombre y banco" });
     }
+    if (pagosNuevos.some((pago) => ["transferencia", "tarjeta", "otro"].includes(pago.medio_pago) && !pago.proveedorId)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Debe seleccionar el proveedor destino para transferencia, débito u otro pago" });
+    }
+    const proveedorIds = [...new Set(pagosNuevos.map((pago) => pago.proveedorId).filter(Boolean))];
+    const proveedoresValidos = await Proveedor.findAll({ where: { id: { [Op.in]: proveedorIds } }, transaction });
+    if (proveedoresValidos.length !== proveedorIds.length) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "El proveedor seleccionado no existe" });
+    }
+    const proveedoresPorId = new Map(proveedoresValidos.map((proveedor) => [proveedor.id, proveedor]));
+    pagosNuevos.forEach((pago) => {
+      if (pago.proveedorId) pago.alias = proveedoresPorId.get(pago.proveedorId)?.alias || pago.alias;
+    });
 
     const totalEsperado = (parseFloat(venta.total) || 0) + (parseFloat(venta.monto_deuda_pagado) || 0);
     const totalNuevo = pagosNuevos.reduce((sum, pago) => sum + pago.monto, 0);
@@ -520,7 +540,7 @@ export const modificarPagoVenta = async (req, res) => {
       .filter((pago) => pago.medio_pago === "cuenta_corriente")
       .reduce((sum, pago) => sum + pago.monto, 0);
     const pagosAnterioresDetalle = pagosAnteriores.map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0 }));
-    const pagosNuevosDetalle = pagosNuevos.map((pago) => ({ medio_pago: pago.medio_pago, monto: pago.monto, nombre_cuenta: pago.nombre_cuenta, banco: pago.banco }));
+    const pagosNuevosDetalle = pagosNuevos.map((pago) => ({ medio_pago: pago.medio_pago, monto: pago.monto, nombre_cuenta: pago.nombre_cuenta, banco: pago.banco, proveedorId: pago.proveedorId, alias: pago.alias }));
 
     if (venta.clienteId && Math.abs(creditoNuevo - creditoAnterior) > 0.01) {
       const cliente = await Cliente.findByPk(venta.clienteId, { transaction });
