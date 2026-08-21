@@ -5,7 +5,7 @@ import { dinero } from "../utils/numero";
 
 const mostrarCantidadRegreso = (cantidadUnidades, item) => {
   const factor = Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1;
-  const unidad = String(item.Producto?.unidad || "").toLowerCase();
+  const unidad = String(item.unidad || item.Producto?.unidad || "").toLowerCase();
   const cantidad = Number(cantidadUnidades || 0);
   if (["kg", "kilogramo"].includes(unidad)) return `${cantidad.toFixed(2)} kg`;
   const esCaja = factor > 1;
@@ -120,6 +120,7 @@ export default function Dashboard() {
         return {
           productoId: item.productoId,
           nombre: item.Producto?.nombre,
+          unidad: item.Producto?.unidad,
           precio_unitario: String(item.Producto?.unidad || "").toLowerCase() === "caja" && Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) > 0
             ? parseFloat(item.precio_unitario) / Number(item.unidades_por_caja || item.Producto.unidades_por_caja)
             : parseFloat(item.precio_unitario),
@@ -140,7 +141,8 @@ export default function Dashboard() {
 
   const handleCantidadRegreso = (index, value) => {
     const newItems = [...itemsRegreso];
-    const cant = parseInt(value) || 0;
+    const esKg = ["kg", "kilogramo"].includes(String(newItems[index].unidad || "").toLowerCase());
+    const cant = esKg ? parseFloat(value) || 0 : parseInt(value, 10) || 0;
     newItems[index].cantidad_regreso = Math.min(cant, newItems[index].max_devolver);
     setItemsRegreso(newItems);
   };
@@ -377,7 +379,8 @@ export default function Dashboard() {
                         <td>{empleado.Role?.nombre || "-"}</td>
                         <td>
                           <input
-                            type="number"
+                           type="number"
+                           step={["kg", "kilogramo"].includes(String(item.unidad || "").toLowerCase()) ? "0.01" : "1"}
                             min="0"
                             step="0.01"
                             value={pagosForm[empleado.id] || ""}
