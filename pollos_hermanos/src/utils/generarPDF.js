@@ -1267,7 +1267,7 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
 
   drawSimpleTable(
     ["Comprobante", "Cliente", "Producto", "Venta", "Cant.", "P.Unit.", "Subtotal"],
-    [32, 26, cw - 32 - 26 - 30 - 20 - 25 - 28, 30, 20, 25, 28],
+    [30, 22, cw - 30 - 22 - 22 - 15 - 22 - 24, 22, 15, 22, 24],
     [
       (r) => r.comprobante,
        (r) => r.cliente,
