@@ -14,6 +14,7 @@ const mostrarCantidadRegreso = (cantidadUnidades, item) => {
   const sueltas = cantidad % factor;
   return `${cajas} caja${cajas === 1 ? "" : "s"} (${cantidad.toFixed(2).replace(/\.00$/, "")} unid.)${sueltas ? ` + ${sueltas} sueltas` : ""}`;
 };
+const redondearDos = (valor) => Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -127,8 +128,8 @@ export default function Dashboard() {
           cantidad_enviada: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : item.cantidad * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
           cantidad_vendida: vendido,
           unidades_por_caja: item.unidades_por_caja || item.Producto?.unidades_por_caja || null,
-          max_devolver: maxDevolver,
-          cantidad_regreso: Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : (item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
+          max_devolver: redondearDos(maxDevolver),
+          cantidad_regreso: redondearDos(Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : (item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)),
           cajas_regreso: Math.floor((Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : (item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) / (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)),
           unidades_sueltas_regreso: (Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : (item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) % (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
         };
@@ -142,7 +143,7 @@ export default function Dashboard() {
   const handleCantidadRegreso = (index, value) => {
     const newItems = [...itemsRegreso];
     const esKg = ["kg", "kilogramo"].includes(String(newItems[index].unidad || "").toLowerCase());
-    const cant = esKg ? parseFloat(value) || 0 : parseInt(value, 10) || 0;
+    const cant = esKg ? redondearDos(parseFloat(value) || 0) : parseInt(value, 10) || 0;
     newItems[index].cantidad_regreso = Math.min(cant, newItems[index].max_devolver);
     setItemsRegreso(newItems);
   };
