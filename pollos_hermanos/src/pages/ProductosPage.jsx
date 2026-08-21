@@ -413,7 +413,7 @@ export default function ProductosPage() {
                 <option value="pieza">Pieza</option>
                 <option value="kilogramo">Kilogramo</option>
                 <option value="litro">Litro</option>
-                <option value="caja">Caja</option>
+                <option value="caja">Caja (permite vender por unidad)</option>
               </select>
             </div>
           </div>
@@ -429,20 +429,21 @@ export default function ProductosPage() {
                 placeholder="Ej: 15"
               />
             </div>
-            {String(form.unidad).toLowerCase() === "caja" && (
-              <div className="form-group">
-                <label>Unidades por Caja *</label>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={form.unidades_por_caja}
-                  onChange={(e) => setForm({ ...form, unidades_por_caja: e.target.value })}
-                  placeholder="Ej: 12"
-                  required
-                />
-              </div>
-            )}
+            <div className="form-group">
+              <label>Unidades por Caja {String(form.unidad).toLowerCase() === "caja" ? "*" : ""}</label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={form.unidades_por_caja}
+                onChange={(e) => setForm({ ...form, unidades_por_caja: e.target.value })}
+                placeholder="Ej: 12"
+                required={String(form.unidad).toLowerCase() === "caja"}
+              />
+              <small>
+                Seleccione <strong>Caja</strong> arriba para que aparezca el selector Caja/Unidad en Ventas.
+              </small>
+            </div>
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
