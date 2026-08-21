@@ -153,7 +153,7 @@ export default function Dashboard() {
     let cajas = campo === "cajas_regreso" ? valor : Number(newItems[index].cajas_regreso) || 0;
     let sueltas = campo === "unidades_sueltas_regreso" ? valor : Number(newItems[index].unidades_sueltas_regreso) || 0;
     cajas = Math.min(cajas, Math.floor(max / factor));
-    sueltas = Math.min(sueltas, Math.max(0, Math.min(factor - 1, max - cajas * factor)));
+    sueltas = Math.min(sueltas, Math.max(0, Math.min(factor, max - cajas * factor)));
     newItems[index].cajas_regreso = cajas;
     newItems[index].unidades_sueltas_regreso = sueltas;
     newItems[index].cantidad_regreso = cajas * factor + sueltas;
@@ -480,7 +480,7 @@ export default function Dashboard() {
                                <input type="number" min="0" value={item.cajas_regreso} onChange={(e) => handleCajaRegreso(index, "cajas_regreso", e.target.value)} className="input-cantidad" />
                              </label>
                              <label>Sueltas
-                               <input type="number" min="0" max={(Number(item.unidades_por_caja) || 1) - 1} value={item.unidades_sueltas_regreso} onChange={(e) => handleCajaRegreso(index, "unidades_sueltas_regreso", e.target.value)} className="input-cantidad" />
+                               <input type="number" min="0" max={Number(item.unidades_por_caja) || 1} value={item.unidades_sueltas_regreso} onChange={(e) => handleCajaRegreso(index, "unidades_sueltas_regreso", e.target.value)} className="input-cantidad" />
                              </label>
                            </div>
                          ) : (
