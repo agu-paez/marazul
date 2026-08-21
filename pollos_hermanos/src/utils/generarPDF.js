@@ -240,7 +240,10 @@ export const generarComprobantePDF = async (venta) => {
   doc.setFontSize(7);
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    const nombre = item.Producto?.nombre || "N/A";
+    const unidadVenta = String(item.unidad_venta || (String(item.Producto?.unidad || "").toLowerCase() === "caja" ? "caja" : "unidad")).toLowerCase();
+    const esKg = ["kg", "kilogramo"].includes(String(item.Producto?.unidad || "").toLowerCase());
+    const nombreBase = item.Producto?.nombre || "N/A";
+    const nombre = unidadVenta === "unidad" && !esKg ? `${nombreBase} (unid.)` : nombreBase;
     const cant = item.cantidad;
     const precio = parseFloat(item.precio_unitario);
     const sub = cant * precio;
@@ -251,7 +254,6 @@ export const generarComprobantePDF = async (venta) => {
     doc.setTextColor(50, 50, 60);
     let rx = ml + padH;
     doc.text(nombre, rx, y + 4.5); rx += prodCols[0];
-    const esKg = ["kg", "kilogramo"].includes(String(item.Producto?.unidad || "").toLowerCase());
     doc.text(`${cant}${esKg ? " kg" : ""}`, rx, y + 4.5); rx += prodCols[1];
     doc.text(`$${precio.toFixed(2)}`, rx, y + 4.5); rx += prodCols[2];
     doc.text(`$${sub.toFixed(2)}`, rx, y + 4.5); rx += prodCols[3];
