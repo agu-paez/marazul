@@ -82,6 +82,19 @@ for (const [columna, tipo] of nuevasColumnasVentaItems) {
   }
 }
 
+const nuevasColumnasVentas = [
+  ['pago_modificado_por_id', 'INTEGER'],
+  ['pago_modificado_en', 'DATETIME'],
+];
+for (const [columna, tipo] of nuevasColumnasVentas) {
+  try {
+    await sequelize.query(`ALTER TABLE Ventas ADD COLUMN ${columna} ${tipo}`);
+    console.log(`Columna ${columna} agregada a Ventas correctamente`);
+  } catch (e) {
+    if (!e.message.includes('duplicate column') && !e.message.toLowerCase().includes('duplicate column name')) console.error('Error:', e.message);
+  }
+}
+
 const nuevasColumnasSalidaItems = [
   ['unidades_por_caja', 'INTEGER'],
   ['cantidad_unidades', 'DECIMAL(10,2) NOT NULL DEFAULT 0'],
