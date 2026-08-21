@@ -277,9 +277,11 @@ export const crearVenta = async (req, res) => {
       const producto = await Producto.findByPk(item.productoId);
       const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
       const precioPersonalizado = Number(item.precio_unitario);
+      const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
+      const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : Number(producto.precio);
       const precioUnitario = esKilogramo && Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
         ? precioPersonalizado
-        : parseFloat(producto.precio);
+        : precioBase;
       await VentaItem.create({
         ventaId: venta.id,
         productoId: item.productoId,
