@@ -52,6 +52,7 @@ try {
 
 const nuevasColumnasProductos = [
   ['kg_por_caja', 'DECIMAL(10,2)'],
+  ['unidades_por_caja', 'INTEGER'],
   ['excluir_de_lista_pdf', 'BOOLEAN NOT NULL DEFAULT 0'],
 ];
 for (const [columna, tipo] of nuevasColumnasProductos) {
@@ -64,6 +65,34 @@ for (const [columna, tipo] of nuevasColumnasProductos) {
     } else {
       console.error('Error:', e.message);
     }
+  }
+}
+
+const nuevasColumnasVentaItems = [
+  ['unidad_venta', 'VARCHAR(20) NOT NULL DEFAULT \'unidad\''],
+  ['unidades_por_caja', 'INTEGER'],
+  ['cantidad_unidades', 'DECIMAL(10,2) NOT NULL DEFAULT 0'],
+];
+for (const [columna, tipo] of nuevasColumnasVentaItems) {
+  try {
+    await sequelize.query(`ALTER TABLE VentaItems ADD COLUMN ${columna} ${tipo}`);
+    console.log(`Columna ${columna} agregada a VentaItems correctamente`);
+  } catch (e) {
+    if (!e.message.includes('duplicate column') && !e.message.toLowerCase().includes('duplicate column name')) console.error('Error:', e.message);
+  }
+}
+
+const nuevasColumnasSalidaItems = [
+  ['unidades_por_caja', 'INTEGER'],
+  ['cantidad_unidades', 'DECIMAL(10,2) NOT NULL DEFAULT 0'],
+  ['cantidad_devuelta_unidades', 'DECIMAL(10,2) NOT NULL DEFAULT 0'],
+];
+for (const [columna, tipo] of nuevasColumnasSalidaItems) {
+  try {
+    await sequelize.query(`ALTER TABLE SalidaCamionItems ADD COLUMN ${columna} ${tipo}`);
+    console.log(`Columna ${columna} agregada a SalidaCamionItems correctamente`);
+  } catch (e) {
+    if (!e.message.includes('duplicate column') && !e.message.toLowerCase().includes('duplicate column name')) console.error('Error:', e.message);
   }
 }
 

@@ -240,7 +240,7 @@ export const generarComprobantePDF = async (venta) => {
   doc.setFontSize(7);
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    const nombre = item.Producto?.nombre || "N/A";
+    const nombre = `${item.Producto?.nombre || "N/A"}${item.unidad_venta ? ` (${item.unidad_venta})` : ""}`;
     const cant = item.cantidad;
     const precio = parseFloat(item.precio_unitario);
     const sub = cant * precio;

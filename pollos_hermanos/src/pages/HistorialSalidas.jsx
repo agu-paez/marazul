@@ -43,13 +43,17 @@ export default function HistorialSalidas() {
       const vendidos = {};
       for (const venta of ventasRes.data) {
         for (const item of venta.VentaItems || []) {
-          vendidos[item.productoId] = (vendidos[item.productoId] || 0) + item.cantidad;
+          const factor = Number(item.unidades_por_caja) > 0 ? Number(item.unidades_por_caja) : 1;
+          vendidos[item.productoId] = (vendidos[item.productoId] || 0) + (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * factor);
         }
       }
       const items = (salidaRes.data.SalidaCamionItems || []).map((item) => ({
         ...item,
         vendido: vendidos[item.productoId] || 0,
-        faltante: Math.max(0, item.cantidad - (item.cantidad_devuelta || 0) - (vendidos[item.productoId] || 0)),
+        unidadesPorCaja: Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1,
+        cargadoUnidades: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
+        devueltoUnidades: Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
+        faltante: Math.max(0, (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) - (Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) - (vendidos[item.productoId] || 0)),
       }));
       return { salida: salidaRes.data, ventas: ventasRes.data, items, sobrantes: items.filter((item) => item.faltante > 0) };
     } catch (error) {
@@ -117,7 +121,7 @@ export default function HistorialSalidas() {
                   <td>{item.Producto?.nombre || "-"}</td>
                   <td>{item.cantidad}</td>
                   <td>{item.vendido}</td>
-                  <td>{item.cantidad_devuelta || 0}</td>
+                  <td>{item.devueltoUnidades || 0} unidades</td>
                   <td className={item.faltante > 0 ? "monto-regreso" : ""}><strong>{item.faltante}</strong></td>
                 </tr>)}</tbody>
               </table>

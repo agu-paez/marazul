@@ -168,10 +168,12 @@ export default function MisSalidas() {
         return {
           productoId: item.productoId,
           nombre: item.Producto?.nombre,
-          precio_unitario: parseFloat(item.precio_unitario),
-          cantidad_enviada: item.cantidad,
+          precio_unitario: String(item.Producto?.unidad || "").toLowerCase() === "caja" && Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) > 0
+            ? parseFloat(item.precio_unitario) / Number(item.unidades_por_caja || item.Producto.unidades_por_caja)
+            : parseFloat(item.precio_unitario),
+          cantidad_enviada: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : item.cantidad * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
           cantidad_vendida: vendido,
-          max_devolver: maxDevolver,
+          max_devolver: stock ? Number(stock.disponible) : maxDevolver,
           cantidad_regreso: 0,
         };
       });
@@ -206,9 +208,9 @@ export default function MisSalidas() {
   const ejecutarCancelacion = async () => {
     if (!regresando) return;
     try {
-      const items_para_enviar = itemsRegreso.map((item) => ({
-        productoId: item.productoId,
-        cantidad: item.cantidad_regreso,
+       const items_para_enviar = itemsRegreso.map((item) => ({
+         productoId: item.productoId,
+         cantidad_unidades: item.cantidad_regreso,
       }));
       await salidasAPI.registrarRegreso(regresando.id, {
         items_regreso: items_para_enviar,
@@ -230,9 +232,9 @@ export default function MisSalidas() {
     try {
       const items_para_enviar = itemsRegreso
         .filter((item) => item.cantidad_regreso > 0)
-        .map((item) => ({
-          productoId: item.productoId,
-          cantidad: item.cantidad_regreso,
+         .map((item) => ({
+           productoId: item.productoId,
+           cantidad_unidades: item.cantidad_regreso,
         }));
 
       const res = await salidasAPI.registrarRegreso(regresando.id, {
@@ -469,10 +471,10 @@ export default function MisSalidas() {
                   <tr>
                     <th>Producto</th>
                     <th>Precio Unit.</th>
-                    <th>Cargados</th>
-                    <th>Vendidos</th>
-                    <th>Max. Devolver</th>
-                    <th>Regresan</th>
+                    <th>Cargados (unid.)</th>
+                    <th>Vendidos (unid.)</th>
+                    <th>Max. devolver (unid.)</th>
+                    <th>Regresan (unid.)</th>
                     <th>Subtotal</th>
                   </tr>
                 </thead>
@@ -481,7 +483,7 @@ export default function MisSalidas() {
                     <tr key={item.productoId}>
                       <td><strong>{item.nombre}</strong></td>
                       <td>${item.precio_unitario}</td>
-                      <td>{item.cantidad_enviada}</td>
+                       <td>{item.cantidad_enviada}</td>
                       <td style={{ color: item.cantidad_vendida > 0 ? "var(--primary)" : "inherit", fontWeight: item.cantidad_vendida > 0 ? "bold" : "normal" }}>
                         {item.cantidad_vendida}
                       </td>

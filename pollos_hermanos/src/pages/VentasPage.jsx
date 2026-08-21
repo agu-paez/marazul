@@ -20,6 +20,7 @@ export default function VentasPage() {
   const [busqueda, setBusqueda] = useState("");
   const [mostrarSoloSeleccionados, setMostrarSoloSeleccionados] = useState(false);
   const [cantidades, setCantidades] = useState({});
+  const [unidadesVenta, setUnidadesVenta] = useState({});
   const [form, setForm] = useState({
     tipo_venta: user?.role === "repartidor" ? "reparto" : "local",
     clienteId: "",
@@ -48,9 +49,11 @@ export default function VentasPage() {
   useEffect(() => {
     productosAPI.getAll().then((res) => {
       setProductos(res.data);
-      const init = {};
-      res.data.forEach((p) => { init[p.id] = 0; });
-      setCantidades(init);
+       const init = {};
+       const unidadesInit = {};
+       res.data.forEach((p) => { init[p.id] = 0; unidadesInit[p.id] = String(p.unidad || "").toLowerCase() === "caja" ? "caja" : "unidad"; });
+       setCantidades(init);
+       setUnidadesVenta(unidadesInit);
     }).catch(console.error);
     clientesAPI.getAll().then((res) => setClientes(res.data)).catch(console.error);
     bancosAPI.getAll().then((res) => setBancos(res.data.map((b) => b.nombre))).catch(console.error);
@@ -73,8 +76,10 @@ export default function VentasPage() {
       salidasAPI.getStockCamion(camionSeleccionado).then((res) => {
         setStockCamion(res.data.items);
         const init = {};
-        res.data.items.forEach((item) => { init[item.productoId] = 0; });
+        const unidadesInit = {};
+        res.data.items.forEach((item) => { init[item.productoId] = 0; unidadesInit[item.productoId] = String(item.unidad || "").toLowerCase() === "caja" ? "caja" : "unidad"; });
         setCantidades(init);
+        setUnidadesVenta(unidadesInit);
       }).catch(console.error).finally(() => setStockLoading(false));
     } else {
       setStockCamion([]);
@@ -126,7 +131,11 @@ export default function VentasPage() {
 
   const getStockMax = (productoId) => {
     const p = productosBase.find((bp) => bp.id === productoId);
-    return p ? p.stock : 0;
+    if (!p) return 0;
+    const factor = Number(p.unidades_por_caja) > 0 ? Number(p.unidades_por_caja) : 1;
+    if (String(p.unidad || "").toLowerCase() !== "caja") return Number(p.stock);
+    if (unidadesVenta[productoId] === "caja") return Math.floor(Number(p.stock));
+    return esReparto ? Number(p.stock) : Math.floor(Number(p.stock) * factor);
   };
 
   const handlePagoChange = (index, e) => {
@@ -292,6 +301,7 @@ export default function VentasPage() {
         nombre: sc.nombre,
          precio: sc.precio,
          unidad: sc.unidad,
+         unidades_por_caja: sc.unidades_por_caja,
         stock: sc.disponible,
         cargado: sc.cargado,
         devuelto: sc.devuelto,
@@ -310,7 +320,15 @@ export default function VentasPage() {
   const productosSeleccionados = productosBase.filter((p) => (cantidades[p.id] || 0) > 0);
 
   const esProductoKg = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
-  const getPrecioVenta = (producto) => preciosPersonalizados[producto.id] ?? Number(producto.precio);
+  const esProductoCaja = (producto) => String(producto?.unidad || "").toLowerCase() === "caja" && Number(producto?.unidades_por_caja) > 0;
+  const getPrecioVenta = (producto) => {
+    if (esProductoCaja(producto) && unidadesVenta[producto.id] === "unidad") return Number(producto.precio) / Number(producto.unidades_por_caja);
+    return preciosPersonalizados[producto.id] ?? Number(producto.precio);
+  };
+  const getCantidadUnidades = (producto) => {
+    const cantidad = Number(cantidades[producto.id] || 0);
+    return cantidad * (esProductoCaja(producto) && unidadesVenta[producto.id] === "caja" ? Number(producto.unidades_por_caja) : 1);
+  };
 
   const abrirEdicionPrecio = (producto) => {
     setProductoPrecioEditando(producto);
@@ -467,6 +485,8 @@ export default function VentasPage() {
           productoId: p.id,
           cantidad: cantidades[p.id],
           precio_unitario: getPrecioVenta(p),
+          unidad_venta: esProductoCaja(p) ? (unidadesVenta[p.id] || "caja") : "unidad",
+          cantidad_unidades: getCantidadUnidades(p),
         })),
       };
       const proveedorSeleccionado = esTransferencia
@@ -553,8 +573,10 @@ export default function VentasPage() {
       setProductos(productosRes.data);
       setClientes(clientesRes.data);
       const reset = {};
-      productosRes.data.forEach((p) => { reset[p.id] = 0; });
+      const unidadesReset = {};
+      productosRes.data.forEach((p) => { reset[p.id] = 0; unidadesReset[p.id] = esProductoCaja(p) ? "caja" : "unidad"; });
       setCantidades(reset);
+      setUnidadesVenta(unidadesReset);
 
       setTimeout(() => setSuccess(false), 5000);
     } catch (error) {
@@ -622,14 +644,16 @@ export default function VentasPage() {
                 const qty = cantidades[p.id] || 0;
                 const seleccionado = qty > 0;
                 const esKg = ["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase());
+                const esCaja = esProductoCaja(p);
+                const unidadVenta = unidadesVenta[p.id] || (esCaja ? "caja" : "unidad");
                 return (
                   <div
                     key={p.id}
                     className={`producto-card ${seleccionado ? "selected" : ""}`}
                   >
-                    <div className="producto-card-name">{p.nombre}</div>
+                    <div className="producto-card-name">{esCaja && unidadVenta === "unidad" ? `Und. ${p.nombre}` : p.nombre}</div>
                     <div className="producto-card-price">
-                      ${Number(p.precio).toFixed(2)} {esKg ? "/ kg" : `/${p.unidad || "unidad"}`}
+                       ${getPrecioVenta(p).toFixed(2)} {esKg ? "/ kg" : `/${unidadVenta}`}
                     </div>
                     <div className={`producto-card-stock ${p.stock <= (p.stock_minimo || 10) ? "bajo" : ""}`}>
                       Stock: {p.stock}
@@ -639,6 +663,22 @@ export default function VentasPage() {
                         </span>
                       )}
                     </div>
+                    {esCaja && (
+                      <div className="form-group" style={{ margin: "0.5rem 0" }}>
+                        <label style={{ fontSize: "0.78rem" }}>Vender por</label>
+                        <select
+                          value={unidadVenta}
+                          onChange={(e) => {
+                            setUnidadesVenta((prev) => ({ ...prev, [p.id]: e.target.value }));
+                            setCantidades((prev) => ({ ...prev, [p.id]: 0 }));
+                          }}
+                        >
+                          <option value="caja">Caja</option>
+                          <option value="unidad">Unidad</option>
+                        </select>
+                        <small>1 caja = {p.unidades_por_caja} unidades</small>
+                      </div>
+                    )}
                     <div className="producto-card-qty">
                       <button
                         type="button"
@@ -653,10 +693,10 @@ export default function VentasPage() {
                          step={esKg ? "0.01" : "1"}
                          aria-label={`Cantidad de ${p.nombre}${esKg ? " en kilogramos" : ""}`}
                         min="0"
-                        max={getStockMax(p.id)}
+                         max={getStockMax(p.id)}
                         onChange={(e) => {
                            const val = esKg ? parseFloat(e.target.value) || 0 : parseInt(e.target.value) || 0;
-                           const clamped = Math.max(0, Math.min(val, Number(getStockMax(p.id))));
+                            const clamped = Math.max(0, Math.min(val, Number(getStockMax(p.id))));
                           setCantidades((prev) => ({ ...prev, [p.id]: clamped }));
                         }}
                         disabled={esReparto && !camionSeleccionado}
@@ -1016,7 +1056,12 @@ export default function VentasPage() {
                 return (
                   <div key={p.id} className="resumen-row">
                     <span>
-                      {cantidades[p.id]}{esKg ? " kg" : "x"} {p.nombre}
+                       {cantidades[p.id]}{esKg ? " kg" : ` ${unidadesVenta[p.id] || (esProductoCaja(p) ? "caja" : "unidad")}`} {p.nombre}
+                       {esProductoCaja(p) && unidadesVenta[p.id] === "unidad" && (
+                         <small style={{ display: "block", color: "var(--text-secondary)" }}>
+                           Equivale a {getCantidadUnidades(p)} unidades
+                         </small>
+                       )}
                       {esKg && (
                         <button type="button" className="btn btn-sm btn-secondary" style={{ marginLeft: "0.5rem" }} onClick={() => abrirEdicionPrecio(p)}>
                           Modificar precio

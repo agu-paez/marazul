@@ -43,6 +43,11 @@ const Producto = sequelize.define("Producto", {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true,
   },
+  unidades_por_caja: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: "Cantidad de unidades que contiene una caja",
+  },
   codigo_barras: {
     type: DataTypes.STRING,
     allowNull: true,

@@ -11,7 +11,7 @@ import logger from "./utils/logger.js";
 
 import sequelize from "./config/database.js";
 import "./models/index.js";
-import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, CierreCaja, SalidaCamion } from "./models/index.js";
+import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, CierreCaja, SalidaCamion, SalidaCamionItem } from "./models/index.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import proveedorRoutes from "./routes/proveedorRoutes.js";
@@ -172,7 +172,14 @@ const start = async () => {
     await ensureColumn(Proveedor, "diferencia_acumulada", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Producto, "costo", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(Producto, "excluir_de_lista_pdf", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+    await ensureColumn(Producto, "unidades_por_caja", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(VentaItem, "costo_unitario", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(VentaItem, "unidad_venta", { type: DataTypes.STRING, allowNull: false, defaultValue: "unidad" });
+    await ensureColumn(VentaItem, "unidades_por_caja", { type: DataTypes.INTEGER, allowNull: true });
+    await ensureColumn(VentaItem, "cantidad_unidades", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(SalidaCamionItem, "unidades_por_caja", { type: DataTypes.INTEGER, allowNull: true });
+    await ensureColumn(SalidaCamionItem, "cantidad_unidades", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(SalidaCamionItem, "cantidad_devuelta_unidades", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_combustible", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_otros", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "descripcion_otros_gastos", { type: DataTypes.TEXT, allowNull: true });

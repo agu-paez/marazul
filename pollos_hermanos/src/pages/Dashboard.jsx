@@ -104,15 +104,17 @@ export default function Dashboard() {
       const items = (salida.SalidaCamionItems || []).map((item) => {
         const stock = stockMap[item.productoId];
         const vendido = stock ? stock.vendido : 0;
-        const maxDevolver = item.cantidad - vendido;
+        const maxDevolver = stock ? Number(stock.disponible) : item.cantidad - vendido;
         return {
           productoId: item.productoId,
           nombre: item.Producto?.nombre,
-          precio_unitario: parseFloat(item.precio_unitario),
-          cantidad_enviada: item.cantidad,
+          precio_unitario: String(item.Producto?.unidad || "").toLowerCase() === "caja" && Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) > 0
+            ? parseFloat(item.precio_unitario) / Number(item.unidades_por_caja || item.Producto.unidades_por_caja)
+            : parseFloat(item.precio_unitario),
+          cantidad_enviada: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : item.cantidad * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
           cantidad_vendida: vendido,
           max_devolver: maxDevolver,
-          cantidad_regreso: item.cantidad_devuelta || 0,
+          cantidad_regreso: Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : (item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
         };
       });
       setItemsRegreso(items);
@@ -151,7 +153,7 @@ export default function Dashboard() {
     try {
       const items_para_enviar = itemsRegreso.map((item) => ({
         productoId: item.productoId,
-        cantidad: item.cantidad_regreso,
+        cantidad_unidades: item.cantidad_regreso,
       }));
       await salidasAPI.registrarRegreso(regresando.id, {
         items_regreso: items_para_enviar,
@@ -174,7 +176,7 @@ export default function Dashboard() {
     try {
       const items_para_enviar = itemsRegreso.map((item) => ({
         productoId: item.productoId,
-        cantidad: item.cantidad_regreso,
+        cantidad_unidades: item.cantidad_regreso,
       }));
 
        await salidasAPI.registrarRegreso(regresando.id, {
@@ -424,10 +426,10 @@ export default function Dashboard() {
                   <tr>
                     <th>Producto</th>
                     <th>Precio Unit.</th>
-                    <th>Cargados</th>
-                    <th>Vendidos</th>
-                    <th>Max. Devolver</th>
-                    <th>Regresan</th>
+                    <th>Cargados (unid.)</th>
+                    <th>Vendidos (unid.)</th>
+                    <th>Max. devolver (unid.)</th>
+                    <th>Regresan (unid.)</th>
                     <th>Subtotal</th>
                   </tr>
                 </thead>

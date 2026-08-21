@@ -29,6 +29,7 @@ export default function ProductosPage() {
     marcaId: "",
     codigo_barras: "",
     kg_por_caja: "",
+    unidades_por_caja: "",
     excluir_de_lista_pdf: false,
   });
 
@@ -62,6 +63,7 @@ export default function ProductosPage() {
         marcaId: form.marcaId ? parseInt(form.marcaId) : null,
         codigo_barras: form.codigo_barras.trim() || null,
         kg_por_caja: form.kg_por_caja === "" ? null : parseFloat(form.kg_por_caja),
+        unidades_por_caja: form.unidades_por_caja === "" ? null : parseInt(form.unidades_por_caja),
         excluir_de_lista_pdf: form.excluir_de_lista_pdf,
       };
       if (editing) {
@@ -71,7 +73,7 @@ export default function ProductosPage() {
       }
       setShowForm(false);
       setEditing(null);
-      setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false });
+      setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", unidades_por_caja: "", excluir_de_lista_pdf: false });
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -89,6 +91,7 @@ export default function ProductosPage() {
       marcaId: producto.Marca?.id || "",
       codigo_barras: producto.codigo_barras || "",
       kg_por_caja: producto.kg_por_caja ?? "",
+      unidades_por_caja: producto.unidades_por_caja ?? "",
       excluir_de_lista_pdf: Boolean(producto.excluir_de_lista_pdf),
     });
     setShowForm(true);
@@ -178,7 +181,7 @@ export default function ProductosPage() {
             onClick={() => {
               setShowForm(!showForm);
               setEditing(null);
-                setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false });
+                setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", unidades_por_caja: "", excluir_de_lista_pdf: false });
             }}
           >
             {showForm ? "Cancelar" : "+ Nuevo Producto"}
@@ -426,6 +429,20 @@ export default function ProductosPage() {
                 placeholder="Ej: 15"
               />
             </div>
+            {String(form.unidad).toLowerCase() === "caja" && (
+              <div className="form-group">
+                <label>Unidades por Caja *</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.unidades_por_caja}
+                  onChange={(e) => setForm({ ...form, unidades_por_caja: e.target.value })}
+                  placeholder="Ej: 12"
+                  required
+                />
+              </div>
+            )}
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
@@ -467,6 +484,7 @@ export default function ProductosPage() {
               <th>Costo</th>
               <th>Stock</th>
               <th>Unidad</th>
+              <th>Contenido</th>
               <th>Marca</th>
               <th>Acciones</th>
             </tr>
@@ -480,6 +498,7 @@ export default function ProductosPage() {
                 <td>${Number(p.costo || 0).toFixed(2)}</td>
                 <td>{p.stock}</td>
                 <td>{p.unidad}</td>
+                <td>{String(p.unidad).toLowerCase() === "caja" && p.unidades_por_caja ? `${p.unidades_por_caja} unidades/caja` : "-"}</td>
                 <td>{p.Marca?.nombre || "-"}</td>
                 <td>
                    <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: "0.35rem" }}>

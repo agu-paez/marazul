@@ -184,7 +184,7 @@ export default function HistorialVentasPage() {
                     <div className="badge-grid">
                       {v.VentaItems?.map((item) => (
                         <span key={item.id} className="badge">
-                          {item.cantidad}x {item.Producto?.nombre}
+                           {item.cantidad} {item.unidad_venta || item.Producto?.unidad || "unidad"} ({item.cantidad_unidades || item.cantidad} und.) {item.Producto?.nombre}
                         </span>
                       ))}
                     </div>

@@ -2,6 +2,10 @@ import { Venta, VentaItem, VentaPago, Producto, User, Cliente, ClientePago, Cier
 import { Op } from "sequelize";
 import { getFechaLocal } from "../utils/fecha.js";
 
+const esCaja = (producto) => String(producto?.unidad || "").toLowerCase() === "caja";
+const getUnidadesPorCaja = (producto) => esCaja(producto) && Number(producto.unidades_por_caja) > 0 ? Number(producto.unidades_por_caja) : 1;
+const normalizarUnidadVenta = (producto, unidadVenta) => esCaja(producto) && unidadVenta === "caja" ? "caja" : "unidad";
+
 const generarNumeroComprobante = async () => {
   const today = getFechaLocal();
   const count = await Venta.count({
@@ -72,17 +76,23 @@ export const crearVenta = async (req, res) => {
 
       const ventasExistentes = await Venta.findAll({
         where: { salidaCamionId: salidaCamion.id, estado: "completada" },
-        include: [{ model: VentaItem, attributes: ["productoId", "cantidad"] }],
+          include: [{ model: VentaItem, attributes: ["productoId", "cantidad", "cantidad_unidades", "unidades_por_caja"] }],
       });
 
       const stockCamion = {};
       for (const item of salidaCamion.SalidaCamionItems) {
-        stockCamion[item.productoId] = item.cantidad - (item.cantidad_devuelta || 0);
+        const producto = await Producto.findByPk(item.productoId);
+        const factor = Number(item.unidades_por_caja) > 0 ? Number(item.unidades_por_caja) : getUnidadesPorCaja(producto);
+        const cargado = Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * factor;
+        const devuelto = Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * factor;
+        stockCamion[item.productoId] = (stockCamion[item.productoId] || 0) + cargado - devuelto;
       }
       for (const v of ventasExistentes) {
         for (const vi of v.VentaItems) {
           if (stockCamion[vi.productoId] !== undefined) {
-            stockCamion[vi.productoId] -= vi.cantidad;
+            const producto = await Producto.findByPk(vi.productoId);
+            const factor = Number(vi.unidades_por_caja) > 0 ? Number(vi.unidades_por_caja) : getUnidadesPorCaja(producto);
+            stockCamion[vi.productoId] -= Number(vi.cantidad_unidades) > 0 ? Number(vi.cantidad_unidades) : Number(vi.cantidad) * factor;
           }
         }
       }
@@ -97,10 +107,16 @@ export const crearVenta = async (req, res) => {
         if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo && !Number.isInteger(cantidad))) {
           return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
         }
+        const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
+        const factor = getUnidadesPorCaja(producto);
+        if (esCaja(producto) && (!Number.isInteger(Number(producto.unidades_por_caja)) || Number(producto.unidades_por_caja) <= 0)) {
+          return res.status(400).json({ message: `El producto "${producto.nombre}" no tiene configuradas sus unidades por caja` });
+        }
+        const cantidadUnidades = unidadVenta === "caja" ? cantidad * factor : cantidad;
         const disp = stockCamion[item.productoId] || 0;
-        if (disp < cantidad) {
+        if (disp < cantidadUnidades) {
           return res.status(400).json({
-            message: `Stock insuficiente en camion "${salidaCamion.camion}" para "${producto.nombre}": disponible ${disp}, solicitado ${item.cantidad}`,
+            message: `Stock insuficiente en camion "${salidaCamion.camion}" para "${producto.nombre}": disponible ${disp} unidades, solicitado ${cantidadUnidades}`,
           });
         }
       }
@@ -115,9 +131,16 @@ export const crearVenta = async (req, res) => {
         if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo && !Number.isInteger(cantidad))) {
           return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
         }
-        if (producto.stock < cantidad) {
+        const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
+        const factor = getUnidadesPorCaja(producto);
+        if (esCaja(producto) && (!Number.isInteger(Number(producto.unidades_por_caja)) || Number(producto.unidades_por_caja) <= 0)) {
+          return res.status(400).json({ message: `El producto "${producto.nombre}" no tiene configuradas sus unidades por caja` });
+        }
+        const cantidadUnidades = unidadVenta === "caja" ? cantidad * factor : cantidad;
+        const cantidadStock = esCaja(producto) ? cantidadUnidades / factor : cantidadUnidades;
+        if (producto.stock < cantidadStock) {
           return res.status(400).json({
-            message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${item.cantidad}`,
+            message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${cantidadStock}`,
           });
         }
       }
@@ -131,9 +154,11 @@ export const crearVenta = async (req, res) => {
       if (esKilogramo && item.precio_unitario !== undefined && (!Number.isFinite(precioPersonalizado) || precioPersonalizado <= 0)) {
         return res.status(400).json({ message: `El precio de "${producto.nombre}" no es válido` });
       }
+      const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
+      const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : Number(producto.precio);
       const precioUnitario = esKilogramo && Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
         ? precioPersonalizado
-        : parseFloat(producto.precio);
+        : precioBase;
       subtotalCalc += precioUnitario * Number(item.cantidad);
     }
 
@@ -260,18 +285,23 @@ export const crearVenta = async (req, res) => {
         productoId: item.productoId,
          cantidad: Number(item.cantidad),
         precio_unitario: precioUnitario,
-        costo_unitario: parseFloat(producto.costo) || 0,
+        costo_unitario: (parseFloat(producto.costo) || 0) / (esCaja(producto) && unidadVenta === "unidad" ? getUnidadesPorCaja(producto) : 1),
+        unidad_venta: unidadVenta,
+        unidades_por_caja: esCaja(producto) ? getUnidadesPorCaja(producto) : null,
+        cantidad_unidades: Number(item.cantidad) * (unidadVenta === "caja" ? getUnidadesPorCaja(producto) : 1),
       });
       if (!esReparto) {
-         await producto.update({ stock: parseFloat(producto.stock) - Number(item.cantidad) });
+         const factor = getUnidadesPorCaja(producto);
+         const cantidadStock = esCaja(producto) ? Number(item.cantidad) * (unidadVenta === "caja" ? 1 : 1 / factor) : Number(item.cantidad);
+         await producto.update({ stock: parseFloat(producto.stock) - cantidadStock });
       }
     }
 
     const ventaCompleta = await Venta.findByPk(venta.id, {
       include: [
         {
-          model: VentaItem,
-          include: [{ model: Producto, attributes: ["id", "nombre", "precio"] }],
+           model: VentaItem,
+           include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja"] }],
         },
         { model: VentaPago },
         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
@@ -331,8 +361,8 @@ export const getVentas = async (req, res) => {
       where,
       include: [
         {
-          model: VentaItem,
-          include: [{ model: Producto, attributes: ["id", "nombre", "precio"] }],
+         model: VentaItem,
+         include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja"] }],
         },
         { model: VentaPago },
         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
@@ -450,8 +480,10 @@ export const deleteVenta = async (req, res) => {
     for (const item of venta.VentaItems) {
       if (!venta.salidaCamionId) {
         const prod = await Producto.findByPk(item.productoId);
-        if (prod) {
-          await prod.update({ stock: prod.stock + item.cantidad });
+         if (prod) {
+           const factor = getUnidadesPorCaja(prod);
+           const unidades = Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * factor;
+           await prod.update({ stock: Number(prod.stock) + unidades / factor });
         }
       }
     }
