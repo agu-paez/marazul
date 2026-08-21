@@ -1055,8 +1055,22 @@ export default function VentasPage() {
                 const esKg = esProductoKg(p);
                 return (
                   <div key={p.id} className="resumen-row">
-                    <span>
+                     <span>
                        {cantidades[p.id]}{esKg ? " kg" : ` ${unidadesVenta[p.id] || (esProductoCaja(p) ? "caja" : "unidad")}`} {p.nombre}
+                       {esProductoCaja(p) && (
+                         <select
+                           value={unidadesVenta[p.id] || "caja"}
+                           onChange={(e) => {
+                             setUnidadesVenta((prev) => ({ ...prev, [p.id]: e.target.value }));
+                             setCantidades((prev) => ({ ...prev, [p.id]: 0 }));
+                           }}
+                           style={{ marginLeft: "0.5rem", width: "auto", minWidth: "95px", padding: "0.2rem 0.35rem" }}
+                           aria-label={`Unidad de venta de ${p.nombre}`}
+                         >
+                           <option value="caja">Caja</option>
+                           <option value="unidad">Unidad</option>
+                         </select>
+                       )}
                        {esProductoCaja(p) && unidadesVenta[p.id] === "unidad" && (
                          <small style={{ display: "block", color: "var(--text-secondary)" }}>
                            Equivale a {getCantidadUnidades(p)} unidades
