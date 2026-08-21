@@ -1253,9 +1253,10 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
       ventasItems.push({
         comprobante: v.numero_comprobante,
         cliente: v.cliente?.nombre || v.cliente_nombre || "-",
-        producto: vi.Producto?.nombre || "N/A",
-        cantidad: vi.cantidad,
-        precio: parseFloat(vi.precio_unitario),
+         producto: vi.Producto?.nombre || "N/A",
+         cantidad: vi.cantidad,
+         modalidad: String(vi.unidad_venta || (String(vi.Producto?.unidad || "").toLowerCase() === "caja" ? "caja" : "unidad")).toLowerCase() === "caja" ? "Caja" : "Unidad",
+         precio: parseFloat(vi.precio_unitario),
         subtotal: vi.cantidad * parseFloat(vi.precio_unitario),
       });
     }
@@ -1263,13 +1264,14 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
   const totalVentas = ventasItems.reduce((s, r) => s + r.subtotal, 0);
 
   drawSimpleTable(
-    ["Comprobante", "Cliente", "Producto", "Cant.", "P.Unit.", "Subtotal"],
-    [38, 28, cw - 38 - 28 - 22 - 26 - 28, 22, 26, 28],
+    ["Comprobante", "Cliente", "Producto", "Venta", "Cant.", "P.Unit.", "Subtotal"],
+    [32, 26, cw - 32 - 26 - 30 - 20 - 25 - 28, 30, 20, 25, 28],
     [
       (r) => r.comprobante,
-      (r) => r.cliente,
-      (r) => r.producto,
-      (r) => r.cantidad,
+       (r) => r.cliente,
+       (r) => r.producto,
+       (r) => r.modalidad,
+       (r) => r.cantidad,
       (r) => `$${r.precio.toFixed(2)}`,
       (r) => `$${r.subtotal.toFixed(2)}`,
     ],
