@@ -1057,7 +1057,7 @@ export default function VentasPage() {
                 return (
                   <div key={p.id} className="resumen-row">
                      <span>
-                       {cantidades[p.id]}{esKg ? " kg" : ` ${unidadesVenta[p.id] || (esProductoCaja(p) ? "caja" : "unidad")}`} {p.nombre}
+                       {cantidades[p.id]}{esKg ? " kg" : ""} {p.nombre}
                       {esKg && (
                         <button type="button" className="btn btn-sm btn-secondary" style={{ marginLeft: "0.5rem" }} onClick={() => abrirEdicionPrecio(p)}>
                           Modificar precio
