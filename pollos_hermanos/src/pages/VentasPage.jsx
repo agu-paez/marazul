@@ -664,9 +664,10 @@ export default function VentasPage() {
                       )}
                     </div>
                     {esCaja && (
-                      <div className="form-group" style={{ margin: "0.5rem 0" }}>
-                        <label style={{ fontSize: "0.78rem" }}>Vender por</label>
+                      <div className="venta-unidad-control">
+                        <label>Vender por</label>
                         <select
+                          className="venta-unidad-select"
                           value={unidadVenta}
                           onChange={(e) => {
                             setUnidadesVenta((prev) => ({ ...prev, [p.id]: e.target.value }));
@@ -676,7 +677,7 @@ export default function VentasPage() {
                           <option value="caja">Caja</option>
                           <option value="unidad">Unidad</option>
                         </select>
-                        <small>1 caja = {p.unidades_por_caja} unidades</small>
+                        <small>{p.unidades_por_caja} unidades por caja</small>
                       </div>
                     )}
                     <div className="producto-card-qty">
@@ -1057,25 +1058,6 @@ export default function VentasPage() {
                   <div key={p.id} className="resumen-row">
                      <span>
                        {cantidades[p.id]}{esKg ? " kg" : ` ${unidadesVenta[p.id] || (esProductoCaja(p) ? "caja" : "unidad")}`} {p.nombre}
-                       {esProductoCaja(p) && (
-                         <select
-                           value={unidadesVenta[p.id] || "caja"}
-                           onChange={(e) => {
-                             setUnidadesVenta((prev) => ({ ...prev, [p.id]: e.target.value }));
-                             setCantidades((prev) => ({ ...prev, [p.id]: 0 }));
-                           }}
-                           style={{ marginLeft: "0.5rem", width: "auto", minWidth: "95px", padding: "0.2rem 0.35rem" }}
-                           aria-label={`Unidad de venta de ${p.nombre}`}
-                         >
-                           <option value="caja">Caja</option>
-                           <option value="unidad">Unidad</option>
-                         </select>
-                       )}
-                       {esProductoCaja(p) && unidadesVenta[p.id] === "unidad" && (
-                         <small style={{ display: "block", color: "var(--text-secondary)" }}>
-                           Equivale a {getCantidadUnidades(p)} unidades
-                         </small>
-                       )}
                       {esKg && (
                         <button type="button" className="btn btn-sm btn-secondary" style={{ marginLeft: "0.5rem" }} onClick={() => abrirEdicionPrecio(p)}>
                           Modificar precio
@@ -1151,10 +1133,13 @@ export default function VentasPage() {
 
         {productoPrecioEditando && (
           <div className="modal-overlay" onClick={() => setProductoPrecioEditando(null)}>
-            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-              <h3>Modificar precio</h3>
-              <p>{productoPrecioEditando.nombre}</p>
-              <div className="form-group">
+             <div className="modal-card precio-venta-modal" onClick={(e) => e.stopPropagation()}>
+               <div className="precio-venta-heading">
+                 <span className="modal-eyebrow">Precio especial</span>
+                 <h3>Modificar precio</h3>
+                 <p>{productoPrecioEditando.nombre}</p>
+               </div>
+               <div className="form-group">
                 <label htmlFor="precio-unitario-kg">Precio unitario por kilogramo</label>
                 <input
                   id="precio-unitario-kg"
@@ -1167,8 +1152,8 @@ export default function VentasPage() {
                 />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setProductoPrecioEditando(null)}>Cancelar</button>
-                <button type="button" className="btn btn-primary" onClick={guardarPrecioPersonalizado}>Guardar precio</button>
+                   <button type="button" className="btn btn-secondary" onClick={() => setProductoPrecioEditando(null)}>Cancelar</button>
+                   <button type="button" className="btn btn-primary precio-guardar-btn" onClick={guardarPrecioPersonalizado}>Guardar precio</button>
               </div>
             </div>
           </div>
