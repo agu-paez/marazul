@@ -104,6 +104,7 @@ export const ventasAPI = {
   getById: (id) => API.get(`/ventas/${id}`),
   create: (data) => API.post("/ventas", data),
   delete: (id) => API.delete(`/ventas/${id}`),
+  modificarPago: (id, data) => API.put(`/ventas/${id}/pago`, data),
   getStats: () => API.get("/ventas/stats"),
 };
 

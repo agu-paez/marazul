@@ -53,13 +53,10 @@ export const getLowStock = async (req, res) => {
 
 export const createProducto = async (req, res) => {
   try {
-    const { nombre, descripcion, precio, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, unidades_por_caja, excluir_de_lista_pdf } = req.body;
+    const { nombre, descripcion, precio, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, excluir_de_lista_pdf } = req.body;
 
     if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio)) || !Number.isFinite(Number(costo)) || Number(costo) < 0) {
       return res.status(400).json({ message: "Nombre, precio y costo valido son requeridos" });
-    }
-    if (String(unidad || "").toLowerCase() === "caja" && (!Number.isInteger(Number(unidades_por_caja)) || Number(unidades_por_caja) <= 0)) {
-      return res.status(400).json({ message: "Indique cuantas unidades trae cada caja" });
     }
 
     const marca = marcaId ? await Marca.findByPk(marcaId) : null;
@@ -77,7 +74,6 @@ export const createProducto = async (req, res) => {
       marcaId: marca ? marca.id : null,
       codigo_barras: codigo_barras?.trim() || null,
       kg_por_caja: Number.isFinite(Number(kg_por_caja)) ? Number(kg_por_caja) : null,
-      unidades_por_caja: Number.isInteger(Number(unidades_por_caja)) && Number(unidades_por_caja) > 0 ? Number(unidades_por_caja) : null,
       excluir_de_lista_pdf: Boolean(excluir_de_lista_pdf),
     });
 
@@ -98,12 +94,7 @@ export const updateProducto = async (req, res) => {
     if (data.costo !== undefined && (!Number.isFinite(Number(data.costo)) || Number(data.costo) < 0)) {
       return res.status(400).json({ message: "El costo no es valido" });
     }
-    const unidadActualizada = data.unidad ?? producto.unidad;
-    const unidadesPorCaja = data.unidades_por_caja ?? producto.unidades_por_caja;
-    if (String(unidadActualizada || "").toLowerCase() === "caja" && (!Number.isInteger(Number(unidadesPorCaja)) || Number(unidadesPorCaja) <= 0)) {
-      return res.status(400).json({ message: "Indique cuantas unidades trae cada caja" });
-    }
-    if (data.unidades_por_caja !== undefined) data.unidades_por_caja = data.unidades_por_caja === "" ? null : Number(data.unidades_por_caja);
+    delete data.unidades_por_caja;
     if (data.marcaId !== undefined) {
       const marca = data.marcaId ? await Marca.findByPk(data.marcaId) : null;
       if (data.marcaId && !marca) {

@@ -14,6 +14,9 @@ export default function HistorialVentasPage() {
   const [clienteDetalle, setClienteDetalle] = useState(null);
   const [clienteDetalleLoading, setClienteDetalleLoading] = useState(false);
   const [clienteDetalleError, setClienteDetalleError] = useState("");
+  const [ventaPagoEditando, setVentaPagoEditando] = useState(null);
+  const [pagosEditados, setPagosEditados] = useState([]);
+  const [guardandoPago, setGuardandoPago] = useState(false);
   const [filtros, setFiltros] = useState({
     fecha: "",
     buscar: "",
@@ -64,6 +67,32 @@ export default function HistorialVentasPage() {
       alert("Error: " + (error.response?.data?.message || error.message));
     }
   };
+
+  const abrirEditarPago = (venta) => {
+    const pagos = venta.VentaPagos?.length
+      ? venta.VentaPagos.map((pago) => ({ medio_pago: pago.medio_pago, monto: String(pago.monto) }))
+      : [{ medio_pago: venta.medio_pago, monto: String(venta.total) }];
+    setVentaPagoEditando(venta);
+    setPagosEditados(pagos);
+  };
+
+  const guardarPago = async (e) => {
+    e.preventDefault();
+    setGuardandoPago(true);
+    try {
+      await ventasAPI.modificarPago(ventaPagoEditando.id, {
+        pagos: pagosEditados.map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0 })),
+      });
+      setVentaPagoEditando(null);
+      await loadVentas();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    } finally {
+      setGuardandoPago(false);
+    }
+  };
+
+  const totalPagosEditados = pagosEditados.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
 
   const abrirDetalleCliente = async (venta) => {
     const cliente = venta.cliente;
@@ -170,6 +199,11 @@ export default function HistorialVentasPage() {
                       >
                         PDF
                       </button>
+                      {user?.role === "admin" && (
+                        <button className="btn btn-sm btn-secondary" onClick={() => abrirEditarPago(v)}>
+                          Modificar pago
+                        </button>
+                      )}
                       {(user?.role === "admin") && (
                         <button
                           className="btn btn-sm btn-cancel"
@@ -179,6 +213,9 @@ export default function HistorialVentasPage() {
                         </button>
                       )}
                     </div>
+                    {user?.role === "admin" && v.pago_modificado_en && (
+                      <small>Modificado por {v.pago_modificado_por?.nombre || "usuario"} el {new Date(v.pago_modificado_en).toLocaleString("es-AR")}</small>
+                    )}
                   </td>
                   <td>
                     <div className="badge-grid">
@@ -225,6 +262,50 @@ export default function HistorialVentasPage() {
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setClienteDetalle(null)}>Cerrar</button>
             </div>
+          </div>
+        </div>
+      )}
+      {ventaPagoEditando && (
+        <div className="modal-overlay" onClick={() => setVentaPagoEditando(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Modificar pago de {ventaPagoEditando.numero_comprobante}</h3>
+            <p className="subtitle">Total esperado: ${((Number(ventaPagoEditando.total) || 0) + (Number(ventaPagoEditando.monto_deuda_pagado) || 0)).toFixed(2)}</p>
+            <form onSubmit={guardarPago}>
+              {pagosEditados.map((pago, index) => (
+                <div className="item-row" key={index} style={{ marginBottom: "0.5rem" }}>
+                  <select
+                    value={pago.medio_pago}
+                    onChange={(e) => setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, medio_pago: e.target.value } : item))}
+                  >
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="cuenta_corriente">Cuenta Corriente</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={pago.monto}
+                    onChange={(e) => setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, monto: e.target.value } : item))}
+                    required
+                  />
+                  {pagosEditados.length > 1 && (
+                    <button type="button" className="btn btn-sm btn-cancel" onClick={() => setPagosEditados((prev) => prev.filter((_, i) => i !== index))}>X</button>
+                  )}
+                </div>
+              ))}
+              <button type="button" className="btn btn-secondary" onClick={() => setPagosEditados((prev) => [...prev, { medio_pago: "efectivo", monto: "0" }])}>+ Agregar medio</button>
+              <div className="resumen-row" style={{ marginTop: "1rem" }}>
+                <span>Total ingresado:</span>
+                <strong>${totalPagosEditados.toFixed(2)}</strong>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => setVentaPagoEditando(null)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={guardandoPago}>Guardar pago</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

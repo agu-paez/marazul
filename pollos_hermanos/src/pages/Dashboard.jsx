@@ -3,19 +3,6 @@ import { salidasAPI, cierreCajaAPI, productosAPI, gastosAPI, pagosEmpleadosAPI, 
 import { useAuth } from "../context/AuthContext";
 import { dinero } from "../utils/numero";
 
-const mostrarCantidadRegreso = (cantidadUnidades, item) => {
-  const factor = Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1;
-  const unidad = String(item.unidad || item.Producto?.unidad || "").toLowerCase();
-  const cantidad = Number(cantidadUnidades || 0);
-  if (["kg", "kilogramo"].includes(unidad)) return `${cantidad.toFixed(2)} kg`;
-  const esCaja = factor > 1;
-  if (!esCaja) return Number.isInteger(cantidad) ? String(cantidad) : cantidad.toFixed(2);
-  const cajas = Math.floor(cantidad / factor);
-  const sueltas = cantidad % factor;
-  return `${cajas} caja${cajas === 1 ? "" : "s"} (${cantidad.toFixed(2).replace(/\.00$/, "")} unid.)${sueltas ? ` + ${sueltas} sueltas` : ""}`;
-};
-const redondearDos = (valor) => Math.round((Number(valor) + Number.EPSILON) * 100) / 100;
-
 export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -117,21 +104,15 @@ export default function Dashboard() {
       const items = (salida.SalidaCamionItems || []).map((item) => {
         const stock = stockMap[item.productoId];
         const vendido = stock ? stock.vendido : 0;
-        const maxDevolver = stock ? Number(stock.disponible) : item.cantidad - vendido;
+        const maxDevolver = item.cantidad - vendido;
         return {
           productoId: item.productoId,
           nombre: item.Producto?.nombre,
-          unidad: item.Producto?.unidad,
-          precio_unitario: String(item.Producto?.unidad || "").toLowerCase() === "caja" && Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) > 0
-            ? parseFloat(item.precio_unitario) / Number(item.unidades_por_caja || item.Producto.unidades_por_caja)
-            : parseFloat(item.precio_unitario),
-          cantidad_enviada: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : item.cantidad * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
+          precio_unitario: parseFloat(item.precio_unitario),
+          cantidad_enviada: item.cantidad,
           cantidad_vendida: vendido,
-          unidades_por_caja: item.unidades_por_caja || item.Producto?.unidades_por_caja || null,
-          max_devolver: redondearDos(maxDevolver),
-          cantidad_regreso: redondearDos(Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : (item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)),
-          cajas_regreso: Math.floor((Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : (item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) / (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)),
-          unidades_sueltas_regreso: (Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : (item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) % (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
+          max_devolver: maxDevolver,
+          cantidad_regreso: item.cantidad_devuelta || 0,
         };
       });
       setItemsRegreso(items);
@@ -142,24 +123,8 @@ export default function Dashboard() {
 
   const handleCantidadRegreso = (index, value) => {
     const newItems = [...itemsRegreso];
-    const esKg = ["kg", "kilogramo"].includes(String(newItems[index].unidad || "").toLowerCase());
-    const cant = esKg ? redondearDos(parseFloat(value) || 0) : parseInt(value, 10) || 0;
+    const cant = parseInt(value) || 0;
     newItems[index].cantidad_regreso = Math.min(cant, newItems[index].max_devolver);
-    setItemsRegreso(newItems);
-  };
-
-  const handleCajaRegreso = (index, campo, value) => {
-    const newItems = [...itemsRegreso];
-    const factor = Number(newItems[index].unidades_por_caja) || 1;
-    const max = Number(newItems[index].max_devolver) || 0;
-    const valor = Math.max(0, parseInt(value, 10) || 0);
-    let cajas = campo === "cajas_regreso" ? valor : Number(newItems[index].cajas_regreso) || 0;
-    let sueltas = campo === "unidades_sueltas_regreso" ? valor : Number(newItems[index].unidades_sueltas_regreso) || 0;
-    cajas = Math.min(cajas, Math.floor(max / factor));
-    sueltas = Math.min(sueltas, Math.max(0, Math.min(factor, max - cajas * factor)));
-    newItems[index].cajas_regreso = cajas;
-    newItems[index].unidades_sueltas_regreso = sueltas;
-    newItems[index].cantidad_regreso = cajas * factor + sueltas;
     setItemsRegreso(newItems);
   };
 
@@ -186,7 +151,7 @@ export default function Dashboard() {
     try {
       const items_para_enviar = itemsRegreso.map((item) => ({
         productoId: item.productoId,
-        cantidad_unidades: item.cantidad_regreso,
+        cantidad: item.cantidad_regreso,
       }));
       await salidasAPI.registrarRegreso(regresando.id, {
         items_regreso: items_para_enviar,
@@ -209,7 +174,7 @@ export default function Dashboard() {
     try {
       const items_para_enviar = itemsRegreso.map((item) => ({
         productoId: item.productoId,
-        cantidad_unidades: item.cantidad_regreso,
+        cantidad: item.cantidad_regreso,
       }));
 
        await salidasAPI.registrarRegreso(regresando.id, {
@@ -380,8 +345,7 @@ export default function Dashboard() {
                         <td>{empleado.Role?.nombre || "-"}</td>
                         <td>
                           <input
-                           type="number"
-                           step={["kg", "kilogramo"].includes(String(item.unidad || "").toLowerCase()) ? "0.01" : "1"}
+                            type="number"
                             min="0"
                             step="0.01"
                             value={pagosForm[empleado.id] || ""}
@@ -462,7 +426,7 @@ export default function Dashboard() {
                     <th>Precio Unit.</th>
                     <th>Cargados</th>
                     <th>Vendidos</th>
-                    <th>Max. devolver</th>
+                    <th>Max. Devolver</th>
                     <th>Regresan</th>
                     <th>Subtotal</th>
                   </tr>
@@ -471,26 +435,22 @@ export default function Dashboard() {
                   {itemsRegreso.map((item, index) => (
                     <tr key={item.productoId}>
                       <td><strong>{item.nombre}</strong></td>
-                       <td>${Number(item.precio_unitario).toFixed(2)}</td>
-                       <td>{mostrarCantidadRegreso(item.cantidad_enviada, item)}</td>
+                      <td>${item.precio_unitario}</td>
+                      <td>{item.cantidad_enviada}</td>
                       <td style={{ color: item.cantidad_vendida > 0 ? "var(--primary)" : "inherit", fontWeight: item.cantidad_vendida > 0 ? "bold" : "normal" }}>
-                         {mostrarCantidadRegreso(item.cantidad_vendida, item)}
+                        {item.cantidad_vendida}
                       </td>
-                       <td style={{ fontWeight: "bold" }}>{mostrarCantidadRegreso(item.max_devolver, item)}</td>
-                       <td>
-                         {(Number(item.unidades_por_caja) || 1) > 1 ? (
-                           <div className="regreso-caja-inputs">
-                             <label>Cajas
-                               <input type="number" min="0" value={item.cajas_regreso} onChange={(e) => handleCajaRegreso(index, "cajas_regreso", e.target.value)} className="input-cantidad" />
-                             </label>
-                             <label>Sueltas
-                               <input type="number" min="0" max={Number(item.unidades_por_caja) || 1} value={item.unidades_sueltas_regreso} onChange={(e) => handleCajaRegreso(index, "unidades_sueltas_regreso", e.target.value)} className="input-cantidad" />
-                             </label>
-                           </div>
-                         ) : (
-                           <input type="number" min="0" max={item.max_devolver} value={item.cantidad_regreso} onChange={(e) => handleCantidadRegreso(index, e.target.value)} className="input-cantidad" />
-                         )}
-                       </td>
+                      <td style={{ fontWeight: "bold" }}>{item.max_devolver}</td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          max={item.max_devolver}
+                          value={item.cantidad_regreso}
+                          onChange={(e) => handleCantidadRegreso(index, e.target.value)}
+                          className="input-cantidad"
+                        />
+                      </td>
                       <td style={{ color: "var(--danger)", fontWeight: "bold" }}>
                         ${(item.precio_unitario * item.cantidad_regreso).toFixed(2)}
                       </td>

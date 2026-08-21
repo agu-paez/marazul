@@ -104,6 +104,14 @@ const Venta = sequelize.define("Venta", {
     defaultValue: 0,
     comment: "Porcentaje de aumento aplicado a los precios",
   },
+  pago_modificado_por_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  pago_modificado_en: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
 });
 
 export default Venta;

@@ -154,6 +154,8 @@ const start = async () => {
     await ensureColumn(Venta, "datos_tarjeta", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(Venta, "monto_deuda_pagado", { type: DataTypes.DECIMAL(10, 2), allowNull: true });
     await ensureColumn(Venta, "porcentaje_aumento", { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 });
+    await ensureColumn(Venta, "pago_modificado_por_id", { type: DataTypes.INTEGER, allowNull: true });
+    await ensureColumn(Venta, "pago_modificado_en", { type: DataTypes.DATE, allowNull: true });
     await ensureColumn(Producto, "marcaId", {
       type: DataTypes.INTEGER,
       allowNull: true,

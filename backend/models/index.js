@@ -66,6 +66,8 @@ Venta.hasMany(VentaPago, { foreignKey: "ventaId" });
 
 Venta.belongsTo(User, { foreignKey: "usuarioId", as: "vendedor" });
 User.hasMany(Venta, { foreignKey: "usuarioId" });
+Venta.belongsTo(User, { foreignKey: "pago_modificado_por_id", as: "pago_modificado_por" });
+User.hasMany(Venta, { foreignKey: "pago_modificado_por_id", as: "ventas_pago_modificado" });
 
 Venta.belongsTo(Cliente, { foreignKey: "clienteId", as: "cliente" });
 Cliente.hasMany(Venta, { foreignKey: "clienteId" });

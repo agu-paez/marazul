@@ -1,5 +1,6 @@
 import { Venta, VentaItem, VentaPago, Producto, User, Cliente, ClientePago, CierreCaja, SalidaCamion, SalidaCamionItem } from "../models/index.js";
 import { Op } from "sequelize";
+import sequelize from "../config/database.js";
 import { getFechaLocal } from "../utils/fecha.js";
 
 const esCaja = (producto) => String(producto?.unidad || "").toLowerCase() === "caja";
@@ -374,6 +375,7 @@ export const getVentas = async (req, res) => {
         },
         { model: VentaPago },
         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
+        { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
         { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente"] },
         { model: SalidaCamion, as: "salida_camion", attributes: ["id", "camion"] },
       ],
@@ -396,6 +398,7 @@ export const getVentaById = async (req, res) => {
         },
         { model: VentaPago },
         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
+        { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
         { model: Cliente, as: "cliente" },
         { model: SalidaCamion, as: "salida_camion", attributes: ["id", "camion"] },
       ],
@@ -449,6 +452,92 @@ export const getVentasStats = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Error al obtener estadisticas", error: error.message });
+  }
+};
+
+export const modificarPagoVenta = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { pagos } = req.body;
+    if (!Array.isArray(pagos) || pagos.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Debe indicar al menos un pago" });
+    }
+
+    const venta = await Venta.findByPk(req.params.id, { transaction });
+    if (!venta || venta.estado !== "completada") {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Venta no encontrada" });
+    }
+
+    const cierre = await CierreCaja.findOne({ where: { fecha: venta.fecha }, transaction });
+    if (cierre) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "No se puede modificar el pago: la caja de ese día ya fue cerrada" });
+    }
+
+    const pagosNuevos = pagos.map((pago) => ({
+      medio_pago: pago.medio_pago,
+      monto: Number(pago.monto),
+    }));
+    if (pagosNuevos.some((pago) => !["efectivo", "transferencia", "tarjeta", "cuenta_corriente", "otro"].includes(pago.medio_pago) || !Number.isFinite(pago.monto) || pago.monto < 0)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Los pagos indicados no son válidos" });
+    }
+
+    const totalEsperado = (parseFloat(venta.total) || 0) + (parseFloat(venta.monto_deuda_pagado) || 0);
+    const totalNuevo = pagosNuevos.reduce((sum, pago) => sum + pago.monto, 0);
+    if (Math.abs(totalNuevo - totalEsperado) > 0.01) {
+      await transaction.rollback();
+      return res.status(400).json({ message: `La suma de los pagos ($${totalNuevo.toFixed(2)}) no coincide con el total ($${totalEsperado.toFixed(2)})` });
+    }
+
+    const pagosAnteriores = await VentaPago.findAll({ where: { ventaId: venta.id }, transaction });
+    const creditoAnterior = pagosAnteriores
+      .filter((pago) => pago.medio_pago === "cuenta_corriente")
+      .reduce((sum, pago) => sum + (parseFloat(pago.monto) || 0), 0);
+    const creditoNuevo = pagosNuevos
+      .filter((pago) => pago.medio_pago === "cuenta_corriente")
+      .reduce((sum, pago) => sum + pago.monto, 0);
+
+    if (venta.clienteId && Math.abs(creditoNuevo - creditoAnterior) > 0.01) {
+      const cliente = await Cliente.findByPk(venta.clienteId, { transaction });
+      if (cliente) {
+        const saldo = (parseFloat(cliente.saldo_pendiente) || 0) - (parseFloat(cliente.saldo_favor) || 0) + creditoNuevo - creditoAnterior;
+        await cliente.update({
+          saldo_pendiente: Math.max(0, saldo).toFixed(2),
+          saldo_favor: Math.max(0, -saldo).toFixed(2),
+        }, { transaction });
+      }
+    }
+
+    await VentaPago.destroy({ where: { ventaId: venta.id }, transaction });
+    await VentaPago.bulkCreate(pagosNuevos.map((pago) => ({
+      ventaId: venta.id,
+      medio_pago: pago.medio_pago,
+      monto: pago.monto.toFixed(2),
+    })), { transaction });
+
+    const ahora = new Date();
+    await venta.update({
+      medio_pago: pagosNuevos.length > 1 ? "dividido" : pagosNuevos[0].medio_pago,
+      pago_dividido: pagosNuevos.length > 1,
+      pago_modificado_por_id: req.user.id,
+      pago_modificado_en: ahora,
+    }, { transaction });
+    await transaction.commit();
+
+    const ventaActualizada = await Venta.findByPk(venta.id, {
+      include: [
+        { model: VentaPago },
+        { model: User, as: "vendedor", attributes: ["id", "nombre"] },
+        { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
+      ],
+    });
+    res.json({ message: "Pago de venta actualizado", venta: ventaActualizada });
+  } catch (error) {
+    await transaction.rollback();
+    res.status(500).json({ message: "Error al modificar el pago", error: error.message });
   }
 };
 
