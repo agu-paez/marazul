@@ -1181,11 +1181,11 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
     if (factor <= 1) return Number(valor).toFixed(2);
     const cajas = Math.floor(valor / factor);
     const sueltas = valor % factor;
-    return `${cajas} caja${cajas === 1 ? "" : "s"} (${valor.toFixed(2)} unid.)${sueltas ? ` + ${sueltas} sueltas` : ""}`;
+    return `${cajas} cj. + ${sueltas} u. (${valor.toFixed(2)} total)`;
   };
   drawSimpleTable(
-    ["Producto", "Cantidad / unidades", "P.Unit.", "Subtotal"],
-    [cw - 28 - 26 - 30, 28, 26, 30],
+    ["Producto", "Cant. / und.", "P.Unit.", "Subtotal"],
+    [cw - 54 - 26 - 30, 54, 26, 30],
     [
       (r) => r.Producto?.nombre || "N/A",
       (r) => cantidadEnUnidades(r, "cargado"),
@@ -1199,8 +1199,8 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
   drawSectionTitle("Mercaderia Devuelta");
   const devueltos = enviados.filter((item) => (item.cantidad_devuelta || 0) > 0);
   drawSimpleTable(
-    ["Producto", "Devuelto / unidades", "P.Unit.", "Subtotal"],
-    [cw - 28 - 26 - 30, 28, 26, 30],
+    ["Producto", "Devuelto / und.", "P.Unit.", "Subtotal"],
+    [cw - 54 - 26 - 30, 54, 26, 30],
     [
       (r) => r.Producto?.nombre || "N/A",
       (r) => cantidadEnUnidades(r, "devuelto"),
