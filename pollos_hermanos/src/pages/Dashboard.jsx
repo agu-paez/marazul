@@ -5,9 +5,11 @@ import { dinero } from "../utils/numero";
 
 const mostrarCantidadRegreso = (cantidadUnidades, item) => {
   const factor = Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1;
-  const esCaja = String(item.Producto?.unidad || "").toLowerCase() === "caja" && factor > 1;
-  if (!esCaja) return `${Number(cantidadUnidades || 0).toFixed(2).replace(/\.00$/, "")}`;
+  const unidad = String(item.Producto?.unidad || "").toLowerCase();
   const cantidad = Number(cantidadUnidades || 0);
+  if (["kg", "kilogramo"].includes(unidad)) return `${cantidad.toFixed(2)} kg`;
+  const esCaja = String(item.Producto?.unidad || "").toLowerCase() === "caja" && factor > 1;
+  if (!esCaja) return Number.isInteger(cantidad) ? String(cantidad) : cantidad.toFixed(2);
   const cajas = Math.floor(cantidad / factor);
   const sueltas = cantidad % factor;
   return `${cajas} caja${cajas === 1 ? "" : "s"} (${cantidad.toFixed(2).replace(/\.00$/, "")} unid.)${sueltas ? ` + ${sueltas} sueltas` : ""}`;
@@ -463,9 +465,6 @@ export default function Dashboard() {
                           onChange={(e) => handleCantidadRegreso(index, e.target.value)}
                           className="input-cantidad"
                         />
-                        <small style={{ display: "block", color: "var(--text-muted)", marginTop: "0.2rem" }}>
-                          {mostrarCantidadRegreso(item.cantidad_regreso, item)}
-                        </small>
                       </td>
                       <td style={{ color: "var(--danger)", fontWeight: "bold" }}>
                         ${(item.precio_unitario * item.cantidad_regreso).toFixed(2)}
