@@ -3,8 +3,14 @@ import { Op } from "sequelize";
 import { getFechaLocal } from "../utils/fecha.js";
 
 const esCaja = (producto) => String(producto?.unidad || "").toLowerCase() === "caja";
+const esKilogramo = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
 const getUnidadesPorCaja = (producto) => esCaja(producto) && Number(producto.unidades_por_caja) > 0 ? Number(producto.unidades_por_caja) : 1;
 const normalizarUnidadVenta = (producto, unidadVenta) => esCaja(producto) && unidadVenta === "caja" ? "caja" : "unidad";
+const getPrecioPorKilogramo = (producto) => {
+  const precio = Number(producto.precio);
+  const kgPorCaja = Number(producto.kg_por_caja);
+  return esKilogramo(producto) && kgPorCaja > 0 ? precio / kgPorCaja : precio;
+};
 
 const generarNumeroComprobante = async () => {
   const today = getFechaLocal();
@@ -103,8 +109,7 @@ export const crearVenta = async (req, res) => {
           return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
         }
         const cantidad = Number(item.cantidad);
-        const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
-        if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo && !Number.isInteger(cantidad))) {
+        if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo(producto) && !Number.isInteger(cantidad))) {
           return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
         }
         const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
@@ -127,8 +132,7 @@ export const crearVenta = async (req, res) => {
           return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
         }
         const cantidad = Number(item.cantidad);
-        const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
-        if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo && !Number.isInteger(cantidad))) {
+        if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo(producto) && !Number.isInteger(cantidad))) {
           return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
         }
         const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
@@ -149,14 +153,13 @@ export const crearVenta = async (req, res) => {
     let subtotalCalc = 0;
     for (const item of items) {
       const producto = await Producto.findByPk(item.productoId);
-      const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
       const precioPersonalizado = Number(item.precio_unitario);
-      if (esKilogramo && item.precio_unitario !== undefined && (!Number.isFinite(precioPersonalizado) || precioPersonalizado <= 0)) {
+      if (esKilogramo(producto) && item.precio_unitario !== undefined && (!Number.isFinite(precioPersonalizado) || precioPersonalizado <= 0)) {
         return res.status(400).json({ message: `El precio de "${producto.nombre}" no es válido` });
       }
       const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
-      const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : Number(producto.precio);
-      const precioUnitario = esKilogramo && Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
+      const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : getPrecioPorKilogramo(producto);
+      const precioUnitario = esKilogramo(producto) && Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
         ? precioPersonalizado
         : precioBase;
       subtotalCalc += precioUnitario * Number(item.cantidad);
@@ -279,11 +282,10 @@ export const crearVenta = async (req, res) => {
 
     for (const item of items) {
       const producto = await Producto.findByPk(item.productoId);
-      const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
-      const precioPersonalizado = Number(item.precio_unitario);
-      const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
-      const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : Number(producto.precio);
-      const precioUnitario = esKilogramo && Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
+       const precioPersonalizado = Number(item.precio_unitario);
+       const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
+       const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : getPrecioPorKilogramo(producto);
+       const precioUnitario = esKilogramo(producto) && Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
         ? precioPersonalizado
         : precioBase;
       await VentaItem.create({

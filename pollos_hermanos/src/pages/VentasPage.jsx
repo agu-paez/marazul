@@ -325,7 +325,10 @@ export default function VentasPage() {
   const esProductoCaja = (producto) => String(producto?.unidad || "").toLowerCase() === "caja" && Number(producto?.unidades_por_caja) > 0;
   const getPrecioVenta = (producto) => {
     if (esProductoCaja(producto) && unidadesVenta[producto.id] === "unidad") return Number(producto.precio) / Number(producto.unidades_por_caja);
-    return preciosPersonalizados[producto.id] ?? Number(producto.precio);
+    if (preciosPersonalizados[producto.id] !== undefined) return preciosPersonalizados[producto.id];
+    const kgPorCaja = Number(producto.kg_por_caja);
+    if (esProductoKg(producto) && kgPorCaja > 0) return Number(producto.precio) / kgPorCaja;
+    return Number(producto.precio);
   };
   const getCantidadUnidades = (producto) => {
     const cantidad = Number(cantidades[producto.id] || 0);
