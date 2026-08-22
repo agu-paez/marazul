@@ -1263,7 +1263,9 @@ h2 {
     display: none;
   }
   .producto-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: 200px;
+    max-height: calc(200px * 3 + 0.75rem * 2);
   }
 }
 
@@ -1316,9 +1318,18 @@ h2 {
 
 .producto-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: 210px;
   gap: 0.75rem;
   margin-bottom: 1rem;
+  max-height: calc(210px * 3 + 0.75rem * 2);
+  overflow-y: auto;
+  align-content: start;
+}
+
+.producto-card {
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .venta-unidad-control {
