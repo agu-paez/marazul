@@ -78,6 +78,7 @@ export const salidasAPI = {
   getById: (id) => API.get(`/salidas-camion/${id}`),
   create: (data) => API.post("/salidas-camion", data),
   updateStatus: (id, data) => API.put(`/salidas-camion/${id}/status`, data),
+  reabrir: (id) => API.put(`/salidas-camion/${id}/reabrir`),
   registrarRegreso: (id, data) => API.put(`/salidas-camion/${id}/regreso`, data),
   update: (id, data) => API.put(`/salidas-camion/${id}`, data),
   delete: (id) => API.delete(`/salidas-camion/${id}`),

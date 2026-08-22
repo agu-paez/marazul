@@ -290,6 +290,33 @@ export const registrarRegreso = async (req, res) => {
   }
 };
 
+export const reabrirSalida = async (req, res) => {
+  try {
+    const salida = await SalidaCamion.findByPk(req.params.id);
+    if (!salida) {
+      return res.status(404).json({ message: "Salida no encontrada" });
+    }
+
+    const today = getFechaLocal();
+    if (salida.fecha !== today) {
+      return res.status(400).json({ message: "Solo se puede abrir salidas del dia actual" });
+    }
+
+    if (await checkDayClosed(today)) {
+      return res.status(400).json({ message: "La caja esta cerrada. Primero debe abrir la caja" });
+    }
+
+    if (!["entregado", "sobrante"].includes(salida.estado)) {
+      return res.status(400).json({ message: "Solo se pueden abrir salidas entregadas o con sobrante" });
+    }
+
+    await salida.update({ estado: "en_camino" });
+    res.json({ message: "Salida abierta correctamente. Ya puede seguir operandola", salida });
+  } catch (error) {
+    res.status(500).json({ message: "Error al abrir la salida", error: error.message });
+  }
+};
+
 export const updateSalidaStatus = async (req, res) => {
   try {
     const salida = await SalidaCamion.findByPk(req.params.id, {

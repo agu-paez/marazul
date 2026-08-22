@@ -3,6 +3,9 @@ import { salidasAPI, cierreCajaAPI, productosAPI, gastosAPI, pagosEmpleadosAPI, 
 import { useAuth } from "../context/AuthContext";
 import { dinero } from "../utils/numero";
 
+const getFechaLocal = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
+
 export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -86,6 +89,16 @@ export default function Dashboard() {
   const updateEstado = async (id, estado, notas) => {
     try {
       await salidasAPI.updateStatus(id, { estado, notas });
+      loadData();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleReabrirSalida = async (id) => {
+    if (!confirm("¿Abrir esta salida para volver a operarla? El camion volvera a estar en camino")) return;
+    try {
+      await salidasAPI.reabrir(id);
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -856,6 +869,9 @@ export default function Dashboard() {
                             {s.estado === "pendiente" && <button className="btn btn-sm btn-camino" onClick={() => updateEstado(s.id, "en_camino")}>Enviar</button>}
                             {s.estado === "en_camino" && <button className="btn btn-sm btn-entregado" onClick={() => handleEntregadoClick(s.id)}>Registrar Entrega</button>}
                             {s.estado === "sobrante" && isAdmin && <button className="btn btn-sm btn-editar" onClick={() => openRegresoForm(s, true)}>Editar</button>}
+                            {(s.estado === "entregado" || s.estado === "sobrante") && s.fecha === getFechaLocal() && !resumen?.cerrado && isAdmin && (
+                              <button className="btn btn-sm btn-camino" onClick={() => handleReabrirSalida(s.id)}>Abrir</button>
+                            )}
                             {(s.estado === "pendiente" || s.estado === "en_camino") && <button className="btn btn-sm btn-cancel" onClick={() => { setCancelandoId(s.id); setShowCancelConfirm(true); }}>Cancelar</button>}
                           </div>
                         </td>
