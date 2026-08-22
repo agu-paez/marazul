@@ -1560,7 +1560,8 @@ export const generarHistorialDeudasPDF = async (historial) => {
   }
   for (const pago of historial.pagos || []) {
     const pagoDesdeVenta = String(pago.notas || "").toLowerCase().includes("incluido en venta");
-    movimientos.push({ fecha: `${pago.fecha_pago || pago.fecha} ${pago.hora || ""}`, tipo: "Pago de deuda", operacion: pagoDesdeVenta ? "Pago en ventas" : "Registro de pago de cliente", detalle: pago.medio_pago || "-", monto: Number(pago.monto || 0), signo: "-" });
+    const fechaPago = `${pago.fecha_pago || pago.fecha}${pagoDesdeVenta && pago.hora ? ` ${pago.hora}` : ""}`;
+    movimientos.push({ fecha: fechaPago, tipo: "Pago de deuda", operacion: pagoDesdeVenta ? "Pago en ventas" : "Registro de pago de cliente", detalle: pago.medio_pago || "-", monto: Number(pago.monto || 0), signo: "-" });
   }
   movimientos.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
 
