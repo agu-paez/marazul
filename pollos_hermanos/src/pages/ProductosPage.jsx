@@ -177,7 +177,7 @@ export default function ProductosPage() {
                 className="btn btn-secondary"
                 onClick={() => { setModoAjuste("descuento"); setShowAjuste(true); }}
               >
-                Descuentos
+                Configurar descuentos
               </button>
             </>
           )}
@@ -233,10 +233,17 @@ export default function ProductosPage() {
                 disabled={porcentaje === "" || isNaN(parseFloat(porcentaje))}
                 onClick={async () => {
                   try {
-                    await productosAPI.actualizarPrecios({
-                       porcentaje: modoAjuste === "descuento" ? -Math.abs(parseFloat(porcentaje)) : parseFloat(porcentaje),
-                      marcaId: ajusteMarcaId ? parseInt(ajusteMarcaId) : null,
-                    });
+                    if (modoAjuste === "descuento") {
+                      await productosAPI.actualizarDescuentos({
+                        descuento: parseFloat(porcentaje),
+                        marcaId: ajusteMarcaId ? parseInt(ajusteMarcaId) : null,
+                      });
+                    } else {
+                      await productosAPI.actualizarPrecios({
+                        porcentaje: parseFloat(porcentaje),
+                        marcaId: ajusteMarcaId ? parseInt(ajusteMarcaId) : null,
+                      });
+                    }
                     setShowAjuste(false);
                     setPorcentaje("");
                     setAjusteMarcaId("");

@@ -143,11 +143,11 @@ export default function HistorialCierres() {
 
   const agruparPorProveedor = (pagos) => {
     const grupos = {};
-    for (const pago of pagos) {
-      const key = pago.proveedor?.id || "sin-proveedor";
+    for (const pago of pagos.filter((item) => item.proveedor?.id)) {
+      const key = pago.proveedor.id;
       if (!grupos[key]) {
         grupos[key] = {
-          proveedor: pago.proveedor || { nombre: "Sin Proveedor", alias: null },
+          proveedor: pago.proveedor,
           pagos: [],
         };
       }

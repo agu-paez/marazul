@@ -26,7 +26,7 @@ export default function VentasPage() {
     medio_pago: "efectivo",
     notas: "",
   });
-  const [pagoDividido, setPagoDividido] = useState(false);
+  const [pagoDividido] = useState(true);
   const [pagos, setPagos] = useState([
     { medio_pago: "efectivo", monto: 0 },
   ]);
@@ -42,6 +42,7 @@ export default function VentasPage() {
   const [bancos, setBancos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [preciosPersonalizados, setPreciosPersonalizados] = useState({});
+  const [descuentosAplicados, setDescuentosAplicados] = useState({});
   const [productoPrecioEditando, setProductoPrecioEditando] = useState(null);
   const [precioEditando, setPrecioEditando] = useState("");
 
@@ -187,7 +188,7 @@ export default function VentasPage() {
   };
 
   const addPago = () => {
-    const totalIngresado = pagos.reduce((sum, pago) => sum + (parseFloat(pago.monto) || 0), 0);
+    const totalIngresado = pagos.reduce((sum, pago, index) => sum + (parseFloat(montosEditando[index] ?? pago.monto) || 0), 0);
     const montoRestante = Math.max(0, totalConDeuda - totalIngresado);
     setPagos([...pagos, { medio_pago: "efectivo", monto: montoRestante.toFixed(2) }]);
     setDatosTransferencia([...datosTransferencia, null]);
@@ -294,6 +295,7 @@ export default function VentasPage() {
         id: sc.productoId,
         nombre: sc.nombre,
          precio: sc.precio,
+         descuento: sc.descuento,
          unidad: sc.unidad,
          unidades_por_caja: sc.unidades_por_caja,
         stock: sc.disponible,
@@ -316,7 +318,20 @@ export default function VentasPage() {
   const esProductoKg = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
   const getPrecioVenta = (producto) => {
     if (preciosPersonalizados[producto.id] !== undefined) return preciosPersonalizados[producto.id];
+    if (descuentosAplicados[producto.id]) {
+      return Math.round(Number(producto.precio) * (1 - Number(producto.descuento || 0) / 100) * 100) / 100;
+    }
     return Number(producto.precio);
+  };
+
+  const toggleDescuentoProducto = (producto) => {
+    if (Number(producto.descuento || 0) <= 0) return;
+    setDescuentosAplicados((prev) => ({ ...prev, [producto.id]: !prev[producto.id] }));
+    setPreciosPersonalizados((prev) => {
+      const nuevos = { ...prev };
+      delete nuevos[producto.id];
+      return nuevos;
+    });
   };
   const getCantidadUnidades = (producto) => {
     return Number(cantidades[producto.id] || 0);
@@ -336,6 +351,7 @@ export default function VentasPage() {
     setPreciosPersonalizados((prev) => ({ ...prev, [productoPrecioEditando.id]: precio }));
     setProductoPrecioEditando(null);
   };
+
 
   const calcularSubtotal = () => {
     return productosSeleccionados.reduce((sum, p) => {
@@ -358,7 +374,7 @@ export default function VentasPage() {
   const totalConDeuda = subtotal + montoDeuda;
 
   const totalPagosDivididos = pagoDividido
-    ? pagos.reduce((sum, p) => sum + (parseFloat(p.monto) || 0), 0)
+    ? pagos.reduce((sum, p, index) => sum + (parseFloat(montosEditando[index] ?? p.monto) || 0), 0)
     : 0;
 
   const sumaPagosValida = !pagoDividido || totalPagosDivididos >= totalConDeuda - 0.01;
@@ -403,20 +419,6 @@ export default function VentasPage() {
     } catch (error) {
       alert("Error al crear cliente: " + (error.response?.data?.message || error.message));
     }
-  };
-
-  const togglePagoDividido = () => {
-    if (pagoDividido) {
-      setPagoDividido(false);
-      setPagos([{ medio_pago: "efectivo", monto: 0 }]);
-      setMontosEditando({});
-    } else {
-      setPagoDividido(true);
-      setPagos([{ medio_pago: "efectivo", monto: 0 }]);
-    }
-    setDatosTransferencia([]);
-       setDatosTarjeta([]);
-       setMontosEditando({});
   };
 
   const handleSubmit = async (e) => {
@@ -506,9 +508,9 @@ export default function VentasPage() {
         data.monto_deuda = deudaAnterior;
       }
       if (pagoDividido) {
-        data.pagos = pagos.map((p) => ({
+        data.pagos = pagos.map((p, index) => ({
           medio_pago: p.medio_pago,
-          monto: parseFloat(p.monto) || 0,
+          monto: parseFloat(montosEditando[index] ?? p.monto) || 0,
         }));
       }
       if (esTransferencia) {
@@ -545,12 +547,12 @@ export default function VentasPage() {
         notas: "",
       });
       setClienteNombreIngresado("");
-      setPagoDividido(false);
       setPagos([{ medio_pago: "efectivo", monto: 0 }]);
       setDatosTransferencia([]);
       setDatosTarjeta([]);
       setPagarDeuda(false);
       setPreciosPersonalizados({});
+      setDescuentosAplicados({});
       setProductoPrecioEditando(null);
       setCamionSeleccionado("");
       setStockCamion([]);
@@ -660,6 +662,16 @@ export default function VentasPage() {
                         </span>
                       )}
                     </div>
+                    {Number(p.descuento || 0) > 0 && (
+                      <label style={{ display: "block", margin: "0.35rem 0", fontSize: "0.8rem" }}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(descuentosAplicados[p.id])}
+                          onChange={() => toggleDescuentoProducto(p)}
+                        />{" "}
+                        Aplicar descuento ({Number(p.descuento)}%)
+                      </label>
+                    )}
                     <div className="producto-card-qty">
                       <button
                         type="button"
@@ -780,34 +792,10 @@ export default function VentasPage() {
             </div>
           )}
 
-          <div className="form-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={pagoDividido}
-                onChange={togglePagoDividido}
-                style={{ marginRight: "0.5rem" }}
-              />
-              Pago dividido (multiples medios de pago)
-            </label>
-          </div>
-
-          {!pagoDividido && (
-            <div className="form-group">
-              <label>Medio de Pago *</label>
-              <select name="medio_pago" value={form.medio_pago} onChange={handleChange} required>
-                <option value="efectivo">Efectivo</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="tarjeta">Tarjeta</option>
-                <option value="cuenta_corriente">Cuenta Corriente</option>
-                <option value="otro">Otro</option>
-              </select>
-            </div>
-          )}
-
-          {pagoDividido && (
-            <div className="form-card" style={{ marginTop: "0.5rem" }}>
-              <h3>Medios de Pago</h3>
+          <div className="form-card" style={{ marginTop: "0.5rem" }}>
+            <h3>Medios de Pago</h3>
+            <p className="subtitle">El pago dividido es obligatorio. Agregue medios y el importe restante se completará automáticamente.</p>
+            <div>
               {pagos.map((pago, index) => {
                 const esTrans = pago.medio_pago === "transferencia";
                 const esTarj = pago.medio_pago === "tarjeta";
@@ -945,7 +933,7 @@ export default function VentasPage() {
                 </div>
               )}
             </div>
-          )}
+          </div>
 
           {esTransferencia && !pagoDividido && (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f0f7ff", borderRadius: "6px", borderLeft: "3px solid #3498db" }}>

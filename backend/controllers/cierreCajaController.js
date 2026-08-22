@@ -667,7 +667,11 @@ export const getPagosHoy = async (req, res) => {
       });
     }
 
-    res.json(pagos);
+    // Este endpoint alimenta las tablas de proveedores, no el detalle contable
+    // del cierre. Solo deben aparecer pagos bancarios vinculados a un proveedor.
+    res.json(pagos.filter((pago) =>
+      pago.proveedor?.id && ["Transferencia", "Tarjeta"].includes(pago.tipo)
+    ));
   } catch (error) {
     res.status(500).json({ message: "Error al obtener pagos del dia", error: error.message });
   }

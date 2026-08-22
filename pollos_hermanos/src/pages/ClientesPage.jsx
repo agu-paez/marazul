@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { clientesAPI } from "../api";
+import { clientesAPI, bancosAPI, proveedoresAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { generarResumenZonasPDF } from "../utils/generarPDF";
 import { dinero, parseNumero } from "../utils/numero";
@@ -25,6 +25,8 @@ export default function ClientesPage() {
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [clientePago, setClientePago] = useState(null);
   const [pagosCC, setPagosCC] = useState([{ medio_pago: "efectivo", monto: 0 }]);
+  const [bancos, setBancos] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
   const [fechaPagoCC, setFechaPagoCC] = useState(getFechaLocal());
   const [showDeudaModal, setShowDeudaModal] = useState(false);
   const [clienteDeuda, setClienteDeuda] = useState(null);
@@ -33,6 +35,12 @@ export default function ClientesPage() {
 
   useEffect(() => {
     loadClientes();
+    Promise.all([bancosAPI.getAll(), proveedoresAPI.getAll()])
+      .then(([bancosRes, proveedoresRes]) => {
+        setBancos(bancosRes.data.map((banco) => banco.nombre));
+        setProveedores(proveedoresRes.data);
+      })
+      .catch((error) => console.error("Error al cargar datos bancarios:", error));
   }, []);
 
   const loadClientes = async () => {
@@ -138,13 +146,46 @@ export default function ClientesPage() {
       alert("El monto del pago no es valido");
       return;
     }
+    const pagoBancarioInvalido = pagosCC.some((pago) => {
+      if (!["transferencia", "tarjeta"].includes(pago.medio_pago)) return false;
+      const proveedor = proveedores.find((item) => String(item.id) === String(pago.proveedorId));
+      return !proveedor?.alias || !pago.nombre_cuenta?.trim() || !pago.banco;
+    });
+    if (pagoBancarioInvalido) {
+      alert("Para transferencias o tarjetas debe seleccionar proveedor, cuenta/titular y banco");
+      return;
+    }
     try {
       const res = await clientesAPI.registrarPagoCC(clientePago.id, {
-        pagos: pagosCC.map((p) => ({
-          medio_pago: p.medio_pago,
-           monto: parseNumero(p.monto),
-          fecha_pago: fechaPagoCC || null,
-        })),
+        pagos: pagosCC.map((p) => {
+          const proveedor = proveedores.find((item) => String(item.id) === String(p.proveedorId));
+          const esBancario = ["transferencia", "tarjeta"].includes(p.medio_pago);
+          return {
+            medio_pago: p.medio_pago,
+            monto: parseNumero(p.monto),
+            fecha_pago: fechaPagoCC || null,
+            ...(esBancario ? {
+              datos_transferencia: p.medio_pago === "transferencia" ? {
+                nombre_cuenta: p.nombre_cuenta.trim(),
+                titular: p.nombre_cuenta.trim(),
+                alias: proveedor?.alias || "",
+                proveedorId: proveedor?.id || null,
+                banco: p.banco,
+                fecha_hora: new Date().toISOString(),
+                monto: parseNumero(p.monto),
+              } : null,
+              datos_tarjeta: p.medio_pago === "tarjeta" ? {
+                nombre_cuenta: p.nombre_cuenta.trim(),
+                titular: p.nombre_cuenta.trim(),
+                alias: proveedor?.alias || "",
+                proveedorId: proveedor?.id || null,
+                banco: p.banco,
+                fecha_hora: new Date().toISOString(),
+                monto: parseNumero(p.monto),
+              } : null,
+            } : {}),
+          };
+        }),
       });
       alert(res.data.message);
       setShowPagoForm(false);
@@ -417,6 +458,40 @@ export default function ClientesPage() {
                     placeholder="Monto"
                     required
                   />
+                  {["transferencia", "tarjeta"].includes(pago.medio_pago) && (
+                    <>
+                      <select
+                        name="proveedorId"
+                        value={pago.proveedorId || ""}
+                        onChange={(e) => handlePagoChange(index, e)}
+                        required
+                      >
+                        <option value="">Proveedor...</option>
+                        {proveedores.map((proveedor) => (
+                          <option key={proveedor.id} value={proveedor.id}>
+                            {proveedor.nombre}{proveedor.alias ? ` (${proveedor.alias})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        name="nombre_cuenta"
+                        value={pago.nombre_cuenta || ""}
+                        onChange={(e) => handlePagoChange(index, e)}
+                        placeholder="Cuenta / titular"
+                        required
+                      />
+                      <select
+                        name="banco"
+                        value={pago.banco || ""}
+                        onChange={(e) => handlePagoChange(index, e)}
+                        required
+                      >
+                        <option value="">Banco...</option>
+                        {bancos.map((banco) => <option key={banco} value={banco}>{banco}</option>)}
+                      </select>
+                    </>
+                  )}
                   {pagosCC.length > 1 && (
                     <button type="button" className="btn btn-sm btn-cancel" onClick={() => removePagoCC(index)}>X</button>
                   )}

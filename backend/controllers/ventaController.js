@@ -58,6 +58,9 @@ export const crearVenta = async (req, res) => {
     if (!items || items.length === 0) {
       return res.status(400).json({ message: "Debe agregar al menos un producto" });
     }
+    if (!Array.isArray(pagos) || pagos.length === 0) {
+      return res.status(400).json({ message: "La venta debe registrarse con pago dividido" });
+    }
 
     if (!clienteId) {
       return res.status(400).json({ message: "Debe seleccionar un cliente registrado" });

@@ -53,7 +53,7 @@ export const getLowStock = async (req, res) => {
 
 export const createProducto = async (req, res) => {
   try {
-    const { nombre, descripcion, precio, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, excluir_de_lista_pdf } = req.body;
+    const { nombre, descripcion, precio, descuento, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, excluir_de_lista_pdf } = req.body;
 
     if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio)) || !Number.isFinite(Number(costo)) || Number(costo) < 0) {
       return res.status(400).json({ message: "Nombre, precio y costo valido son requeridos" });
@@ -68,6 +68,7 @@ export const createProducto = async (req, res) => {
       nombre: nombre.trim(),
       descripcion,
       precio: Number(precio),
+      descuento: Number.isFinite(Number(descuento)) && Number(descuento) >= 0 && Number(descuento) < 100 ? Number(descuento) : 0,
       costo: Number(costo),
       stock: Number.isFinite(Number(stock)) ? Number(stock) : 0,
       unidad,
@@ -93,6 +94,9 @@ export const updateProducto = async (req, res) => {
     const data = { ...req.body };
     if (data.costo !== undefined && (!Number.isFinite(Number(data.costo)) || Number(data.costo) < 0)) {
       return res.status(400).json({ message: "El costo no es valido" });
+    }
+    if (data.descuento !== undefined && (!Number.isFinite(Number(data.descuento)) || Number(data.descuento) < 0 || Number(data.descuento) >= 100)) {
+      return res.status(400).json({ message: "El descuento debe estar entre 0% y 99%" });
     }
     delete data.unidades_por_caja;
     if (data.marcaId !== undefined) {
@@ -154,6 +158,22 @@ export const actualizarPreciosPorcentaje = async (req, res) => {
     res.json({ message: `Precios actualizados: ${actualizados} productos`, cantidad: actualizados });
   } catch (error) {
     res.status(500).json({ message: "Error al actualizar precios", error: error.message });
+  }
+};
+
+export const actualizarDescuentos = async (req, res) => {
+  try {
+    const { descuento, marcaId } = req.body;
+    const porcentaje = Number(descuento);
+    if (!Number.isFinite(porcentaje) || porcentaje < 0 || porcentaje >= 100) {
+      return res.status(400).json({ message: "El descuento debe estar entre 0% y 99%" });
+    }
+    const where = { activo: true };
+    if (marcaId !== undefined && marcaId !== null && marcaId !== "") where.marcaId = Number(marcaId);
+    const [actualizados] = await Producto.update({ descuento: porcentaje }, { where });
+    res.json({ message: `Descuento configurado en ${actualizados} productos`, cantidad: actualizados });
+  } catch (error) {
+    res.status(500).json({ message: "Error al configurar descuentos", error: error.message });
   }
 };
 

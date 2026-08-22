@@ -483,7 +483,6 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
 
 export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
   const pagosPorProveedor = {};
-  const pagosSinProveedor = [];
 
   for (const pago of pagos) {
     if (pago.proveedor && pago.proveedor.id) {
@@ -495,14 +494,12 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
         };
       }
       pagosPorProveedor[key].pagos.push(pago);
-    } else {
-      pagosSinProveedor.push(pago);
     }
   }
 
   const proveedores = Object.values(pagosPorProveedor);
 
-  if (proveedores.length === 0 && pagosSinProveedor.length === 0) {
+  if (proveedores.length === 0) {
     alert("No hay pagos para generar PDF");
     return;
   }
@@ -661,9 +658,6 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
     doc.save(nombreArchivo);
   }
 
-  if (pagosSinProveedor.length > 0) {
-    generarResumenPagosPDF(pagosSinProveedor, `${fecha}-sin-proveedor`);
-  }
 };
 
 export const generarCierreCajaPDF = async (datos) => {
