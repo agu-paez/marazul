@@ -219,7 +219,7 @@ export const registrarRegreso = async (req, res) => {
       return res.status(400).json({ message: "Solo se puede registrar regreso de salidas en camino" });
     }
 
-    if (await checkDayClosed(salida.fecha)) {
+    if ((await checkDayClosed(salida.fecha)) && !editandoHistorial) {
       return res.status(400).json({ message: "No se puede modificar, la caja del día ya fue cerrada" });
     }
 
@@ -304,8 +304,8 @@ export const reabrirSalida = async (req, res) => {
     }
 
     const today = getFechaLocal();
-    if (salida.fecha !== today) {
-      return res.status(400).json({ message: "Solo se puede abrir salidas del dia actual" });
+    if (String(salida.fecha).slice(0, 10) > today) {
+      return res.status(400).json({ message: "No se pueden abrir salidas con fecha futura" });
     }
 
     if (await checkDayClosed(today)) {

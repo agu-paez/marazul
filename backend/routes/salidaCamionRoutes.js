@@ -29,7 +29,7 @@ router.get("/:id", getSalidaById);
 
 router.post("/", authorize("admin", "operador", "repartidor"), createSalida);
 
-router.put("/:id/reabrir", authorize("admin", "operador"), reabrirSalida);
+router.put("/:id/reabrir", authorize("admin"), reabrirSalida);
 router.put("/:id/status", updateSalidaStatus);
 router.put("/:id/regreso", registrarRegreso);
 router.put("/:id", authorize("admin", "operador"), updateSalidaCompleta);

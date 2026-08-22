@@ -826,7 +826,7 @@ export default function Dashboard() {
                             {s.estado === "pendiente" && <button className="btn btn-sm btn-camino" onClick={() => updateEstado(s.id, "en_camino")}>Enviar</button>}
                             {s.estado === "en_camino" && <button className="btn btn-sm btn-entregado" onClick={() => handleEntregadoClick(s.id)}>Registrar Entrega</button>}
                             {s.estado === "sobrante" && isAdmin && <button className="btn btn-sm btn-editar" onClick={() => openRegresoForm(s, true)}>Editar</button>}
-                            {(s.estado === "entregado" || s.estado === "sobrante") && String(s.fecha || "").slice(0, 10) === getFechaLocal() && isAdmin && (
+                            {(s.estado === "entregado" || s.estado === "sobrante") && String(s.fecha || "").slice(0, 10) <= getFechaLocal() && isAdmin && (
                               <button className="btn btn-sm btn-camino" onClick={() => handleReabrirSalida(s.id)}>Abrir</button>
                             )}
                             {(s.estado === "pendiente" || s.estado === "en_camino") && <button className="btn btn-sm btn-cancel" onClick={() => { setCancelandoId(s.id); setShowCancelConfirm(true); }}>Cancelar</button>}
