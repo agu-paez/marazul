@@ -1329,9 +1329,9 @@ h2 {
 
 @media (max-width: 900px) {
   .producto-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-rows: 200px;
-    max-height: calc(200px * 3 + 0.75rem * 2);
+    max-height: calc(200px * 4 + 0.75rem * 3);
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
