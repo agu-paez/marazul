@@ -112,7 +112,7 @@ export default function HistorialDeudasPage() {
                               <tbody>
                                 {operacionesPago.map((pago) => (
                                   <tr key={pago.id}>
-                                    <td>{pago.fecha} {pago.hora || ""}</td>
+                                    <td>{pago.fecha_pago || pago.fecha} {pago.hora || ""}</td>
                                     <td>{pago.medio_pago}</td>
                                      <td className="monto-regreso">-{dinero(pago.monto)}</td>
                                     <td>{pago.notas || "-"}</td>
