@@ -5,6 +5,8 @@ import './models/index.js';
 await sequelize.authenticate();
 await sequelize.sync();
 console.log('Base de datos conectada y tablas verificadas');
+await sequelize.query("UPDATE Clientes SET zona = 'Mayorista' WHERE zona = 'Zona 7'");
+await sequelize.query("UPDATE SalidaCamions SET destino = 'Mayorista' WHERE destino = 'Zona 7'");
 
 try {
   await sequelize.query("ALTER TABLE Venta ADD COLUMN proveedorId INTEGER REFERENCES Proveedors(id)");

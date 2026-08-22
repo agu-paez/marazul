@@ -6,7 +6,8 @@ import { dinero, parseNumero } from "../utils/numero";
 import { getFechaLocal } from "../utils/fecha";
 
 const zonas = [
-  ...Array.from({ length: 7 }, (_, index) => `Zona ${index + 1}`),
+  ...Array.from({ length: 6 }, (_, index) => `Zona ${index + 1}`),
+  "Mayorista",
   "Zona Carlos Paz",
 ];
 

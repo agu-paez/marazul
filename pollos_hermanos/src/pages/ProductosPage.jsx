@@ -10,6 +10,7 @@ export default function ProductosPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showAjuste, setShowAjuste] = useState(false);
+  const [modoAjuste, setModoAjuste] = useState("aumento");
   const [porcentaje, setPorcentaje] = useState("");
   const [ajusteMarcaId, setAjusteMarcaId] = useState("");
   const [showListaPrecios, setShowListaPrecios] = useState(false);
@@ -164,12 +165,22 @@ export default function ProductosPage() {
       <div className="page-header">
         <h2>Productos</h2>
           <div className="productos-header-actions">
-          <button
-            className="btn btn-secondary"
-            onClick={() => setShowAjuste(true)}
-          >
-            Aumentos
-          </button>
+          {user?.role === "admin" && (
+            <>
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setModoAjuste("aumento"); setShowAjuste(true); }}
+              >
+                Aumentos
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setModoAjuste("descuento"); setShowAjuste(true); }}
+              >
+                Descuentos
+              </button>
+            </>
+          )}
           <button className="btn btn-secondary" onClick={() => setShowListaPrecios(true)}>
             Descargar lista de precios
           </button>
@@ -189,10 +200,9 @@ export default function ProductosPage() {
       {showAjuste && (
         <div className="modal-overlay" onClick={() => setShowAjuste(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Ajuste de Precios</h3>
+            <h3>{modoAjuste === "descuento" ? "Descuento de Precios" : "Ajuste de Precios"}</h3>
             <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "1rem" }}>
-              Ingrese un porcentaje para aumentar o disminuir el precio de los productos activos.
-              Use valores negativos para disminuir (ej: -10).
+              Ingrese el porcentaje que desea {modoAjuste === "descuento" ? "descontar" : "aumentar o disminuir"} en los productos activos.
             </p>
             <div className="form-group">
               <label>Aplicar a marca</label>
@@ -210,7 +220,7 @@ export default function ProductosPage() {
                 step="0.1"
                 value={porcentaje}
                 onChange={(e) => setPorcentaje(e.target.value)}
-                placeholder="Ej: 10 para +10%, -10 para -10%"
+                placeholder={modoAjuste === "descuento" ? "Ej: 10 para -10%" : "Ej: 10 para +10%, -10 para -10%"}
                 autoFocus
               />
             </div>
@@ -224,7 +234,7 @@ export default function ProductosPage() {
                 onClick={async () => {
                   try {
                     await productosAPI.actualizarPrecios({
-                      porcentaje: parseFloat(porcentaje),
+                       porcentaje: modoAjuste === "descuento" ? -Math.abs(parseFloat(porcentaje)) : parseFloat(porcentaje),
                       marcaId: ajusteMarcaId ? parseInt(ajusteMarcaId) : null,
                     });
                     setShowAjuste(false);
@@ -236,7 +246,7 @@ export default function ProductosPage() {
                   }
                 }}
               >
-                Aplicar
+                 {modoAjuste === "descuento" ? "Aplicar descuento" : "Aplicar"}
               </button>
             </div>
           </div>

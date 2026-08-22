@@ -117,7 +117,7 @@ export const actualizarPreciosPorcentaje = async (req, res) => {
   try {
     const { porcentaje, marcaId } = req.body;
 
-    if (porcentaje === undefined || porcentaje === null || isNaN(porcentaje)) {
+    if (porcentaje === undefined || porcentaje === null || isNaN(porcentaje) || Number(porcentaje) <= -100) {
       return res.status(400).json({ message: "Debe enviar un porcentaje válido" });
     }
 

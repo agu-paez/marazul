@@ -134,6 +134,8 @@ const start = async () => {
 
     await sequelize.sync();
     console.log("Modelos sincronizados");
+    await Cliente.update({ zona: "Mayorista" }, { where: { zona: "Zona 7" } });
+    await SalidaCamion.update({ destino: "Mayorista" }, { where: { destino: "Zona 7" } });
 
     const queryInterface = sequelize.getQueryInterface();
     const ensureColumn = async (model, column, definition) => {

@@ -3,7 +3,8 @@ import { useAuth } from "../context/AuthContext";
 import { salidasAPI, productosAPI, usuariosAPI } from "../api";
 
 const zonas = [
-  ...Array.from({ length: 7 }, (_, index) => `Zona ${index + 1}`),
+  ...Array.from({ length: 6 }, (_, index) => `Zona ${index + 1}`),
+  "Mayorista",
   "Zona Carlos Paz",
 ];
 

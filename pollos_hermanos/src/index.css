@@ -2162,7 +2162,7 @@ input[type="number"] {
 
   .productos-header-actions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
   }
 
@@ -2171,6 +2171,10 @@ input[type="number"] {
     width: 100%;
     min-height: 44px;
     padding: 0.55rem 0.45rem;
+  }
+
+  .productos-header-actions .btn-primary {
+    grid-column: span 2;
   }
 
   .produccion-page .page-header {
