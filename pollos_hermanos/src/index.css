@@ -1323,8 +1323,7 @@ h2 {
 }
 
 .producto-card {
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 @media (max-width: 900px) {
