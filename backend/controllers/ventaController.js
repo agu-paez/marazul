@@ -161,12 +161,12 @@ export const crearVenta = async (req, res) => {
     for (const item of items) {
       const producto = await Producto.findByPk(item.productoId);
       const precioPersonalizado = Number(item.precio_unitario);
-      if (esKilogramo(producto) && item.precio_unitario !== undefined && (!Number.isFinite(precioPersonalizado) || precioPersonalizado <= 0)) {
+      if (item.precio_unitario !== undefined && (!Number.isFinite(precioPersonalizado) || precioPersonalizado <= 0)) {
         return res.status(400).json({ message: `El precio de "${producto.nombre}" no es válido` });
       }
       const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
       const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : getPrecioPorKilogramo(producto);
-      const precioUnitario = esKilogramo(producto) && Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
+      const precioUnitario = Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
         ? precioPersonalizado
         : precioBase;
       subtotalCalc += precioUnitario * Number(item.cantidad);
@@ -292,9 +292,9 @@ export const crearVenta = async (req, res) => {
        const precioPersonalizado = Number(item.precio_unitario);
        const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
        const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : getPrecioPorKilogramo(producto);
-       const precioUnitario = esKilogramo(producto) && Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
-        ? precioPersonalizado
-        : precioBase;
+       const precioUnitario = Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
+         ? precioPersonalizado
+         : precioBase;
       await VentaItem.create({
         ventaId: venta.id,
         productoId: item.productoId,
