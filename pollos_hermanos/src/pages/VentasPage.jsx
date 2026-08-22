@@ -361,7 +361,8 @@ export default function VentasPage() {
     ? pagos.reduce((sum, p) => sum + (parseFloat(p.monto) || 0), 0)
     : 0;
 
-  const sumaPagosValida = !pagoDividido || Math.abs(totalPagosDivididos - totalConDeuda) < 0.01;
+  const sumaPagosValida = !pagoDividido || totalPagosDivididos >= totalConDeuda - 0.01;
+  const sobrantePagos = pagoDividido ? Math.max(0, totalPagosDivididos - totalConDeuda) : 0;
 
   const tieneCCSimple = !pagoDividido && form.medio_pago === "cuenta_corriente";
   const tieneCCDividido = pagoDividido && pagos.some((p) => p.medio_pago === "cuenta_corriente");
@@ -429,7 +430,10 @@ export default function VentasPage() {
       return;
     }
     if (pagoDividido && !sumaPagosValida) {
-      alert(`La suma de los pagos ($${totalPagosDivididos.toFixed(2)}) no coincide con el total ($${totalConDeuda.toFixed(2)})`);
+      alert(`La suma de los pagos ($${totalPagosDivididos.toFixed(2)}) es menor al total ($${totalConDeuda.toFixed(2)})`);
+      return;
+    }
+    if (sobrantePagos > 0.01 && !confirm(`Hay un sobrante de $${sobrantePagos.toFixed(2)}. Se registrara como saldo a favor del cliente. ¿Deseas continuar?`)) {
       return;
     }
     for (let i = 0; i < transferenciaIndices.length; i++) {
@@ -932,7 +936,7 @@ export default function VentasPage() {
               )}
               {totalPagosDivididos > totalConDeuda && (
                 <div style={{ marginTop: "0.25rem", color: "#e67e22", fontWeight: "bold", fontSize: "0.9rem" }}>
-                  Hay un sobrante de ${(totalPagosDivididos - totalConDeuda).toFixed(2)}
+                  Hay un sobrante de ${(totalPagosDivididos - totalConDeuda).toFixed(2)} — se registrara como saldo a favor del cliente
                 </div>
               )}
               {!sumaPagosValida && totalPagosDivididos < totalConDeuda && (

@@ -98,6 +98,12 @@ const Venta = sequelize.define("Venta", {
     defaultValue: null,
     comment: "Monto pagado de deuda incluido en esta venta",
   },
+  monto_sobrante: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    defaultValue: 0,
+    comment: "Excedente del pago dividido registrado como saldo a favor del cliente",
+  },
   proveedorId: {
     type: DataTypes.INTEGER,
     allowNull: true,

@@ -186,6 +186,7 @@ const start = async () => {
     await ensureColumn(SalidaCamionItem, "unidades_por_caja", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(SalidaCamionItem, "cantidad_unidades", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(SalidaCamionItem, "cantidad_devuelta_unidades", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(Venta, "monto_sobrante", { type: DataTypes.DECIMAL(10, 2), allowNull: true, defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_combustible", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_otros", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "descripcion_otros_gastos", { type: DataTypes.TEXT, allowNull: true });

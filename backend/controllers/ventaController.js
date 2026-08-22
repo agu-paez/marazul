@@ -168,6 +168,7 @@ export const crearVenta = async (req, res) => {
     }
 
     const esPagoDividido = pagos && pagos.length > 0;
+    let sobranteFavor = 0;
 
     const montoCC = esPagoDividido
       ? pagos
@@ -181,11 +182,12 @@ export const crearVenta = async (req, res) => {
       const sumaPagos = pagos.reduce((sum, p) => sum + parseFloat(p.monto), 0);
       const montoDeudaPagar = pagar_deuda && monto_deuda ? parseFloat(monto_deuda) : 0;
       const totalEsperado = subtotalCalc + montoDeudaPagar;
-      if (Math.abs(sumaPagos - totalEsperado) > 0.01) {
+      if (sumaPagos < totalEsperado - 0.01) {
         return res.status(400).json({
-          message: `La suma de los pagos ($${sumaPagos.toFixed(2)}) no coincide con el total ($${totalEsperado.toFixed(2)})`,
+          message: `La suma de los pagos ($${sumaPagos.toFixed(2)}) es menor al total ($${totalEsperado.toFixed(2)})`,
         });
       }
+      sobranteFavor = Math.max(0, sumaPagos - totalEsperado);
 
       if (montoCC > 0) {
         const deudaOriginal = parseFloat(cliente.saldo_pendiente) || 0;
@@ -197,6 +199,13 @@ export const crearVenta = async (req, res) => {
         await cliente.update({
           saldo_pendiente: nuevoSaldo.toFixed(2),
           saldo_favor: (saldoFavor - creditoAplicado).toFixed(2),
+        });
+      }
+
+      if (sobranteFavor > 0) {
+        const clienteActual = await Cliente.findByPk(cliente.id);
+        await clienteActual.update({
+          saldo_favor: ((parseFloat(clienteActual.saldo_favor) || 0) + sobranteFavor).toFixed(2),
         });
       }
     } else {
@@ -262,6 +271,7 @@ export const crearVenta = async (req, res) => {
       datos_transferencia: datos_transferencia || null,
       datos_tarjeta: datos_tarjeta || null,
       monto_deuda_pagado: pagar_deuda && monto_deuda ? parseFloat(monto_deuda) : null,
+      monto_sobrante: sobranteFavor.toFixed(2),
       proveedorId: proveedorId || null,
       porcentaje_aumento: porcentaje_aumento || 0,
     });
@@ -521,11 +531,13 @@ export const modificarPagoVenta = async (req, res) => {
     });
 
     const totalEsperado = (parseFloat(venta.total) || 0) + (parseFloat(venta.monto_deuda_pagado) || 0);
+    const sobranteAnterior = parseFloat(venta.monto_sobrante) || 0;
     const totalNuevo = pagosNuevos.reduce((sum, pago) => sum + pago.monto, 0);
-    if (Math.abs(totalNuevo - totalEsperado) > 0.01) {
+    if (totalNuevo < totalEsperado + sobranteAnterior - 0.01) {
       await transaction.rollback();
-      return res.status(400).json({ message: `La suma de los pagos ($${totalNuevo.toFixed(2)}) no coincide con el total ($${totalEsperado.toFixed(2)})` });
+      return res.status(400).json({ message: `La suma de los pagos ($${totalNuevo.toFixed(2)}) es menor al total ($${(totalEsperado + sobranteAnterior).toFixed(2)})` });
     }
+    const sobranteNuevo = Math.max(0, totalNuevo - totalEsperado);
 
     const pagosAnteriores = await VentaPago.findAll({ where: { ventaId: venta.id }, transaction });
     const creditoAnterior = pagosAnteriores
@@ -536,6 +548,15 @@ export const modificarPagoVenta = async (req, res) => {
       .reduce((sum, pago) => sum + pago.monto, 0);
     const pagosAnterioresDetalle = pagosAnteriores.map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0 }));
     const pagosNuevosDetalle = pagosNuevos.map((pago) => ({ medio_pago: pago.medio_pago, monto: pago.monto, nombre_cuenta: pago.nombre_cuenta, banco: pago.banco, proveedorId: pago.proveedorId, alias: pago.alias }));
+
+    if (venta.clienteId && Math.abs(sobranteNuevo - sobranteAnterior) > 0.01) {
+      const clienteSobrante = await Cliente.findByPk(venta.clienteId, { transaction });
+      if (clienteSobrante) {
+        await clienteSobrante.update({
+          saldo_favor: Math.max(0, (parseFloat(clienteSobrante.saldo_favor) || 0) + (sobranteNuevo - sobranteAnterior)).toFixed(2),
+        }, { transaction });
+      }
+    }
 
     if (venta.clienteId && Math.abs(creditoNuevo - creditoAnterior) > 0.01) {
       const cliente = await Cliente.findByPk(venta.clienteId, { transaction });
@@ -564,6 +585,7 @@ export const modificarPagoVenta = async (req, res) => {
       datos_otro: pagosNuevos.filter((pago) => pago.medio_pago === "otro").map(obtenerDatosPago),
       pago_modificado_por_id: req.user.id,
       pago_modificado_en: ahora,
+      monto_sobrante: sobranteNuevo.toFixed(2),
       pago_modificacion_detalle: JSON.stringify({ anteriores: pagosAnterioresDetalle, nuevos: pagosNuevosDetalle }),
     }, { transaction });
     await transaction.commit();
@@ -611,6 +633,12 @@ export const deleteVenta = async (req, res) => {
         if (montoCC > 0) {
           const nuevoSaldo = Math.max(0, parseFloat(cliente.saldo_pendiente) - montoCC);
           await cliente.update({ saldo_pendiente: nuevoSaldo.toFixed(2) });
+        }
+
+        const sobranteVenta = parseFloat(venta.monto_sobrante) || 0;
+        if (sobranteVenta > 0) {
+          const nuevoFavor = Math.max(0, (parseFloat(cliente.saldo_favor) || 0) - sobranteVenta);
+          await cliente.update({ saldo_favor: nuevoFavor.toFixed(2) });
         }
       }
     }
