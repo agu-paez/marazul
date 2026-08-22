@@ -628,7 +628,7 @@ export default function VentasPage() {
                           checked={Boolean(descuentosAplicados[p.id])}
                           onChange={() => toggleDescuentoProducto(p)}
                         />{" "}
-                        Aplicar descuento ({Number(p.descuento)}%)
+                        Aplicar descuento
                       </label>
                     )}
                     <div className="producto-card-qty">
