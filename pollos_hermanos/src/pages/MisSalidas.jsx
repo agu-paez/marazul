@@ -4,6 +4,7 @@ import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI, proveedoresAPI } fro
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 import BancoAutocomplete from "../components/BancoAutocomplete";
 import { generarHistorialDeudasPDF, generarPagoClientePDF } from "../utils/generarPDF";
+import { getFechaLocal } from "../utils/fecha";
 
 
 export default function MisSalidas() {
@@ -23,7 +24,7 @@ export default function MisSalidas() {
   const [proveedores, setProveedores] = useState([]);
   const [showPagoCliente, setShowPagoCliente] = useState(false);
   const [clientePago, setClientePago] = useState("");
-  const [pagoCliente, setPagoCliente] = useState({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", alias: "", banco: "", notas: "" });
+  const [pagoCliente, setPagoCliente] = useState({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", proveedorId: "", alias: "", banco: "", notas: "", fecha_pago: getFechaLocal() });
   const [clienteDetalle, setClienteDetalle] = useState(null);
   const [clienteDetalleLoading, setClienteDetalleLoading] = useState(false);
   const [clienteDetalleError, setClienteDetalleError] = useState("");
@@ -76,7 +77,7 @@ export default function MisSalidas() {
       return;
     }
     setClientePago("");
-    setPagoCliente({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", proveedorId: "", banco: "", notas: "" });
+    setPagoCliente({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", proveedorId: "", banco: "", notas: "", fecha_pago: getFechaLocal() });
     setShowPagoCliente(true);
   };
 
@@ -111,6 +112,7 @@ export default function MisSalidas() {
           medio_pago: pagoCliente.medio_pago,
           monto,
           notas: pagoCliente.notas || null,
+          fecha_pago: pagoCliente.fecha_pago || null,
           datos_transferencia: pagoCliente.medio_pago === "transferencia" ? datosBancarios : null,
           datos_tarjeta: pagoCliente.medio_pago === "tarjeta" ? datosBancarios : null,
         }],
@@ -331,7 +333,16 @@ export default function MisSalidas() {
               <label>Observaciones</label>
               <input value={pagoCliente.notas} onChange={(event) => setPagoCliente({ ...pagoCliente, notas: event.target.value })} />
             </div>
-            <p className="subtitle">Fecha del pago: {new Date().toLocaleDateString("es-AR")}</p>
+            <div className="form-group">
+              <label>Fecha del pago *</label>
+              <input
+                type="date"
+                value={pagoCliente.fecha_pago || getFechaLocal()}
+                onChange={(event) => setPagoCliente({ ...pagoCliente, fecha_pago: event.target.value })}
+                required
+              />
+            </div>
+            <p className="subtitle">Fecha real de emision del pago/transferencia. La fecha de registro sera la de hoy ({getFechaLocal()}).</p>
             <div className="modal-actions">
               <button type="button" className="btn btn-secondary" onClick={() => setShowPagoCliente(false)}>Cancelar</button>
               <button type="submit" className="btn btn-primary">Registrar pago</button>

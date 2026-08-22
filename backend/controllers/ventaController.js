@@ -7,11 +7,6 @@ const esCaja = (producto) => String(producto?.unidad || "").toLowerCase() === "c
 const esKilogramo = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
 const getUnidadesPorCaja = (producto) => esCaja(producto) && Number(producto.unidades_por_caja) > 0 ? Number(producto.unidades_por_caja) : 1;
 const normalizarUnidadVenta = (producto, unidadVenta) => esCaja(producto) && unidadVenta === "caja" ? "caja" : "unidad";
-const getPrecioPorKilogramo = (producto) => {
-  const precio = Number(producto.precio);
-  const kgPorCaja = Number(producto.kg_por_caja);
-  return esKilogramo(producto) && kgPorCaja > 0 ? precio / kgPorCaja : precio;
-};
 const obtenerDatosPago = (pago) => ({
   nombre_cuenta: String(pago.nombre_cuenta || "").trim(),
   banco: String(pago.banco || "").trim(),
@@ -165,7 +160,7 @@ export const crearVenta = async (req, res) => {
         return res.status(400).json({ message: `El precio de "${producto.nombre}" no es válido` });
       }
       const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
-      const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : getPrecioPorKilogramo(producto);
+      const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : Number(producto.precio);
       const precioUnitario = Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
         ? precioPersonalizado
         : precioBase;
@@ -291,7 +286,7 @@ export const crearVenta = async (req, res) => {
       const producto = await Producto.findByPk(item.productoId);
        const precioPersonalizado = Number(item.precio_unitario);
        const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
-       const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : getPrecioPorKilogramo(producto);
+       const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : Number(producto.precio);
        const precioUnitario = Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
          ? precioPersonalizado
          : precioBase;

@@ -3,6 +3,7 @@ import { clientesAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { generarResumenZonasPDF } from "../utils/generarPDF";
 import { dinero, parseNumero } from "../utils/numero";
+import { getFechaLocal } from "../utils/fecha";
 
 const zonas = [
   ...Array.from({ length: 7 }, (_, index) => `Zona ${index + 1}`),
@@ -23,6 +24,7 @@ export default function ClientesPage() {
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [clientePago, setClientePago] = useState(null);
   const [pagosCC, setPagosCC] = useState([{ medio_pago: "efectivo", monto: 0 }]);
+  const [fechaPagoCC, setFechaPagoCC] = useState(getFechaLocal());
   const [showDeudaModal, setShowDeudaModal] = useState(false);
   const [clienteDeuda, setClienteDeuda] = useState(null);
   const [montos, setMontos] = useState({ saldo_pendiente: "0", limite_credito: "30000" });
@@ -105,6 +107,7 @@ export default function ClientesPage() {
   const openPagoCC = (c) => {
     setClientePago(c);
     setPagosCC([{ medio_pago: "efectivo", monto: 0 }]);
+    setFechaPagoCC(getFechaLocal());
     setShowPagoForm(true);
   };
 
@@ -139,6 +142,7 @@ export default function ClientesPage() {
         pagos: pagosCC.map((p) => ({
           medio_pago: p.medio_pago,
            monto: parseNumero(p.monto),
+          fecha_pago: fechaPagoCC || null,
         })),
       });
       alert(res.data.message);
@@ -378,6 +382,16 @@ export default function ClientesPage() {
               </div>
             </div>
             <form onSubmit={submitPagoCC}>
+              <div className="form-group">
+                <label>Fecha del pago *</label>
+                <input
+                  type="date"
+                  value={fechaPagoCC}
+                  onChange={(e) => setFechaPagoCC(e.target.value)}
+                  required
+                />
+                <p className="subtitle">Fecha real de emision del pago/transferencia. La fecha de registro sera la de hoy ({getFechaLocal()}).</p>
+              </div>
               {pagosCC.map((pago, index) => (
                 <div key={index} className="item-row">
                   <select

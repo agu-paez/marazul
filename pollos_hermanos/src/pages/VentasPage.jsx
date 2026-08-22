@@ -316,8 +316,6 @@ export default function VentasPage() {
   const esProductoKg = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
   const getPrecioVenta = (producto) => {
     if (preciosPersonalizados[producto.id] !== undefined) return preciosPersonalizados[producto.id];
-    const kgPorCaja = Number(producto.kg_por_caja);
-    if (esProductoKg(producto) && kgPorCaja > 0) return Number(producto.precio) / kgPorCaja;
     return Number(producto.precio);
   };
   const getCantidadUnidades = (producto) => {

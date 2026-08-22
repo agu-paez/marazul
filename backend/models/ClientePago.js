@@ -21,6 +21,10 @@ const ClientePago = sequelize.define("ClientePago", {
     allowNull: false,
     defaultValue: DataTypes.NOW,
   },
+  fecha_pago: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+  },
   hora: {
     type: DataTypes.STRING,
     allowNull: false,

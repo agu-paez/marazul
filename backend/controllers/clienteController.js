@@ -272,6 +272,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
     const now = new Date();
     const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const fecha = getFechaLocal(now);
+    const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
 
     for (const pago of pagos) {
       const datosBancarios = pago.datos_transferencia || pago.datos_tarjeta;
@@ -281,6 +282,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
         monto: parseMonto(pago.monto).toFixed(2),
         medio_pago: pago.medio_pago,
         fecha,
+        fecha_pago: typeof pago.fecha_pago === "string" && fechaRegex.test(pago.fecha_pago) ? pago.fecha_pago : fecha,
         hora,
         notas: pago.notas || null,
         datos_transferencia: pago.datos_transferencia ? JSON.stringify(pago.datos_transferencia) : null,

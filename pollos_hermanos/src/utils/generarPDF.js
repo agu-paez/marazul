@@ -1560,7 +1560,7 @@ export const generarHistorialDeudasPDF = async (historial) => {
   }
   for (const pago of historial.pagos || []) {
     const pagoDesdeVenta = String(pago.notas || "").toLowerCase().includes("incluido en venta");
-    movimientos.push({ fecha: `${pago.fecha} ${pago.hora || ""}`, tipo: "Pago de deuda", operacion: pagoDesdeVenta ? "Pago en ventas" : "Registro de pago de cliente", detalle: pago.medio_pago || "-", monto: Number(pago.monto || 0), signo: "-" });
+    movimientos.push({ fecha: `${pago.fecha_pago || pago.fecha} ${pago.hora || ""}`, tipo: "Pago de deuda", operacion: pagoDesdeVenta ? "Pago en ventas" : "Registro de pago de cliente", detalle: pago.medio_pago || "-", monto: Number(pago.monto || 0), signo: "-" });
   }
   movimientos.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
 
@@ -1678,7 +1678,8 @@ export const generarPagoClientePDF = async (pago, historial) => {
   };
   const datos = parseDatos(datosBancarios) || {};
   const rows = [
-    ["Fecha", `${pago?.fecha || "-"} ${pago?.hora || ""}`],
+    ["Fecha de emision del pago", `${pago?.fecha_pago || pago?.fecha || "-"}`],
+    ["Fecha de registro", `${pago?.fecha || "-"} ${pago?.hora || ""}`],
     ["Medio de pago", pago?.medio_pago || "-"],
     ["Monto pagado", `$${Number(pago?.monto || 0).toFixed(2)}`],
     ["Cuenta / titular", pago?.titular || datos.titular || datos.nombre_cuenta || "-"],

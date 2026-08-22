@@ -440,8 +440,9 @@ export const getDetalleCierre = async (req, res) => {
       const cantidad = Number(item.cantidad) || 0;
       const kgPorCaja = Number(item.Producto?.kg_por_caja) || 0;
       const unidad = String(item.Producto?.unidad || "").toLowerCase();
+      if (unidad === "kilogramo" || unidad === "kg") return cantidad;
       if (kgPorCaja > 0) return cantidad * kgPorCaja;
-      return unidad === "kilogramo" || unidad === "kg" ? cantidad : 0;
+      return 0;
     };
 
     for (const salida of salidasHoy) {
