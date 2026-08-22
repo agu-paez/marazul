@@ -106,47 +106,24 @@ export default function Dashboard() {
     }
   };
 
-  const openRegresoForm = async (salida, esEdicion = false) => {
+  const openRegresoForm = (salida, esEdicion = false) => {
     setRegresando(salida);
     setEditandoRegreso(esEdicion);
     setMarcarEntregada(false);
-    try {
-      const res = await salidasAPI.getStockCamion(salida.id);
-      const stockMap = {};
-      for (const s of res.data.items) {
-        stockMap[s.productoId] = s;
-      }
-      const items = (salida.SalidaCamionItems || []).map((item) => {
-        const stock = stockMap[item.productoId];
-        const vendido = stock ? stock.vendido : 0;
-        const maxDevolver = item.cantidad - vendido;
-        return {
-          productoId: item.productoId,
-          nombre: item.Producto?.nombre,
-          precio_unitario: parseFloat(item.precio_unitario),
-          cantidad_enviada: item.cantidad,
-          cantidad_vendida: vendido,
-          max_devolver: maxDevolver,
-          cantidad_regreso: item.cantidad_devuelta || 0,
-        };
-      });
-      setItemsRegreso(items);
-    } catch (error) {
-      alert("Error al obtener stock del camion: " + (error.response?.data?.message || error.message));
-    }
+    const items = (salida.SalidaCamionItems || []).map((item) => ({
+      productoId: item.productoId,
+      nombre: item.Producto?.nombre,
+      cantidad_enviada: item.cantidad,
+      cantidad_regreso: item.cantidad_devuelta || 0,
+    }));
+    setItemsRegreso(items);
   };
 
   const handleCantidadRegreso = (index, value) => {
     const newItems = [...itemsRegreso];
     const cant = parseInt(value) || 0;
-    newItems[index].cantidad_regreso = Math.min(cant, newItems[index].max_devolver);
+    newItems[index].cantidad_regreso = Math.max(0, cant);
     setItemsRegreso(newItems);
-  };
-
-  const calcularMontoRegreso = () => {
-    return itemsRegreso.reduce((sum, item) => {
-      return sum + item.precio_unitario * item.cantidad_regreso;
-    }, 0);
   };
 
   const confirmarEntregado = () => {
@@ -440,36 +417,23 @@ export default function Dashboard() {
                 <thead>
                   <tr>
                     <th>Producto</th>
-                    <th>Precio Unit.</th>
-                    <th>Cargados</th>
-                    <th>Vendidos</th>
-                    <th>Max. Devolver</th>
-                    <th>Regresan</th>
-                    <th>Subtotal</th>
+                    <th>Mercaderia Enviada</th>
+                    <th>Mercaderia a Devolver</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itemsRegreso.map((item, index) => (
                     <tr key={item.productoId}>
                       <td><strong>{item.nombre}</strong></td>
-                      <td>${item.precio_unitario}</td>
                       <td>{item.cantidad_enviada}</td>
-                      <td style={{ color: item.cantidad_vendida > 0 ? "var(--primary)" : "inherit", fontWeight: item.cantidad_vendida > 0 ? "bold" : "normal" }}>
-                        {item.cantidad_vendida}
-                      </td>
-                      <td style={{ fontWeight: "bold" }}>{item.max_devolver}</td>
                       <td>
                         <input
                           type="number"
                           min="0"
-                          max={item.max_devolver}
                           value={item.cantidad_regreso}
                           onChange={(e) => handleCantidadRegreso(index, e.target.value)}
                           className="input-cantidad"
                         />
-                      </td>
-                      <td style={{ color: "var(--danger)", fontWeight: "bold" }}>
-                        ${(item.precio_unitario * item.cantidad_regreso).toFixed(2)}
                       </td>
                     </tr>
                   ))}
@@ -477,22 +441,16 @@ export default function Dashboard() {
               </table>
             </div>
 
-            <div className="resumen-card" style={{ marginTop: "1rem" }}>
-              <div className="resumen-row">
-                <span>Monto de Regreso:</span>
-                <strong style={{ color: "var(--danger)" }}>${calcularMontoRegreso().toFixed(2)}</strong>
-              </div>
-              {editandoRegreso && regresando?.estado === "sobrante" && (
-                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={marcarEntregada}
-                    onChange={(e) => setMarcarEntregada(e.target.checked)}
-                  />
-                  Marcar como entregada al guardar (el sistema la dejara como entregado aunque los montos no cierren)
-                </label>
-              )}
-            </div>
+            {editandoRegreso && regresando?.estado === "sobrante" && (
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.75rem", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={marcarEntregada}
+                  onChange={(e) => setMarcarEntregada(e.target.checked)}
+                />
+                Marcar como entregada al guardar (el sistema la dejara como entregado aunque los montos no cierren)
+              </label>
+            )}
 
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => { setRegresando(null); setEditandoRegreso(false); setCancelarConRegreso(false); }}>
