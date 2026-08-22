@@ -271,10 +271,16 @@ export const registrarRegreso = async (req, res) => {
         notas: `ENVIO CANCELADO\n${motivoTexto}`,
       });
     } else {
-      const totalVentasReparto = ventasExistentes.reduce((sum, v) => sum + parseFloat(v.total || 0), 0);
-      const montoSalida = parseFloat(salida.monto_salida || 0);
-      const estadoFinal = montoRegreso + totalVentasReparto >= montoSalida ? "entregado" : "sobrante";
-      await salida.update({ estado: estadoFinal });
+      let faltaMercaderia = false;
+      for (const si of salida.SalidaCamionItems) {
+        const vendido = vendidoPorProducto[si.productoId] || 0;
+        const devuelto = si.cantidad_devuelta || 0;
+        if (si.cantidad - vendido - devuelto > 0) {
+          faltaMercaderia = true;
+          break;
+        }
+      }
+      await salida.update({ estado: faltaMercaderia ? "sobrante" : "entregado" });
     }
 
     const salidaActualizada = await SalidaCamion.findByPk(salida.id, {
