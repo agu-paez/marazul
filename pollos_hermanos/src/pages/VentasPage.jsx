@@ -108,11 +108,6 @@ export default function VentasPage() {
         }).catch(console.error);
       }
     }
-    if (name === "medio_pago" && !pagoDividido) {
-       const now = fechaHoraLocalInput();
-       setDatosTransferencia(value === "transferencia" ? [{ nombre_cuenta: "", fecha_hora: now, banco: "", monto: "", proveedorId: "" }] : []);
-       setDatosTarjeta(value === "tarjeta" ? [{ nombre_cuenta: "", fecha_hora: now, banco: "", monto: "", proveedorId: "" }] : []);
-    }
   };
 
   const toggleCantidad = (productoId, delta) => {
@@ -214,57 +209,16 @@ export default function VentasPage() {
   const esReparto = form.tipo_venta === "reparto";
   const esRepartidor = user?.role === "repartidor";
 
-  const esTransferencia = !pagoDividido
-    ? form.medio_pago === "transferencia"
-    : pagos.some((p) => p.medio_pago === "transferencia");
+  const esTransferencia = pagos.some((p) => p.medio_pago === "transferencia");
 
-  const esTarjeta = !pagoDividido
-    ? form.medio_pago === "tarjeta"
-    : pagos.some((p) => p.medio_pago === "tarjeta");
+  const esTarjeta = pagos.some((p) => p.medio_pago === "tarjeta");
 
-  const transferenciaIndices = !pagoDividido
-    ? (form.medio_pago === "transferencia" ? [0] : [])
-    : pagos.reduce((acc, p, i) => (p.medio_pago === "transferencia" ? [...acc, i] : acc), []);
+  const transferenciaIndices = pagos.reduce((acc, p, i) => (p.medio_pago === "transferencia" ? [...acc, i] : acc), []);
 
-  const tarjetaIndices = !pagoDividido
-    ? (form.medio_pago === "tarjeta" ? [0] : [])
-    : pagos.reduce((acc, p, i) => (p.medio_pago === "tarjeta" ? [...acc, i] : acc), []);
-
-  const transferenciaCount = transferenciaIndices.length;
-  const tarjetaCount = tarjetaIndices.length;
+  const tarjetaIndices = pagos.reduce((acc, p, i) => (p.medio_pago === "tarjeta" ? [...acc, i] : acc), []);
 
   const isDatosBancariosCompleto = (datos) => {
     return datos && datos.nombre_cuenta.trim() && datos.fecha_hora && datos.banco.trim() && datos.monto;
-  };
-
-  const totalTransferenciasCompletas = datosTransferencia
-    .filter((d) => isDatosBancariosCompleto(d))
-    .reduce((sum, d) => sum + (parseFloat(d.monto) || 0), 0);
-
-  const totalTarjetasCompletas = datosTarjeta
-    .filter((d) => isDatosBancariosCompleto(d))
-    .reduce((sum, d) => sum + (parseFloat(d.monto) || 0), 0);
-
-  const handleDatosTransferenciaChange = (index, e) => {
-    const newDatos = [...datosTransferencia];
-    newDatos[index] = { ...newDatos[index], [e.target.name]: e.target.value };
-    setDatosTransferencia(newDatos);
-    if (e.target.name === "monto" && pagoDividido && pagos[index]?.medio_pago === "transferencia") {
-      const newPagos = [...pagos];
-      newPagos[index] = { ...newPagos[index], monto: e.target.value };
-      setPagos(newPagos);
-    }
-  };
-
-  const handleDatosTarjetaChange = (index, e) => {
-    const newDatos = [...datosTarjeta];
-    newDatos[index] = { ...newDatos[index], [e.target.name]: e.target.value };
-    setDatosTarjeta(newDatos);
-    if (e.target.name === "monto" && pagoDividido && pagos[index]?.medio_pago === "tarjeta") {
-      const newPagos = [...pagos];
-      newPagos[index] = { ...newPagos[index], monto: e.target.value };
-      setPagos(newPagos);
-    }
   };
 
   const handleDatoBancarioRapido = (tipo, index, campo, valor) => {
@@ -275,8 +229,11 @@ export default function VentasPage() {
     if (newDatos[index].nombre_cuenta && newDatos[index].banco && !newDatos[index].fecha_hora) {
        newDatos[index] = { ...newDatos[index], fecha_hora: fechaHoraLocalInput() };
     }
-    if (pagoDividido && pagos[index]) {
-      newDatos[index] = { ...newDatos[index], monto: String(pagos[index].monto || 0) };
+    if (pagos[index]) {
+      const montoActual = montosEditando[index] !== undefined && montosEditando[index] !== ""
+        ? montosEditando[index]
+        : pagos[index].monto;
+      newDatos[index] = { ...newDatos[index], monto: String(montoActual || 0) };
     } else {
       newDatos[index] = { ...newDatos[index], monto: String(subtotal || 0) };
     }
@@ -373,31 +330,31 @@ export default function VentasPage() {
   const montoDeuda = pagarDeuda && tieneDeuda ? deudaAnterior : 0;
   const totalConDeuda = subtotal + montoDeuda;
 
+  const getPagoMonto = (index) => parseFloat(montosEditando[index] ?? pagos[index]?.monto) || 0;
+
   const totalPagosDivididos = pagoDividido
-    ? pagos.reduce((sum, p, index) => sum + (parseFloat(montosEditando[index] ?? p.monto) || 0), 0)
+    ? pagos.reduce((sum, _, index) => sum + getPagoMonto(index), 0)
     : 0;
 
   const sumaPagosValida = !pagoDividido || totalPagosDivididos >= totalConDeuda - 0.01;
   const sobrantePagos = pagoDividido ? Math.max(0, totalPagosDivididos - totalConDeuda) : 0;
 
-  const tieneCCSimple = !pagoDividido && form.medio_pago === "cuenta_corriente";
-  const tieneCCDividido = pagoDividido && pagos.some((p) => p.medio_pago === "cuenta_corriente");
+  const tieneCCDividido = pagos.some((p) => p.medio_pago === "cuenta_corriente");
 
-  const montoCC = pagoDividido
-    ? pagos
-        .filter((p) => p.medio_pago === "cuenta_corriente")
-        .reduce((sum, p) => sum + (parseFloat(p.monto) || 0), 0)
-    : tieneCCSimple
-    ? subtotal
-    : 0;
+  const montoCC = pagos.reduce(
+    (sum, p, index) => (p.medio_pago === "cuenta_corriente" ? sum + getPagoMonto(index) : sum),
+    0
+  );
+
+  const pagosPorMedio = pagos.reduce((acc, p, index) => {
+    if (p.medio_pago === "cuenta_corriente") return acc;
+    acc[p.medio_pago] = (acc[p.medio_pago] || 0) + getPagoMonto(index);
+    return acc;
+  }, {});
 
   const totalAcumulado = deudaAnterior + montoCC;
-  const totalMediosNoCC = pagoDividido
-    ? totalPagosDivididos - montoCC
-    : 0;
-  const montoRestantePago = pagoDividido
-    ? Math.max(0, totalConDeuda - totalPagosDivididos)
-    : 0;
+  const totalMediosNoCC = totalPagosDivididos - montoCC;
+  const montoRestantePago = Math.max(0, totalConDeuda - totalPagosDivididos);
 
   const handleClienteChange = (clienteId, nombre) => {
     setForm((prev) => ({ ...prev, clienteId }));
@@ -492,14 +449,6 @@ export default function VentasPage() {
            cantidad_unidades: getCantidadUnidades(p),
         })),
       };
-      const proveedorSeleccionado = esTransferencia
-        ? datosTransferencia[0]?.proveedorId
-        : esTarjeta
-          ? datosTarjeta[0]?.proveedorId
-          : "";
-      if (proveedorSeleccionado && !pagoDividido) {
-        data.proveedorId = parseInt(proveedorSeleccionado);
-      }
       if (esReparto && camionSeleccionado) {
         data.salidaCamionId = parseInt(camionSeleccionado);
       }
@@ -507,12 +456,10 @@ export default function VentasPage() {
         data.pagar_deuda = true;
         data.monto_deuda = deudaAnterior;
       }
-      if (pagoDividido) {
-        data.pagos = pagos.map((p, index) => ({
-          medio_pago: p.medio_pago,
-          monto: parseFloat(montosEditando[index] ?? p.monto) || 0,
-        }));
-      }
+      data.pagos = pagos.map((p, index) => ({
+        medio_pago: p.medio_pago,
+        monto: getPagoMonto(index),
+      }));
       if (esTransferencia) {
         data.datos_transferencia = datosTransferencia
           .filter((d) => isDatosBancariosCompleto(d))
@@ -792,41 +739,49 @@ export default function VentasPage() {
             </div>
           )}
 
-          <div className="form-card" style={{ marginTop: "0.5rem" }}>
-            <h3>Medios de Pago</h3>
-            <p className="subtitle">El pago dividido es obligatorio. Agregue medios y el importe restante se completará automáticamente.</p>
+          <div className="form-card" style={{ marginTop: "0.5rem", borderTop: "3px solid #3498db" }}>
+            <h3>Metodo de Pago</h3>
+            <p className="subtitle">Formato de pago dividido: combine varios medios de pago; el importe restante se completa automaticamente.</p>
             <div>
               {pagos.map((pago, index) => {
                 const esTrans = pago.medio_pago === "transferencia";
                 const esTarj = pago.medio_pago === "tarjeta";
                 return (
                 <div key={index} style={{ marginBottom: "0.75rem" }}>
-                  <div className="item-row">
-                    <select
-                      name="medio_pago"
-                      value={pago.medio_pago}
-                      onChange={(e) => handlePagoChange(index, e)}
-                      required
-                    >
-                      <option value="efectivo">Efectivo</option>
-                      <option value="transferencia">Transferencia</option>
-                      <option value="tarjeta">Tarjeta</option>
-                      <option value="cuenta_corriente">Cuenta Corriente</option>
-                      <option value="otro">Otro</option>
-                    </select>
-                    <input
-                      type="number"
-                      name="monto"
-                      value={montosEditando[index] ?? pago.monto}
-                      onChange={(e) => handlePagoChange(index, e)}
-                      onBlur={(e) => confirmarMontoPago(index, e.currentTarget.value)}
-                      min="0"
-                      step="0.01"
-                      placeholder="Monto"
-                      required
-                    />
+                  <div className="item-row" style={{ alignItems: "flex-end" }}>
+                    <div style={{ flex: 2, minWidth: 0 }}>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "bold", color: "#5a6c7d", marginBottom: "0.25rem" }}>Medio</label>
+                      <select
+                        name="medio_pago"
+                        value={pago.medio_pago}
+                        onChange={(e) => handlePagoChange(index, e)}
+                        required
+                        style={{ width: "100%" }}
+                      >
+                        <option value="efectivo">Efectivo</option>
+                        <option value="transferencia">Transferencia</option>
+                        <option value="tarjeta">Tarjeta</option>
+                        <option value="cuenta_corriente">Cuenta Corriente</option>
+                        <option value="otro">Otro</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: 1.4, minWidth: 0 }}>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "bold", color: "#5a6c7d", marginBottom: "0.25rem" }}>Importe</label>
+                      <input
+                        type="number"
+                        name="monto"
+                        value={montosEditando[index] ?? pago.monto}
+                        onChange={(e) => handlePagoChange(index, e)}
+                        onBlur={(e) => confirmarMontoPago(index, e.currentTarget.value)}
+                        min="0"
+                        step="0.01"
+                        placeholder="Monto"
+                        required
+                        style={{ width: "100%" }}
+                      />
+                    </div>
                     {pagos.length > 1 && (
-                      <button type="button" className="btn btn-sm btn-cancel" onClick={() => removePago(index)}>X</button>
+                      <button type="button" className="btn btn-sm btn-cancel" onClick={() => removePago(index)} title="Quitar medio">X</button>
                     )}
                   </div>
                   {esTrans && (
@@ -911,6 +866,16 @@ export default function VentasPage() {
                 );
               })}
               <button type="button" className="btn btn-secondary" onClick={addPago}>+ Agregar Medio de Pago</button>
+              {Object.keys(pagosPorMedio).length > 0 && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  {Object.entries(pagosPorMedio).map(([medio, monto]) => (
+                    <div key={medio} className="resumen-row">
+                      <span style={{ textTransform: "capitalize" }}>{medio.replace(/_/g, " ")}</span>
+                      <strong>${monto.toFixed(2)}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="resumen-row" style={{ marginTop: "0.5rem" }}>
                 <span>{totalPagosDivididos >= totalConDeuda ? "Sobrante:" : "Falta:"}</span>
                 <strong className={sumaPagosValida ? "monto-regreso" : "monto-salida"}>
@@ -934,76 +899,6 @@ export default function VentasPage() {
               )}
             </div>
           </div>
-
-          {esTransferencia && !pagoDividido && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f0f7ff", borderRadius: "6px", borderLeft: "3px solid #3498db" }}>
-              <select
-                  value={datosTransferencia[0]?.proveedorId || ""}
-                  onChange={(e) => handleProveedorChange("transferencia", 0, e.target.value)}
-                 required
-                style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
-              >
-                <option value="">Seleccionar proveedor destino...</option>
-                {proveedores.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}{p.alias ? ` (${p.alias})` : ""}</option>
-                ))}
-              </select>
-              <input
-                value={datosTransferencia[0]?.nombre_cuenta || ""}
-                onChange={(e) => handleDatoBancarioRapido("transferencia", 0, "nombre_cuenta", e.target.value)}
-                placeholder="Nombre de la cuenta"
-                style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
-              />
-              <BancoAutocomplete
-                value={datosTransferencia[0]?.banco || ""}
-                onChange={(val) => handleDatoBancarioRapido("transferencia", 0, "banco", val)}
-                bancos={bancos}
-                onAddBanco={(v) => {
-                  if (!bancos.includes(v)) {
-                    bancosAPI.create({ nombre: v }).then(() => {
-                      setBancos(prev => [...prev, v]);
-                    }).catch(console.error);
-                  }
-                }}
-                exclude={datosTarjeta.filter(Boolean).map(d => d.banco).filter(Boolean)}
-              />
-            </div>
-          )}
-
-          {esTarjeta && !pagoDividido && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.5rem", padding: "0.5rem", background: "#f5f0ff", borderRadius: "6px", borderLeft: "3px solid #9b59b6" }}>
-              <select
-                  value={datosTarjeta[0]?.proveedorId || ""}
-                  onChange={(e) => handleProveedorChange("tarjeta", 0, e.target.value)}
-                 required
-                style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
-              >
-                <option value="">Seleccionar proveedor destino...</option>
-                {proveedores.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}{p.alias ? ` (${p.alias})` : ""}</option>
-                ))}
-              </select>
-              <input
-                value={datosTarjeta[0]?.nombre_cuenta || ""}
-                onChange={(e) => handleDatoBancarioRapido("tarjeta", 0, "nombre_cuenta", e.target.value)}
-                placeholder="Nombre de la cuenta"
-                style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
-              />
-              <BancoAutocomplete
-                value={datosTarjeta[0]?.banco || ""}
-                onChange={(val) => handleDatoBancarioRapido("tarjeta", 0, "banco", val)}
-                bancos={bancos}
-                onAddBanco={(v) => {
-                  if (!bancos.includes(v)) {
-                    bancosAPI.create({ nombre: v }).then(() => {
-                      setBancos(prev => [...prev, v]);
-                    }).catch(console.error);
-                  }
-                }}
-                exclude={datosTransferencia.filter(Boolean).map(d => d.banco).filter(Boolean)}
-              />
-            </div>
-          )}
 
           <div className="form-group">
             <label>Observaciones</label>
@@ -1055,7 +950,7 @@ export default function VentasPage() {
             </>
           )}
 
-          {(tieneCCSimple || tieneCCDividido) && clienteSeleccionado && deudaAnterior > 0 && (
+          {tieneCCDividido && clienteSeleccionado && deudaAnterior > 0 && (
             <>
               <div className="resumen-row">
                 <span>Deuda anterior:</span>
@@ -1106,20 +1001,8 @@ export default function VentasPage() {
                )}
              </>
            )}
-           {!pagoDividido && !(tieneCCSimple || tieneCCDividido) && (
-             <div className="resumen-row resumen-total">
-               <span>Total:</span>
-               <strong className="monto-ventas">${totalConDeuda.toFixed(2)}</strong>
-             </div>
-           )}
-           {!pagoDividido && tieneCCSimple && (
-             <div className="resumen-row resumen-total">
-               <span>Nuevo saldo en cuenta corriente:</span>
-               <strong className="monto-regreso">${totalAcumulado.toFixed(2)}</strong>
-             </div>
-           )}
 
-        </div>
+         </div>
 
         {productoPrecioEditando && (
           <div className="modal-overlay" onClick={() => setProductoPrecioEditando(null)}>
