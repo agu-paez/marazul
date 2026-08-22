@@ -1679,7 +1679,6 @@ export const generarPagoClientePDF = async (pago, historial) => {
   const datos = parseDatos(datosBancarios) || {};
   const rows = [
     ["Fecha de emision del pago", `${pago?.fecha_pago || pago?.fecha || "-"}`],
-    ["Fecha de registro", `${pago?.fecha || "-"} ${pago?.hora || ""}`],
     ["Medio de pago", pago?.medio_pago || "-"],
     ["Monto pagado", `$${Number(pago?.monto || 0).toFixed(2)}`],
     ["Cuenta / titular", pago?.titular || datos.titular || datos.nombre_cuenta || "-"],
