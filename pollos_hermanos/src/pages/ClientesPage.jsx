@@ -374,7 +374,7 @@ export default function ClientesPage() {
 
       {showPagoForm && clientePago && (
         <div className="modal-overlay" onClick={() => setShowPagoForm(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card modal-scrollable" onClick={(e) => e.stopPropagation()}>
             <h3>Registrar Pago - {clientePago.nombre}</h3>
             <div className="cc-resumen" style={{ marginBottom: "1rem" }}>
               <div className="cc-item">
