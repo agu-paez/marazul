@@ -30,6 +30,7 @@ export default function VentasPage() {
   const [pagos, setPagos] = useState([
     { medio_pago: "efectivo", monto: 0 },
   ]);
+  const [borradorMonto, setBorradorMonto] = useState({});
   const [montosEditando, setMontosEditando] = useState({});
   const [pagarDeuda, setPagarDeuda] = useState(false);
   const [clienteNombreIngresado, setClienteNombreIngresado] = useState("");
@@ -127,11 +128,6 @@ export default function VentasPage() {
   };
 
   const handlePagoChange = (index, e) => {
-    if (e.target.name === "monto") {
-      setMontosEditando((prev) => ({ ...prev, [index]: e.target.value }));
-      return;
-    }
-
     const newPagos = [...pagos];
     newPagos[index][e.target.name] = e.target.value;
     setPagos(newPagos);
@@ -157,7 +153,16 @@ export default function VentasPage() {
         delete next[index];
         return next;
       });
+      setBorradorMonto((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
     }
+  };
+
+  const handleMontoInput = (index, value) => {
+    setBorradorMonto((prev) => ({ ...prev, [index]: value }));
   };
 
   const confirmarMontoPago = (index, value) => {
@@ -196,6 +201,14 @@ export default function VentasPage() {
       setDatosTransferencia(datosTransferencia.filter((_, i) => i !== index));
       setDatosTarjeta(datosTarjeta.filter((_, i) => i !== index));
       setMontosEditando((prev) => {
+        const next = {};
+        Object.entries(prev).forEach(([key, value]) => {
+          if (Number(key) < index) next[key] = value;
+          if (Number(key) > index) next[Number(key) - 1] = value;
+        });
+        return next;
+      });
+      setBorradorMonto((prev) => {
         const next = {};
         Object.entries(prev).forEach(([key, value]) => {
           if (Number(key) < index) next[key] = value;
@@ -770,9 +783,16 @@ export default function VentasPage() {
                       <input
                         type="number"
                         name="monto"
-                        value={montosEditando[index] ?? pago.monto}
-                        onChange={(e) => handlePagoChange(index, e)}
-                        onBlur={(e) => confirmarMontoPago(index, e.currentTarget.value)}
+                        value={borradorMonto[index] ?? (montosEditando[index] ?? pago.monto)}
+                        onChange={(e) => handleMontoInput(index, e.target.value)}
+                        onBlur={(e) => {
+                          confirmarMontoPago(index, e.currentTarget.value);
+                          setBorradorMonto((prev) => {
+                            const next = { ...prev };
+                            delete next[index];
+                            return next;
+                          });
+                        }}
                         min="0"
                         step="0.01"
                         placeholder="Monto"
