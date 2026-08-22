@@ -209,7 +209,7 @@ export const registrarRegreso = async (req, res) => {
       }
     }
 
-    const { items_regreso, cancelar = false, motivo, estado_final } = req.body;
+    const { items_regreso, cancelar = false, motivo } = req.body;
 
     if (cancelar && salida.estado !== "en_camino") {
       return res.status(400).json({ message: "Solo se puede cancelar con regreso una salida en camino" });
@@ -273,10 +273,7 @@ export const registrarRegreso = async (req, res) => {
     } else {
       const totalVentasReparto = ventasExistentes.reduce((sum, v) => sum + parseFloat(v.total || 0), 0);
       const montoSalida = parseFloat(salida.monto_salida || 0);
-      let estadoFinal = montoRegreso + totalVentasReparto >= montoSalida ? "entregado" : "sobrante";
-      if (editandoHistorial && ["entregado", "sobrante"].includes(estado_final)) {
-        estadoFinal = estado_final;
-      }
+      const estadoFinal = montoRegreso + totalVentasReparto >= montoSalida ? "entregado" : "sobrante";
       await salida.update({ estado: estadoFinal });
     }
 

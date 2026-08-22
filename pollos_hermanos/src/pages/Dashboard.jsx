@@ -12,7 +12,6 @@ export default function Dashboard() {
 
   const formatVentas = dinero;
   const [editandoRegreso, setEditandoRegreso] = useState(false);
-  const [marcarEntregada, setMarcarEntregada] = useState(false);
   const [stats, setStats] = useState(null);
   const [salidas, setSalidas] = useState([]);
   const [resumen, setResumen] = useState(null);
@@ -109,7 +108,6 @@ export default function Dashboard() {
   const openRegresoForm = (salida, esEdicion = false) => {
     setRegresando(salida);
     setEditandoRegreso(esEdicion);
-    setMarcarEntregada(false);
     const items = (salida.SalidaCamionItems || []).map((item) => ({
       productoId: item.productoId,
       nombre: item.Producto?.nombre,
@@ -171,11 +169,9 @@ export default function Dashboard() {
 
        await salidasAPI.registrarRegreso(regresando.id, {
         items_regreso: items_para_enviar,
-        estado_final: editandoRegreso && marcarEntregada ? "entregado" : undefined,
       });
       setRegresando(null);
       setEditandoRegreso(false);
-      setMarcarEntregada(false);
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -440,17 +436,6 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
-
-            {editandoRegreso && regresando?.estado === "sobrante" && (
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.75rem", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={marcarEntregada}
-                  onChange={(e) => setMarcarEntregada(e.target.checked)}
-                />
-                Marcar como entregada al guardar (el sistema la dejara como entregado aunque los montos no cierren)
-              </label>
-            )}
 
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => { setRegresando(null); setEditandoRegreso(false); setCancelarConRegreso(false); }}>
