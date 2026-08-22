@@ -176,7 +176,6 @@ export const generarPDFMarcasProductos = async (req, res) => {
     const NAVY = "#14284b";
     const ACCENT = "#c9a227";
     const TEXT = "#1f2937";
-    const MUTED = "#64748b";
     const ROW_ALT = "#f6f8fb";
     const BORDER = "#e3e8ef";
     const TABLE_HEAD_BG = "#e9eef5";

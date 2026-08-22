@@ -98,21 +98,11 @@ export default function VentasPage() {
     if (name === "tipo_venta") {
       setCamionSeleccionado("");
       setStockCamion([]);
-      if (value === "reparto") {
-        salidasAPI.getCamionesActivos().then((res) => {
-          setCamionesActivos(res.data);
-          if (res.data.length > 0) {
-            const enCamino = res.data.find((c) => c.estado === "en_camino");
-            const primero = enCamino || res.data[0];
-            setCamionSeleccionado(String(primero.id));
-          }
-        }).catch(console.error);
-      }
     }
   };
 
   const toggleCantidad = (productoId, delta) => {
-    const producto = productosBase.find((p) => p.id === productoId);
+    const producto = productosPorId.get(productoId);
     const esKg = ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
     setCantidades((prev) => {
       const actual = prev[productoId] || 0;
@@ -122,7 +112,7 @@ export default function VentasPage() {
   };
 
   const getStockMax = (productoId) => {
-    const p = productosBase.find((bp) => bp.id === productoId);
+    const p = productosPorId.get(productoId);
     if (!p) return 0;
     return Number(p.stock);
   };
@@ -260,30 +250,37 @@ export default function VentasPage() {
     newDatos[index] = { ...newDatos[index], proveedorId: value };
     setDatos(newDatos);
   };
-  const productosBase = esReparto
+  const productosBase = useMemo(() => esReparto
     ? stockCamion.map((sc) => ({
         id: sc.productoId,
         nombre: sc.nombre,
-         precio: sc.precio,
-         descuento: sc.descuento,
-         unidad: sc.unidad,
-         unidades_por_caja: sc.unidades_por_caja,
+        precio: sc.precio,
+        descuento: sc.descuento,
+        unidad: sc.unidad,
+        unidades_por_caja: sc.unidades_por_caja,
         stock: sc.disponible,
         cargado: sc.cargado,
         devuelto: sc.devuelto,
       }))
-    : productos;
+    : productos, [esReparto, productos, stockCamion]);
+  const productosPorId = useMemo(
+    () => new Map(productosBase.map((producto) => [producto.id, producto])),
+    [productosBase]
+  );
 
-  const productosFiltrados = productosBase.filter((p) => {
+  const productosFiltrados = useMemo(() => {
     const termino = busqueda.toLowerCase();
-    const coincideBusqueda = (
-      p.nombre.toLowerCase().includes(termino) ||
-      (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino))
-    );
-    return coincideBusqueda && (!mostrarSoloSeleccionados || (cantidades[p.id] || 0) > 0);
-  });
+    return productosBase.filter((p) => {
+      const coincideBusqueda = p.nombre.toLowerCase().includes(termino)
+        || (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino));
+      return coincideBusqueda && (!mostrarSoloSeleccionados || (cantidades[p.id] || 0) > 0);
+    });
+  }, [productosBase, busqueda, mostrarSoloSeleccionados, cantidades]);
 
-  const productosSeleccionados = productosBase.filter((p) => (cantidades[p.id] || 0) > 0);
+  const productosSeleccionados = useMemo(
+    () => productosBase.filter((p) => (cantidades[p.id] || 0) > 0),
+    [productosBase, cantidades]
+  );
 
   const esProductoKg = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
   const getPrecioVenta = (producto) => {
@@ -329,8 +326,10 @@ export default function VentasPage() {
     }, 0);
   };
 
-  const clienteSeleccionado = clientes.find((c) => c.id === parseInt(form.clienteId));
-  const camionSeleccionadoData = camionesActivos.find((camion) => camion.id === parseInt(camionSeleccionado));
+  const clientesPorId = useMemo(() => new Map(clientes.map((cliente) => [cliente.id, cliente])), [clientes]);
+  const camionesPorId = useMemo(() => new Map(camionesActivos.map((camion) => [camion.id, camion])), [camionesActivos]);
+  const clienteSeleccionado = clientesPorId.get(parseInt(form.clienteId));
+  const camionSeleccionadoData = camionesPorId.get(parseInt(camionSeleccionado));
   const clientesDisponibles = useMemo(() => {
     if (esReparto && camionSeleccionadoData) {
       return clientes.filter((cliente) => cliente.zona === camionSeleccionadoData.destino);

@@ -1,19 +1,20 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
-import LoginPage from "./pages/LoginPage";
-import Dashboard from "./pages/Dashboard";
-import NuevaSalida from "./pages/NuevaSalida";
-import MisSalidas from "./pages/MisSalidas";
-import HistorialCierres from "./pages/HistorialCierres";
-import VentasPage from "./pages/VentasPage";
-import HistorialVentasPage from "./pages/HistorialVentasPage";
-import ClientesPage from "./pages/ClientesPage";
-import HistorialPage from "./pages/HistorialPage";
-import UsuariosPage from "./pages/UsuariosPage";
-import ProveedoresPage from "./pages/ProveedoresPage";
-import ProductosPage from "./pages/ProductosPage";
-import EstadisticasPage from "./pages/EstadisticasPage";
+
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const NuevaSalida = lazy(() => import("./pages/NuevaSalida"));
+const MisSalidas = lazy(() => import("./pages/MisSalidas"));
+const HistorialCierres = lazy(() => import("./pages/HistorialCierres"));
+const VentasPage = lazy(() => import("./pages/VentasPage"));
+const ClientesPage = lazy(() => import("./pages/ClientesPage"));
+const HistorialPage = lazy(() => import("./pages/HistorialPage"));
+const UsuariosPage = lazy(() => import("./pages/UsuariosPage"));
+const ProveedoresPage = lazy(() => import("./pages/ProveedoresPage"));
+const ProductosPage = lazy(() => import("./pages/ProductosPage"));
+const EstadisticasPage = lazy(() => import("./pages/EstadisticasPage"));
 
 function PrivateRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
@@ -36,7 +37,8 @@ function AppRoutes() {
   const isAdmin = user?.role === "admin";
 
   return (
-    <Routes>
+    <Suspense fallback={<div className="loading">Cargando módulo...</div>}>
+      <Routes>
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
 
       <Route path="/" element={
@@ -166,7 +168,8 @@ function AppRoutes() {
       } />
 
       <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
 

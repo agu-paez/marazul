@@ -4,6 +4,58 @@ const API = axios.create({
   baseURL: "/api",
 });
 
+const GET_CACHE_TTL = 60_000;
+const getCache = new Map();
+const pendingGets = new Map();
+let cacheGeneration = 0;
+
+const stableSerialize = (value) => {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(",")}}`;
+};
+
+const getCacheKey = (url, config = {}) => {
+  const token = localStorage.getItem("token") || "public";
+  return `${token}:${url}:${stableSerialize(config.params || {})}`;
+};
+
+const isCacheableGet = (config = {}) => config.responseType !== "blob" && !config.url?.toLowerCase().endsWith("/pdf");
+
+const clearGetCache = () => {
+  cacheGeneration += 1;
+  getCache.clear();
+};
+
+const originalGet = API.get.bind(API);
+API.get = (url, config = {}) => {
+  if (!isCacheableGet({ ...config, url })) return originalGet(url, config);
+
+  const key = getCacheKey(url, config);
+  const cached = getCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.response);
+  if (cached) getCache.delete(key);
+  if (pendingGets.has(key)) return pendingGets.get(key);
+
+  const requestGeneration = cacheGeneration;
+  const request = originalGet(url, config).then((response) => {
+    if (requestGeneration === cacheGeneration) {
+      getCache.set(key, { response, expiresAt: Date.now() + GET_CACHE_TTL });
+    }
+    return response;
+  }).finally(() => pendingGets.delete(key));
+  pendingGets.set(key, request);
+  return request;
+};
+
+["post", "put", "patch", "delete"].forEach((method) => {
+  const original = API[method].bind(API);
+  API[method] = (...args) => original(...args).then((response) => {
+    clearGetCache();
+    return response;
+  });
+});
+
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -17,6 +69,7 @@ API.interceptors.response.use(
   (error) => {
     const isLoginRequest = error.config?.url?.endsWith("/auth/login");
     if (error.response?.status === 401 && !isLoginRequest) {
+      clearGetCache();
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "/login";

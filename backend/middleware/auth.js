@@ -21,7 +21,7 @@ export const authenticate = async (req, res, next) => {
     req.user = user;
     req.userRole = user.Role?.nombre || "operador";
     next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({ message: "Token inválido" });
   }
 };

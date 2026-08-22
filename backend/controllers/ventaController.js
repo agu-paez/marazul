@@ -38,7 +38,6 @@ export const crearVenta = async (req, res) => {
 
     const {
       tipo_venta,
-      cliente_nombre,
       cliente_direccion,
       cliente_telefono,
       medio_pago,

@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { productosAPI, proveedoresAPI, marcasAPI } from "../api";
+import { productosAPI, marcasAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 
 export default function ProductosPage() {
   const { user } = useAuth();
   const [productos, setProductos] = useState([]);
-  const [proveedores, setProveedores] = useState([]);
   const [marcas, setMarcas] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -39,13 +38,11 @@ export default function ProductosPage() {
 
   const loadData = async () => {
     try {
-      const [prodRes, provRes, marcasRes] = await Promise.all([
+      const [prodRes, marcasRes] = await Promise.all([
         productosAPI.getAll(),
-        proveedoresAPI.getAll(),
         marcasAPI.getAll(),
       ]);
       setProductos(prodRes.data);
-      setProveedores(provRes.data);
       setMarcas(marcasRes.data);
     } catch (error) {
       console.error("Error:", error);
@@ -100,7 +97,7 @@ export default function ProductosPage() {
     try {
       await productosAPI.delete(id);
       loadData();
-    } catch (error) {
+    } catch {
       alert("Error al eliminar");
     }
   };
