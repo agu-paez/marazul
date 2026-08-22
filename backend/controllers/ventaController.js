@@ -10,6 +10,7 @@ const normalizarUnidadVenta = (producto, unidadVenta) => esCaja(producto) && uni
 const obtenerDatosPago = (pago) => ({
   nombre_cuenta: String(pago.nombre_cuenta || "").trim(),
   banco: String(pago.banco || "").trim(),
+  monto: Number(pago.monto) || 0,
   proveedorId: pago.proveedorId ? Number(pago.proveedorId) : null,
   alias: String(pago.alias || "").trim(),
   fecha_hora: pago.fecha_hora || new Date().toISOString(),

@@ -101,6 +101,14 @@ export default function HistorialVentasPage() {
 
   const guardarPago = async (e) => {
     e.preventDefault();
+    const totalEsperado = (Number(ventaPagoEditando.total) || 0) + (Number(ventaPagoEditando.monto_deuda_pagado) || 0);
+    const diferencia = totalPagosEditados - totalEsperado;
+    if (Math.abs(diferencia) > 0.01) {
+      const mensaje = diferencia > 0
+        ? `La suma de los pagos ($${totalPagosEditados.toFixed(2)}) excede el total esperado ($${totalEsperado.toFixed(2)}).\n\nEl exceso ($${diferencia.toFixed(2)}) se acreditará como saldo a favor del cliente.\n\n¿Continuar?`
+        : `La suma de los pagos ($${totalPagosEditados.toFixed(2)}) es menor al total esperado ($${totalEsperado.toFixed(2)}).\n\nFaltan $${Math.abs(diferencia).toFixed(2)}.\n\n¿Continuar?`;
+      if (!window.confirm(mensaje)) return;
+    }
     setGuardandoPago(true);
     try {
       await ventasAPI.modificarPago(ventaPagoEditando.id, {
@@ -197,9 +205,9 @@ export default function HistorialVentasPage() {
                 <th>Camion</th>
                 <th>Cliente</th>
                  <th>Vendedor</th>
+                 <th>Acciones</th>
                  <th>Modificado por</th>
                  <th>Qué modificó</th>
-                <th>Acciones</th>
                 <th>Mercaderías</th>
               </tr>
             </thead>
