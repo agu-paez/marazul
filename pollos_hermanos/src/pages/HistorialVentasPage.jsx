@@ -106,7 +106,7 @@ export default function HistorialVentasPage() {
     if (Math.abs(diferencia) > 0.01) {
       const mensaje = diferencia > 0
         ? `La suma de los pagos ($${totalPagosEditados.toFixed(2)}) excede el total esperado ($${totalEsperado.toFixed(2)}).\n\nEl exceso ($${diferencia.toFixed(2)}) se acreditará como saldo a favor del cliente.\n\n¿Continuar?`
-        : `La suma de los pagos ($${totalPagosEditados.toFixed(2)}) es menor al total esperado ($${totalEsperado.toFixed(2)}).\n\nFaltan $${Math.abs(diferencia).toFixed(2)}.\n\n¿Continuar?`;
+        : `La suma de los pagos ($${totalPagosEditados.toFixed(2)}) es menor al total esperado ($${totalEsperado.toFixed(2)}).\n\nEl faltante ($${Math.abs(diferencia).toFixed(2)}) se registrará en cuenta corriente como saldo pendiente del cliente.\n\n¿Continuar?`;
       if (!window.confirm(mensaje)) return;
     }
     setGuardandoPago(true);

@@ -535,10 +535,23 @@ export const modificarPagoVenta = async (req, res) => {
 
     const totalEsperado = (parseFloat(venta.total) || 0) + (parseFloat(venta.monto_deuda_pagado) || 0);
     const sobranteAnterior = parseFloat(venta.monto_sobrante) || 0;
-    const totalNuevo = pagosNuevos.reduce((sum, pago) => sum + pago.monto, 0);
-    if (totalNuevo < totalEsperado + sobranteAnterior - 0.01) {
-      await transaction.rollback();
-      return res.status(400).json({ message: `La suma de los pagos ($${totalNuevo.toFixed(2)}) es menor al total ($${(totalEsperado + sobranteAnterior).toFixed(2)})` });
+    let totalNuevo = pagosNuevos.reduce((sum, pago) => sum + pago.monto, 0);
+    if (totalNuevo < totalEsperado - 0.01) {
+      if (!venta.clienteId) {
+        await transaction.rollback();
+        return res.status(400).json({ message: `La suma de los pagos ($${totalNuevo.toFixed(2)}) es menor al total ($${totalEsperado.toFixed(2)}) y la venta no tiene cliente para registrar el faltante en cuenta corriente` });
+      }
+      const faltante = Number((totalEsperado - totalNuevo).toFixed(2));
+      pagosNuevos.push({
+        medio_pago: "cuenta_corriente",
+        monto: faltante,
+        nombre_cuenta: "",
+        banco: "",
+        proveedorId: null,
+        alias: "",
+        fecha_hora: new Date().toISOString(),
+      });
+      totalNuevo += faltante;
     }
     const sobranteNuevo = Math.max(0, totalNuevo - totalEsperado);
 
