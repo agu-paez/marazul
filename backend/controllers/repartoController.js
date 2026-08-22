@@ -1,4 +1,3 @@
-import { Op } from "sequelize";
 import { Reparto, RepartoItem, Producto, User } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
 

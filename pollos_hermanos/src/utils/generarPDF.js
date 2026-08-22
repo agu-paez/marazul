@@ -121,7 +121,7 @@ export const generarComprobantePDF = async (venta) => {
   doc.setTextColor(120, 120, 130);
   let cy = y + 14;
   if (venta.cliente_direccion) { doc.text(`Dir: ${venta.cliente_direccion}`, ml, cy); cy += 5.5; }
-  if (venta.cliente_telefono) { doc.text(`Tel: ${venta.cliente_telefono}`, ml, cy); cy += 5.5; }
+  if (venta.cliente_telefono) { doc.text(`Tel: ${venta.cliente_telefono}`, ml, cy); }
 
   const colRight = pw / 2 + 5;
   doc.setFont("helvetica", "bold");
@@ -256,7 +256,7 @@ export const generarComprobantePDF = async (venta) => {
     doc.text(nombre, rx, y + 4.5); rx += prodCols[0];
     doc.text(`${cant}${esKg ? " kg" : ""}`, rx, y + 4.5); rx += prodCols[1];
     doc.text(`$${precio.toFixed(2)}`, rx, y + 4.5); rx += prodCols[2];
-    doc.text(`$${sub.toFixed(2)}`, rx, y + 4.5); rx += prodCols[3];
+     doc.text(`$${sub.toFixed(2)}`, rx, y + 4.5);
     y += rowH;
   }
   doc.setDrawColor(210, 210, 215);
@@ -1048,7 +1048,6 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
     doc.text(`Repartidor: ${salida.repartidor_asignado?.nombre || "-"}`, ml + 3, y + 13);
     doc.text(`Destino: ${salida.destino || "-"}`, ml + 3, y + 19);
     doc.text(`Total enviado: $${parseFloat(salida.monto_salida || 0).toFixed(2)}`, ml + 3, y + 25);
-    const neto = parseFloat(salida.monto_salida || 0) - parseFloat(salida.monto_regreso || 0);
     doc.text(`Total devuelto: $${parseFloat(salida.monto_regreso || 0).toFixed(2)}`, ml + 80, y + 25);
     doc.text(`Salida autorizada por: ${salida.autorizado_por?.nombre || "-"}`, ml + 3, y + 31);
 

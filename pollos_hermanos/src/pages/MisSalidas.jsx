@@ -67,7 +67,7 @@ export default function MisSalidas() {
         const res = await cierreCajaAPI.getResumenHoy();
         caja = res.data;
         setResumenCaja(caja);
-      } catch (error) {
+      } catch {
         alert("No se pudo verificar el estado de la caja");
         return;
       }
@@ -237,7 +237,7 @@ export default function MisSalidas() {
           cantidad: item.cantidad_regreso,
         }));
 
-      const res = await salidasAPI.registrarRegreso(regresando.id, {
+      await salidasAPI.registrarRegreso(regresando.id, {
         items_regreso: items_para_enviar,
       });
       setRegresando(null);

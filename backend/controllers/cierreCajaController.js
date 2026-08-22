@@ -68,18 +68,14 @@ export const getResumenDelDia = async (req, res) => {
     });
 
     let localMonto = 0;
-    let localCount = 0;
     let repartoMonto = 0;
-    let repartoCount = 0;
 
     for (const venta of ventasHoy) {
       const monto = parseFloat(venta.total) || 0;
       if (venta.tipo_venta === "local") {
         localMonto += monto;
-        localCount++;
       } else {
         repartoMonto += monto;
-        repartoCount++;
       }
     }
 
@@ -146,18 +142,14 @@ export const cerrarCaja = async (req, res) => {
     });
 
     let localMonto = 0;
-    let localCount = 0;
     let repartoMonto = 0;
-    let repartoCount = 0;
 
     for (const venta of ventasHoy) {
       const monto = parseFloat(venta.total) || 0;
       if (venta.tipo_venta === "local") {
         localMonto += monto;
-        localCount++;
       } else {
         repartoMonto += monto;
-        repartoCount++;
       }
     }
 

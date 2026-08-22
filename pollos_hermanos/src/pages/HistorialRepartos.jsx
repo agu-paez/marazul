@@ -13,7 +13,7 @@ export default function HistorialRepartos() {
     try {
       const res = await repartosAPI.getAll();
       setRepartos(res.data);
-    } catch (error) {
+    } catch {
       console.error("Error:", error);
     } finally {
       setLoading(false);
@@ -25,7 +25,7 @@ export default function HistorialRepartos() {
     try {
       await repartosAPI.delete(id);
       loadRepartos();
-    } catch (error) {
+    } catch {
       alert("Error al eliminar");
     }
   };
