@@ -109,17 +109,35 @@ export const getResumenDelDia = async (req, res) => {
   }
 };
 
+const calcularDiasDiferencia = (fecha, referencia) => {
+  const [a1, m1, d1] = fecha.split("-").map(Number);
+  const [a2, m2, d2] = referencia.split("-").map(Number);
+  return Math.round((Date.UTC(a2, m2 - 1, d2) - Date.UTC(a1, m1 - 1, d1)) / 86400000);
+};
+
 export const cerrarCaja = async (req, res) => {
   try {
-    const today = getFechaLocal();
+    const hoy = getFechaLocal();
+    let fechaCierre = hoy;
 
-    const cierreExistente = await CierreCaja.findOne({ where: { fecha: today } });
+    if (req.body?.fecha) {
+      fechaCierre = req.body.fecha;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaCierre)) {
+        return res.status(400).json({ message: "Fecha inválida" });
+      }
+      const diasAtras = calcularDiasDiferencia(fechaCierre, hoy);
+      if (diasAtras < 0 || diasAtras > 2) {
+        return res.status(400).json({ message: "Solo se puede cerrar la caja del día actual o de los últimos 2 días" });
+      }
+    }
+
+    const cierreExistente = await CierreCaja.findOne({ where: { fecha: fechaCierre } });
     if (cierreExistente) {
       return res.status(400).json({ message: "La caja ya fue cerrada para este dia" });
     }
 
     const salidasHoy = await SalidaCamion.findAll({
-      where: { fecha: today },
+      where: { fecha: fechaCierre },
       include: [
         {
           model: SalidaCamionItem,
@@ -142,7 +160,7 @@ export const cerrarCaja = async (req, res) => {
     }
 
     const ventasHoy = await Venta.findAll({
-      where: { fecha: today, estado: "completada" },
+      where: { fecha: fechaCierre, estado: "completada" },
     });
 
     let localMonto = 0;
@@ -159,9 +177,9 @@ export const cerrarCaja = async (req, res) => {
 
     const totalGeneral = localMonto + repartoMonto;
     const ventas_netas = mercaderia_enviada - mercaderia_devuelta;
-    const gastoDia = await GastoDia.findOne({ where: { fecha: today } });
+    const gastoDia = await GastoDia.findOne({ where: { fecha: fechaCierre } });
     const pagosEmpleados = await PagoEmpleado.findAll({
-      where: { fecha: today },
+      where: { fecha: fechaCierre },
       include: [{ model: User, as: "empleado", attributes: ["id", "nombre"], include: [{ model: Role, attributes: ["nombre"] }] }],
     });
     const pagosEmpleadosSnapshot = pagosEmpleados.map((pago) => ({
@@ -174,7 +192,7 @@ export const cerrarCaja = async (req, res) => {
     const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
     const cierre = await CierreCaja.create({
-      fecha: today,
+      fecha: fechaCierre,
       hora,
       total_ventas: totalGeneral.toFixed(2),
       salidas_count: salidasHoy.length,
@@ -189,7 +207,7 @@ export const cerrarCaja = async (req, res) => {
     });
 
     const salidasEnCamino = await SalidaCamion.findAll({
-      where: { fecha: today, estado: "en_camino" },
+      where: { fecha: fechaCierre, estado: "en_camino" },
     });
     for (const salida of salidasEnCamino) {
       await salida.update({ estado: "sobrante" });
@@ -218,13 +236,26 @@ export const abrirCaja = async (req, res) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
       return res.status(400).json({ message: "Fecha inválida" });
     }
-    if (fecha !== getFechaLocal()) {
-      return res.status(400).json({ message: "Solo se puede abrir la caja del día actual" });
-    }
+
+    const hoy = getFechaLocal();
 
     const cierre = await CierreCaja.findOne({ where: { fecha } });
     if (!cierre) {
-      return res.status(404).json({ message: "La caja de hoy ya está abierta" });
+      return res.status(404).json({ message: "No existe un cierre para esa fecha (la caja ya está abierta)" });
+    }
+
+    if (fecha !== hoy) {
+      const diasAtras = calcularDiasDiferencia(fecha, hoy);
+      if (diasAtras < 1) {
+        return res.status(400).json({ message: "No se puede abrir una caja con fecha futura" });
+      }
+      if (diasAtras > 2) {
+        return res.status(400).json({ message: "Solo se pueden abrir las cajas de los últimos 2 días" });
+      }
+      const cierreHoy = await CierreCaja.findOne({ where: { fecha: hoy } });
+      if (!cierreHoy) {
+        return res.status(400).json({ message: "La caja del día actual está abierta. Solo puede haber una caja abierta a la vez" });
+      }
     }
 
     await cierre.destroy();

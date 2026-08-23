@@ -143,7 +143,7 @@ export const salidasAPI = {
 
 export const cierreCajaAPI = {
   getResumenHoy: () => API.get("/cierre-caja/resumen-hoy"),
-  cerrar: () => API.post("/cierre-caja/cerrar"),
+  cerrar: (fecha) => API.post("/cierre-caja/cerrar", fecha ? { fecha } : {}),
   abrir: (fecha) => API.post(`/cierre-caja/${fecha}/abrir`),
   eliminar: (fecha) => API.delete(`/cierre-caja/${fecha}`),
   getHistorial: () => API.get("/cierre-caja/historial"),

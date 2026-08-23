@@ -46,10 +46,21 @@ export default function HistorialCierres() {
   };
 
   const handleAbrir = async (c) => {
-    if (!window.confirm(`¿Abrir la caja del día ${c.fecha}?\nEsto eliminará el cierre y permitirá cerrar el día nuevamente.`)) return;
+    if (!window.confirm(`¿Abrir la caja del día ${c.fecha}?\nEsto eliminará el cierre y permitirá modificar el día y volver a cerrarlo.`)) return;
     try {
       await cierreCajaAPI.abrir(c.fecha);
       alert("Caja abierta correctamente");
+      loadCierres();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleCerrar = async (fecha) => {
+    if (!window.confirm(`¿Cerrar la caja del día ${fecha}?\nSe generará el cierre con los datos actuales de ese día.`)) return;
+    try {
+      await cierreCajaAPI.cerrar(fecha);
+      alert("Caja cerrada correctamente");
       loadCierres();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -158,11 +169,66 @@ export default function HistorialCierres() {
 
   const gruposProveedor = agruparPorProveedor(transferencias);
 
+  const diasAtras = (fecha) => {
+    const [a1, m1, d1] = fecha.split("-").map(Number);
+    const [a2, m2, d2] = today.split("-").map(Number);
+    return Math.round((Date.UTC(a2, m2 - 1, d2) - Date.UTC(a1, m1 - 1, d1)) / 86400000);
+  };
+
+  const hoyCerrado = cierres.some((c) => String(c.fecha).slice(0, 10) === today);
+
+  const puedeAbrir = (fecha) => {
+    const diff = diasAtras(fecha);
+    if (diff === 0) return true;
+    if (diff < 1 || diff > 2) return false;
+    return hoyCerrado;
+  };
+
+  const motivoNoAbrir = (fecha) => {
+    const diff = diasAtras(fecha);
+    if (diff > 2) return "Solo se pueden abrir las cajas de los últimos 2 días";
+    if (diff >= 1 && !hoyCerrado) return "La caja de hoy está abierta. Solo puede haber una caja abierta a la vez";
+    return "";
+  };
+
+  const fechasAbiertasRecientes = (() => {
+    const conCierre = new Set(cierres.map((c) => String(c.fecha).slice(0, 10)));
+    const lista = [];
+    for (let i = 1; i <= 2; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const fecha = getFechaLocal(d);
+      if (!conCierre.has(fecha)) lista.push(fecha);
+    }
+    return lista;
+  })();
+
   if (loading) return <div className="loading">Cargando...</div>;
 
   return (
     <div>
       <h2 style={{ fontSize: isMobile ? "1.25rem" : "1.5rem" }}>Historial de Cierres de Caja</h2>
+
+      {fechasAbiertasRecientes.length > 0 && esAdminOrOperador && (
+        <div style={{
+          background: "var(--bg-secondary)",
+          border: "1px solid #f0ad4e",
+          borderRadius: "10px",
+          padding: "0.75rem 1rem",
+          marginBottom: "1rem",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.5rem",
+          alignItems: "center"
+        }}>
+          <span style={{ fontSize: "0.85rem" }}>Cajas abiertas:</span>
+          {fechasAbiertasRecientes.map((f) => (
+            <button key={f} className="btn btn-sm btn-primary" onClick={() => handleCerrar(f)}>
+              Cerrar {f}
+            </button>
+          ))}
+        </div>
+      )}
 
       {cierres.length === 0 ? (
         <p className="empty">No hay cierres de caja registrados</p>
@@ -252,16 +318,26 @@ export default function HistorialCierres() {
                     </button>
                   </div>
                 )}
-                {((c.fecha === today && esAdminOrOperador) || (c.fecha !== today && esAdmin)) && (
+                {((diasAtras(c.fecha) <= 2 && esAdminOrOperador) || (c.fecha !== today && esAdmin)) && (
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }} onClick={(e) => e.stopPropagation()}>
-                    {c.fecha === today && esAdminOrOperador && (
-                      <button
-                        className="btn btn-sm btn-abrir"
-                        style={{ flex: 1, fontSize: "0.75rem" }}
-                        onClick={() => handleAbrir(c)}
-                      >
-                        Abrir
-                      </button>
+                    {diasAtras(c.fecha) <= 2 && esAdminOrOperador && (
+                      puedeAbrir(c.fecha) ? (
+                        <button
+                          className="btn btn-sm btn-abrir"
+                          style={{ flex: 1, fontSize: "0.75rem" }}
+                          onClick={() => handleAbrir(c)}
+                        >
+                          Abrir
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-sm btn-abrir"
+                          style={{ flex: 1, fontSize: "0.75rem", opacity: 0.5 }}
+                          disabled
+                        >
+                          Abrir
+                        </button>
+                      )
                     )}
                     {c.fecha !== today && esAdmin && (
                       <button
@@ -485,14 +561,25 @@ export default function HistorialCierres() {
                               </button>
                             </>
                           )}
-                          {c.fecha === today && (
-                            <button
-                              className="btn btn-sm btn-abrir"
-                              onClick={() => handleAbrir(c)}
-                              title="Abrir la caja de hoy para poder cerrarla nuevamente"
-                            >
-                              Abrir
-                            </button>
+                          {diasAtras(c.fecha) <= 2 && (
+                            puedeAbrir(c.fecha) ? (
+                              <button
+                                className="btn btn-sm btn-abrir"
+                                onClick={() => handleAbrir(c)}
+                                title="Abrir la caja para poder modificarla y volver a cerrarla"
+                              >
+                                Abrir
+                              </button>
+                            ) : (
+                              <button
+                                className="btn btn-sm btn-abrir"
+                                disabled
+                                style={{ opacity: 0.5 }}
+                                title={motivoNoAbrir(c.fecha)}
+                              >
+                                Abrir
+                              </button>
+                            )
                           )}
                           {c.fecha !== today && esAdmin && (
                             <button
