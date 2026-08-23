@@ -398,7 +398,7 @@ export default function Dashboard() {
 
       {regresando && (
         <div className="modal-overlay" onClick={() => { setRegresando(null); setEditandoRegreso(false); setCancelarConRegreso(false); }}>
-          <div className="modal-card modal-wide" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card modal-wide regreso-modal" onClick={(e) => e.stopPropagation()}>
             <h3>{editandoRegreso ? `Editar Regreso - ${regresando.camion}` : cancelarConRegreso ? `Cancelar Envio - ${regresando.camion}` : `Registrar Entrega - ${regresando.camion}`}</h3>
             <p className="subtitle">
               {editandoRegreso
@@ -408,8 +408,8 @@ export default function Dashboard() {
                   : "Selecciona los productos que regresaron y sus cantidades"}
             </p>
 
-            <div className="table-container" style={{ maxHeight: "200px", overflowY: "auto" }}>
-              <table>
+            <div className="table-container regreso-table-container" style={{ maxHeight: "200px", overflowY: "auto" }}>
+              <table className="regreso-table">
                 <thead>
                   <tr>
                     <th>Producto</th>
@@ -420,9 +420,9 @@ export default function Dashboard() {
                 <tbody>
                   {itemsRegreso.map((item, index) => (
                     <tr key={item.productoId}>
-                      <td><strong>{item.nombre}</strong></td>
-                      <td>{item.cantidad_enviada}</td>
-                      <td>
+                      <td data-label="Producto"><strong>{item.nombre}</strong></td>
+                      <td data-label="Mercadería enviada">{item.cantidad_enviada}</td>
+                      <td data-label="Mercadería a devolver">
                         <input
                           type="number"
                           min="0"

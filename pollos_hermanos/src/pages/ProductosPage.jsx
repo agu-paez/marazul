@@ -12,6 +12,7 @@ export default function ProductosPage() {
   const [modoAjuste, setModoAjuste] = useState("aumento");
   const [porcentaje, setPorcentaje] = useState("");
   const [ajusteMarcaId, setAjusteMarcaId] = useState("");
+  const [tipoDescuento, setTipoDescuento] = useState("producto");
   const [showListaPrecios, setShowListaPrecios] = useState(false);
   const [tipoPrecio, setTipoPrecio] = useState("normal");
   const [descuento, setDescuento] = useState("");
@@ -30,6 +31,9 @@ export default function ProductosPage() {
     codigo_barras: "",
     kg_por_caja: "",
     excluir_de_lista_pdf: false,
+    descuento: "",
+    descuento_mayorista: "",
+    permitir_modificar_precio: false,
   });
 
   useEffect(() => {
@@ -56,6 +60,8 @@ export default function ProductosPage() {
         ...form,
         precio: parseFloat(form.precio),
         costo: parseFloat(form.costo),
+        descuento: form.descuento === "" ? 0 : parseFloat(form.descuento),
+        descuento_mayorista: form.descuento_mayorista === "" ? 0 : parseFloat(form.descuento_mayorista),
         stock: parseInt(form.stock) || 0,
         marcaId: form.marcaId ? parseInt(form.marcaId) : null,
         codigo_barras: form.codigo_barras.trim() || null,
@@ -69,7 +75,7 @@ export default function ProductosPage() {
       }
       setShowForm(false);
       setEditing(null);
-      setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false });
+       setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false, descuento: "", descuento_mayorista: "", permitir_modificar_precio: false });
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -88,6 +94,9 @@ export default function ProductosPage() {
       codigo_barras: producto.codigo_barras || "",
       kg_por_caja: producto.kg_por_caja ?? "",
       excluir_de_lista_pdf: Boolean(producto.excluir_de_lista_pdf),
+      descuento: producto.descuento ?? "",
+      descuento_mayorista: producto.descuento_mayorista ?? "",
+      permitir_modificar_precio: Boolean(producto.permitir_modificar_precio),
     });
     setShowForm(true);
   };
@@ -186,7 +195,7 @@ export default function ProductosPage() {
             onClick={() => {
               setShowForm(!showForm);
               setEditing(null);
-                 setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false });
+                 setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false, descuento: "", descuento_mayorista: "", permitir_modificar_precio: false });
             }}
           >
             {showForm ? "Cancelar" : "+ Nuevo Producto"}
@@ -201,6 +210,15 @@ export default function ProductosPage() {
             <p style={{ fontSize: "0.85rem", color: "#666", marginBottom: "1rem" }}>
               Ingrese el porcentaje que desea {modoAjuste === "descuento" ? "descontar" : "aumentar o disminuir"} en los productos activos.
             </p>
+            {modoAjuste === "descuento" && (
+              <div className="form-group">
+                <label>Tipo de descuento</label>
+                <select value={tipoDescuento} onChange={(e) => setTipoDescuento(e.target.value)}>
+                  <option value="producto">Descuento a productos</option>
+                  <option value="mayorista">Descuento categoría mayorista</option>
+                </select>
+              </div>
+            )}
             <div className="form-group">
               <label>Aplicar a marca</label>
               <select value={ajusteMarcaId} onChange={(e) => setAjusteMarcaId(e.target.value)}>
@@ -233,6 +251,7 @@ export default function ProductosPage() {
                     if (modoAjuste === "descuento") {
                       await productosAPI.actualizarDescuentos({
                         descuento: parseFloat(porcentaje),
+                        tipo: tipoDescuento,
                         marcaId: ajusteMarcaId ? parseInt(ajusteMarcaId) : null,
                       });
                     } else {
@@ -241,10 +260,11 @@ export default function ProductosPage() {
                         marcaId: ajusteMarcaId ? parseInt(ajusteMarcaId) : null,
                       });
                     }
-                    setShowAjuste(false);
-                    setPorcentaje("");
-                    setAjusteMarcaId("");
-                    loadData();
+                     setShowAjuste(false);
+                     setPorcentaje("");
+                     setAjusteMarcaId("");
+                     setTipoDescuento("producto");
+                     loadData();
                   } catch (error) {
                     alert("Error: " + (error.response?.data?.message || error.message));
                   }
@@ -356,8 +376,19 @@ export default function ProductosPage() {
               />
               Quitar de la lista PDF
             </label>
-            <small>Si se marca, este producto no aparecerá en la lista de precios PDF.</small>
-          </div>
+             <small>Si se marca, este producto no aparecerá en la lista de precios PDF.</small>
+           </div>
+           <div className="form-group pdf-list-option">
+             <label>
+               <input
+                 type="checkbox"
+                 checked={form.permitir_modificar_precio}
+                 onChange={(e) => setForm({ ...form, permitir_modificar_precio: e.target.checked })}
+               />
+               Permitir modificar precio en ventas
+             </label>
+             <small>Mostrará el botón para modificar el precio de este producto al vender.</small>
+           </div>
           <div className="form-row">
             <div className="form-group">
               <label>Nombre *</label>
@@ -409,6 +440,14 @@ export default function ProductosPage() {
                 onChange={(e) => setForm({ ...form, costo: e.target.value })}
                 required
               />
+            </div>
+            <div className="form-group">
+              <label>Descuento producto (%)</label>
+              <input type="number" min="0" max="99" step="0.1" value={form.descuento} onChange={(e) => setForm({ ...form, descuento: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Descuento mayorista (%)</label>
+              <input type="number" min="0" max="99" step="0.1" value={form.descuento_mayorista} onChange={(e) => setForm({ ...form, descuento_mayorista: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Stock</label>

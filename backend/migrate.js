@@ -56,6 +56,8 @@ const nuevasColumnasProductos = [
   ['kg_por_caja', 'DECIMAL(10,2)'],
   ['unidades_por_caja', 'INTEGER'],
   ['excluir_de_lista_pdf', 'BOOLEAN NOT NULL DEFAULT 0'],
+  ['descuento_mayorista', 'DECIMAL(5,2) NOT NULL DEFAULT 0'],
+  ['permitir_modificar_precio', 'BOOLEAN NOT NULL DEFAULT 0'],
 ];
 for (const [columna, tipo] of nuevasColumnasProductos) {
   try {

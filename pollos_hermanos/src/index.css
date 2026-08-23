@@ -1981,6 +1981,67 @@ input[type="number"] {
   h2 {
     font-size: 1.2rem;
   }
+
+  /* Keep the three return fields readable on narrow screens. */
+  .regreso-table-container {
+    overflow-x: hidden;
+    max-height: 200px;
+  }
+
+  .regreso-table {
+    display: block;
+  }
+
+  .regreso-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .regreso-table tbody,
+  .regreso-table tr,
+  .regreso-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .regreso-table tr {
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .regreso-table tr:last-child {
+    border-bottom: 0;
+  }
+
+  .regreso-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.35rem 0.15rem;
+    border-bottom: 0;
+    white-space: normal;
+  }
+
+  .regreso-table td::before {
+    content: attr(data-label);
+    flex: 0 0 52%;
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    font-weight: 600;
+  }
+
+  .regreso-table td:last-child {
+    justify-content: space-between;
+  }
+
+  .regreso-table .input-cantidad {
+    width: 64px;
+  }
 }
 
 @media (max-width: 480px) {

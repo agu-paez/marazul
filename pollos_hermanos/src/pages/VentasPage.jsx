@@ -255,7 +255,9 @@ export default function VentasPage() {
         id: sc.productoId,
         nombre: sc.nombre,
         precio: sc.precio,
-        descuento: sc.descuento,
+         descuento: sc.descuento,
+         descuento_mayorista: sc.descuento_mayorista,
+         permitir_modificar_precio: sc.permitir_modificar_precio,
         unidad: sc.unidad,
         unidades_por_caja: sc.unidades_por_caja,
         stock: sc.disponible,
@@ -285,10 +287,14 @@ export default function VentasPage() {
   const esProductoKg = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
   const getPrecioVenta = (producto) => {
     if (preciosPersonalizados[producto.id] !== undefined) return preciosPersonalizados[producto.id];
+    let precio = Number(producto.precio);
     if (descuentosAplicados[producto.id]) {
-      return Math.round(Number(producto.precio) * (1 - Number(producto.descuento || 0) / 100) * 100) / 100;
+      precio *= 1 - Number(producto.descuento || 0) / 100;
     }
-    return Number(producto.precio);
+    if (form.tipo_venta === "local") {
+      precio *= 1 - Number(producto.descuento_mayorista || 0) / 100;
+    }
+    return Math.round(precio * 100) / 100;
   };
 
   const toggleDescuentoProducto = (producto) => {
@@ -628,7 +634,7 @@ export default function VentasPage() {
                           checked={Boolean(descuentosAplicados[p.id])}
                           onChange={() => toggleDescuentoProducto(p)}
                         />{" "}
-                         Aplicar descuento
+                        Aplicar descuento
                       </label>
                     )}
                     <div className="producto-card-qty">
@@ -940,9 +946,9 @@ export default function VentasPage() {
                   <div key={p.id} className="resumen-row">
                      <span>
                        {cantidades[p.id]}{esKg ? " kg" : ""} {p.nombre}
-                      {esKg && (
-                        <button type="button" className="btn btn-sm btn-secondary" style={{ marginLeft: "0.5rem" }} onClick={() => abrirEdicionPrecio(p)}>
-                          Modificar precio
+                       {(esKg || p.permitir_modificar_precio) && (
+                         <button type="button" className="btn btn-sm btn-secondary" style={{ marginLeft: "0.5rem" }} onClick={() => abrirEdicionPrecio(p)}>
+                           Modificar precio
                         </button>
                       )}
                     </span>
@@ -1032,9 +1038,9 @@ export default function VentasPage() {
                  <p>{productoPrecioEditando.nombre}</p>
                </div>
                <div className="form-group">
-                <label htmlFor="precio-unitario-kg">Precio unitario por kilogramo</label>
-                <input
-                  id="precio-unitario-kg"
+                  <label htmlFor="precio-unitario">Precio unitario</label>
+                  <input
+                   id="precio-unitario"
                   type="number"
                   min="0.01"
                   step="0.01"

@@ -25,6 +25,12 @@ const Producto = sequelize.define("Producto", {
     defaultValue: 0,
     comment: "Descuento porcentual configurable por el administrador para aplicar en ventas",
   },
+  descuento_mayorista: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: false,
+    defaultValue: 0,
+    comment: "Descuento porcentual automatico para ventas mayoristas",
+  },
   costo: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
@@ -63,6 +69,12 @@ const Producto = sequelize.define("Producto", {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: false,
+  },
+  permitir_modificar_precio: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    comment: "Permite modificar el precio del producto al registrar una venta",
   },
   marcaId: {
     type: DataTypes.INTEGER,

@@ -53,7 +53,7 @@ export const getLowStock = async (req, res) => {
 
 export const createProducto = async (req, res) => {
   try {
-    const { nombre, descripcion, precio, descuento, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, excluir_de_lista_pdf } = req.body;
+    const { nombre, descripcion, precio, descuento, descuento_mayorista, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, excluir_de_lista_pdf, permitir_modificar_precio } = req.body;
 
     if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio)) || !Number.isFinite(Number(costo)) || Number(costo) < 0) {
       return res.status(400).json({ message: "Nombre, precio y costo valido son requeridos" });
@@ -69,6 +69,7 @@ export const createProducto = async (req, res) => {
       descripcion,
       precio: Number(precio),
       descuento: Number.isFinite(Number(descuento)) && Number(descuento) >= 0 && Number(descuento) < 100 ? Number(descuento) : 0,
+      descuento_mayorista: Number.isFinite(Number(descuento_mayorista)) && Number(descuento_mayorista) >= 0 && Number(descuento_mayorista) < 100 ? Number(descuento_mayorista) : 0,
       costo: Number(costo),
       stock: Number.isFinite(Number(stock)) ? Number(stock) : 0,
       unidad,
@@ -76,6 +77,7 @@ export const createProducto = async (req, res) => {
       codigo_barras: codigo_barras?.trim() || null,
       kg_por_caja: Number.isFinite(Number(kg_por_caja)) ? Number(kg_por_caja) : null,
       excluir_de_lista_pdf: Boolean(excluir_de_lista_pdf),
+      permitir_modificar_precio: Boolean(permitir_modificar_precio),
     });
 
     res.status(201).json({ message: "Producto creado", producto });
@@ -97,6 +99,9 @@ export const updateProducto = async (req, res) => {
     }
     if (data.descuento !== undefined && (!Number.isFinite(Number(data.descuento)) || Number(data.descuento) < 0 || Number(data.descuento) >= 100)) {
       return res.status(400).json({ message: "El descuento debe estar entre 0% y 99%" });
+    }
+    if (data.descuento_mayorista !== undefined && (!Number.isFinite(Number(data.descuento_mayorista)) || Number(data.descuento_mayorista) < 0 || Number(data.descuento_mayorista) >= 100)) {
+      return res.status(400).json({ message: "El descuento mayorista debe estar entre 0% y 99%" });
     }
     delete data.unidades_por_caja;
     if (data.marcaId !== undefined) {
@@ -163,14 +168,15 @@ export const actualizarPreciosPorcentaje = async (req, res) => {
 
 export const actualizarDescuentos = async (req, res) => {
   try {
-    const { descuento, marcaId } = req.body;
+    const { descuento, marcaId, tipo = "producto" } = req.body;
+    const campo = tipo === "mayorista" ? "descuento_mayorista" : "descuento";
     const porcentaje = Number(descuento);
     if (!Number.isFinite(porcentaje) || porcentaje < 0 || porcentaje >= 100) {
       return res.status(400).json({ message: "El descuento debe estar entre 0% y 99%" });
     }
     const where = { activo: true };
     if (marcaId !== undefined && marcaId !== null && marcaId !== "") where.marcaId = Number(marcaId);
-    const [actualizados] = await Producto.update({ descuento: porcentaje }, { where });
+    const [actualizados] = await Producto.update({ [campo]: porcentaje }, { where });
     res.json({ message: `Descuento configurado en ${actualizados} productos`, cantidad: actualizados });
   } catch (error) {
     res.status(500).json({ message: "Error al configurar descuentos", error: error.message });
