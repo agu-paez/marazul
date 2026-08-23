@@ -96,11 +96,7 @@ export default function NuevaSalida() {
       setSuccess(true);
        setForm({ camion: "", destino: "", notas: "" });
       setRepartidorSeleccionado("");
-      setCantidades((prev) => {
-        const reset = {};
-        Object.keys(prev).forEach((k) => { reset[k] = 0; });
-        return reset;
-      });
+      setCantidades({});
       setBusqueda("");
       setMostrarSoloSeleccionados(false);
       cargarProductos();
@@ -251,7 +247,11 @@ export default function NuevaSalida() {
                         step={esKg ? "0.01" : "1"}
                         aria-label={`Cantidad de ${p.nombre}${esKg ? " en kilogramos" : ""}`}
                         onChange={(e) => {
-                          const val = esKg ? parseFloat(e.target.value) || 0 : parseInt(e.target.value) || 0;
+                          if (e.target.value === "") {
+                            setCantidades((prev) => ({ ...prev, [p.id]: "" }));
+                            return;
+                          }
+                          const val = esKg ? parseFloat(e.target.value) : parseInt(e.target.value);
                           setCantidades((prev) => ({
                             ...prev,
                             [p.id]: Math.min(Math.max(0, val), Number(p.stock)),

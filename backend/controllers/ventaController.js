@@ -390,8 +390,9 @@ export const getVentas = async (req, res) => {
          include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja"] }],
         },
         { model: VentaPago },
-        { model: User, as: "vendedor", attributes: ["id", "nombre"] },
-        { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
+         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
+         { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
+         { model: User, as: "productos_modificado_por", attributes: ["id", "nombre"] },
         { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor"] },
         { model: SalidaCamion, as: "salida_camion", attributes: ["id", "camion"] },
       ],
@@ -413,8 +414,9 @@ export const getVentaById = async (req, res) => {
           include: [{ model: Producto }],
         },
         { model: VentaPago },
-        { model: User, as: "vendedor", attributes: ["id", "nombre"] },
-        { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
+         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
+         { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
+         { model: User, as: "productos_modificado_por", attributes: ["id", "nombre"] },
         { model: Cliente, as: "cliente" },
         { model: SalidaCamion, as: "salida_camion", attributes: ["id", "camion"] },
       ],
@@ -629,7 +631,7 @@ export const modificarProductosVenta = async (req, res) => {
       return res.status(400).json({ message: "La factura debe conservar al menos un producto" });
     }
 
-    const venta = await Venta.findByPk(req.params.id, { include: [{ model: VentaItem }], transaction, lock: transaction.LOCK.UPDATE });
+    const venta = await Venta.findByPk(req.params.id, { include: [{ model: VentaItem, include: [{ model: Producto, attributes: ["id", "nombre"] }] }], transaction, lock: transaction.LOCK.UPDATE });
     if (!venta || venta.estado !== "completada") {
       await transaction.rollback();
       return res.status(404).json({ message: "Venta no encontrada" });
@@ -648,6 +650,12 @@ export const modificarProductosVenta = async (req, res) => {
     }
 
     const esReparto = venta.tipo_venta === "reparto";
+    const productosAnterioresDetalle = venta.VentaItems.map((item) => ({
+      productoId: item.productoId,
+      nombre: item.Producto?.nombre || "Producto",
+      cantidad: Number(item.cantidad),
+      unidad_venta: item.unidad_venta,
+    }));
     const productosNuevos = [];
     for (const item of items) {
       const producto = await Producto.findByPk(item.productoId, { transaction });
@@ -754,13 +762,29 @@ export const modificarProductosVenta = async (req, res) => {
       ...(creditoNuevo > 0 ? [{ medio_pago: "cuenta_corriente", monto: creditoNuevo }] : []),
     ].map((pago) => ({ ventaId: venta.id, medio_pago: pago.medio_pago, monto: pago.monto.toFixed(2) })), { transaction });
 
-    await venta.update({ subtotal: subtotalNuevo.toFixed(2), total: subtotalNuevo.toFixed(2), monto_sobrante: sobranteNuevo.toFixed(2) }, { transaction });
+    await venta.update({
+      subtotal: subtotalNuevo.toFixed(2),
+      total: subtotalNuevo.toFixed(2),
+      monto_sobrante: sobranteNuevo.toFixed(2),
+      productos_modificado_por_id: req.user.id,
+      productos_modificado_en: new Date(),
+      productos_modificacion_detalle: JSON.stringify({
+        anteriores: productosAnterioresDetalle,
+        nuevos: productosNuevos.map((item) => ({
+          productoId: item.producto.id,
+          nombre: item.producto.nombre,
+          cantidad: item.cantidad,
+          unidad_venta: item.unidadVenta,
+        })),
+      }),
+    }, { transaction });
     await transaction.commit();
     const ventaActualizada = await Venta.findByPk(venta.id, {
       include: [
-        { model: VentaItem, include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja"] }] },
-        { model: VentaPago },
-        { model: User, as: "vendedor", attributes: ["id", "nombre"] },
+         { model: VentaItem, include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja"] }] },
+         { model: VentaPago },
+         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
+         { model: User, as: "productos_modificado_por", attributes: ["id", "nombre"] },
         { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor", "limite_credito"] },
       ],
     });

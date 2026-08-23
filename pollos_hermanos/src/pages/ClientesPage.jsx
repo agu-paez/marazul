@@ -271,7 +271,7 @@ export default function ClientesPage() {
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={Number(montos.saldo_pendiente) ? montos.saldo_pendiente : ""}
+                      value={montos.saldo_pendiente}
                       onChange={(e) => setMontos({ ...montos, saldo_pendiente: e.target.value })}
                       disabled={!isAdmin}
                       required
@@ -282,7 +282,7 @@ export default function ClientesPage() {
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={Number(montos.limite_credito) ? montos.limite_credito : ""}
+                      value={montos.limite_credito}
                       onChange={(e) => setMontos({ ...montos, limite_credito: e.target.value })}
                       disabled={!isAdmin}
                       required

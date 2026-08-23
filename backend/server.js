@@ -160,6 +160,9 @@ const start = async () => {
     await ensureColumn(Venta, "pago_modificado_por_id", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(Venta, "pago_modificado_en", { type: DataTypes.DATE, allowNull: true });
     await ensureColumn(Venta, "pago_modificacion_detalle", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(Venta, "productos_modificado_por_id", { type: DataTypes.INTEGER, allowNull: true });
+    await ensureColumn(Venta, "productos_modificado_en", { type: DataTypes.DATE, allowNull: true });
+    await ensureColumn(Venta, "productos_modificacion_detalle", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(Producto, "marcaId", {
       type: DataTypes.INTEGER,
       allowNull: true,

@@ -127,6 +127,18 @@ const Venta = sequelize.define("Venta", {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  productos_modificado_por_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  productos_modificado_en: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  productos_modificacion_detalle: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
 });
 
 export default Venta;
