@@ -8,6 +8,19 @@ console.log('Base de datos conectada y tablas verificadas');
 await sequelize.query("UPDATE Clientes SET zona = 'Mayorista' WHERE zona = 'Zona 7'");
 await sequelize.query("UPDATE SalidaCamions SET destino = 'Mayorista' WHERE destino = 'Zona 7'");
 
+for (const [tabla, columna, definicion] of [
+  ['VentaItems', 'cantidad', 'DECIMAL(10,2) NOT NULL DEFAULT 1'],
+  ['SalidaCamionItems', 'cantidad', 'DECIMAL(10,2) NOT NULL DEFAULT 1'],
+  ['SalidaCamionItems', 'cantidad_devuelta', 'DECIMAL(10,2) NOT NULL DEFAULT 0'],
+]) {
+  try {
+    await sequelize.query(`ALTER TABLE ${tabla} MODIFY COLUMN ${columna} ${definicion}`);
+    console.log(`Columna ${columna} convertida a decimal en ${tabla}`);
+  } catch (e) {
+    logger.error('Error convirtiendo columna decimal', { tabla, columna, error: e.stack || e.message });
+  }
+}
+
 try {
   await sequelize.query("ALTER TABLE Venta ADD COLUMN proveedorId INTEGER REFERENCES Proveedors(id)");
   console.log('Columna proveedorId agregada a Venta correctamente');

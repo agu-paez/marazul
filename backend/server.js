@@ -146,6 +146,14 @@ const start = async () => {
         console.log(`Columna ${column} agregada a ${table}`);
       }
     };
+    const ensureDecimalColumn = async (model, column, definition) => {
+      const table = model.getTableName();
+      const columns = await queryInterface.describeTable(table);
+      if (columns[column] && /int/i.test(columns[column].type)) {
+        await queryInterface.changeColumn(table, column, definition);
+        console.log(`Columna ${column} convertida a decimal en ${table}`);
+      }
+    };
 
     await ensureColumn(Venta, "salidaCamionId", {
       type: DataTypes.INTEGER,
@@ -191,9 +199,12 @@ const start = async () => {
     await ensureColumn(VentaItem, "unidad_venta", { type: DataTypes.STRING, allowNull: false, defaultValue: "unidad" });
     await ensureColumn(VentaItem, "unidades_por_caja", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(VentaItem, "cantidad_unidades", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
+    await ensureDecimalColumn(VentaItem, "cantidad", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 1 });
     await ensureColumn(SalidaCamionItem, "unidades_por_caja", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(SalidaCamionItem, "cantidad_unidades", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(SalidaCamionItem, "cantidad_devuelta_unidades", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
+    await ensureDecimalColumn(SalidaCamionItem, "cantidad", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 1 });
+    await ensureDecimalColumn(SalidaCamionItem, "cantidad_devuelta", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(Venta, "monto_sobrante", { type: DataTypes.DECIMAL(10, 2), allowNull: true, defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_combustible", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_otros", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
