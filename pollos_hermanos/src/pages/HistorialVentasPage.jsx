@@ -180,6 +180,7 @@ export default function HistorialVentasPage() {
   };
 
   const totalPagosEditados = pagosEditados.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
+  const totalEsperadoPago = (Number(ventaPagoEditando?.total) || 0) + (Number(ventaPagoEditando?.monto_deuda_pagado) || 0);
   const formatearModificacion = (venta, tipo) => {
     const detalleKey = tipo === "pagos" ? "pago_modificacion_detalle" : "productos_modificacion_detalle";
     const detalle = venta[detalleKey];
@@ -507,8 +508,8 @@ export default function HistorialVentasPage() {
               ))}
               <button type="button" className="btn btn-secondary" onClick={() => setPagosEditados((prev) => [...prev, { medio_pago: "efectivo", monto: "0", nombre_cuenta: "", banco: "", proveedorId: "", alias: "", fecha_hora: "" }])}>+ Agregar medio</button>
               <div className="resumen-row" style={{ marginTop: "1rem" }}>
-                <span>Total ingresado:</span>
-                <strong>${totalPagosEditados.toFixed(2)}</strong>
+                <span>Falta para el total esperado:</span>
+                <strong>${Math.max(0, totalEsperadoPago - totalPagosEditados).toFixed(2)}</strong>
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setVentaPagoEditando(null)}>Cancelar</button>
