@@ -479,24 +479,15 @@ export default function MisSalidas() {
                 <thead>
                   <tr>
                     <th>Producto</th>
-                    <th>Precio Unit.</th>
-                    <th>Cargados</th>
-                    <th>Vendidos</th>
-                    <th>Max. Devolver</th>
-                    <th>Regresan</th>
-                    <th>Subtotal</th>
+                    <th>Mercaderia Enviada</th>
+                    <th>Mercaderia a Devolver</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itemsRegreso.map((item, index) => (
                     <tr key={item.productoId}>
                       <td><strong>{item.nombre}</strong></td>
-                      <td>${item.precio_unitario}</td>
                       <td>{item.cantidad_enviada}</td>
-                      <td style={{ color: item.cantidad_vendida > 0 ? "var(--primary)" : "inherit", fontWeight: item.cantidad_vendida > 0 ? "bold" : "normal" }}>
-                        {item.cantidad_vendida}
-                      </td>
-                      <td style={{ color: item.max_devolver === 0 ? "var(--success)" : "var(--warning)", fontWeight: "bold" }}>{item.max_devolver}</td>
                       <td>
                         <input
                           type="number"
@@ -506,9 +497,6 @@ export default function MisSalidas() {
                           onChange={(e) => handleCantidadRegreso(index, e.target.value)}
                           className="input-cantidad"
                         />
-                      </td>
-                      <td style={{ color: "var(--danger)", fontWeight: "bold" }}>
-                        ${(item.precio_unitario * item.cantidad_regreso).toFixed(2)}
                       </td>
                     </tr>
                   ))}
