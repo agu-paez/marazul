@@ -526,27 +526,28 @@ export default function VentasPage() {
       setProductoPrecioEditando(null);
       setCamionSeleccionado("");
       setStockCamion([]);
-      setBusqueda("");
-      setMostrarSoloSeleccionados(false);
+       setBusqueda("");
+       setMostrarSoloSeleccionados(false);
 
-      if (esRepartidor) {
-        const camionesRes = await salidasAPI.getCamionesActivos();
-        setCamionesActivos(camionesRes.data);
-        if (camionesRes.data.length > 0) {
-          const enCamino = camionesRes.data.find((c) => c.estado === "en_camino");
-          const primero = enCamino || camionesRes.data[0];
-          setCamionSeleccionado(String(primero.id));
-        }
-      }
+       if (esRepartidor) {
+         salidasAPI.getCamionesActivos().then((camionesRes) => {
+           setCamionesActivos(camionesRes.data);
+           if (camionesRes.data.length > 0) {
+             const enCamino = camionesRes.data.find((c) => c.estado === "en_camino");
+             const primero = enCamino || camionesRes.data[0];
+             setCamionSeleccionado(String(primero.id));
+           }
+         }).catch(console.error);
+       }
 
-      const [productosRes, clientesRes] = await Promise.all([
-        productosAPI.getAll(),
-        clientesAPI.getAll(),
-      ]);
-      setProductos(productosRes.data);
-      setClientes(clientesRes.data);
-       const reset = {};
-        setCantidades(reset);
+       Promise.all([
+         productosAPI.getAll(),
+         clientesAPI.getAll(),
+       ]).then(([productosRes, clientesRes]) => {
+         setProductos(productosRes.data);
+         setClientes(clientesRes.data);
+         setCantidades({});
+       }).catch(console.error);
 
       setTimeout(() => setSuccess(false), 5000);
     } catch (error) {

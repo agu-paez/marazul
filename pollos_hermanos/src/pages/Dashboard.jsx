@@ -41,17 +41,19 @@ export default function Dashboard() {
     try {
       const promises = [
         salidasAPI.getStats(),
-        salidasAPI.getAll(),
+        salidasAPI.getAll({ fecha: getFechaLocal() }),
         cierreCajaAPI.getResumenHoy(),
         productosAPI.getLowStock(),
         gastosAPI.getHoy(),
       ];
-      const [statsRes, salidasRes, resumenRes, stockRes, gastosRes] = await Promise.all(promises);
-      setStats(statsRes.data);
-      setSalidas(salidasRes.data);
-      setResumen(resumenRes.data);
-      setStockBajo(stockRes.data);
-      setGastos(gastosRes.data);
+      const resultados = await Promise.allSettled(promises);
+      const [statsRes, salidasRes, resumenRes, stockRes, gastosRes] = resultados;
+      if (statsRes.status === "fulfilled") setStats(statsRes.value.data);
+      if (salidasRes.status === "fulfilled") setSalidas(salidasRes.value.data);
+      if (resumenRes.status === "fulfilled") setResumen(resumenRes.value.data);
+      if (stockRes.status === "fulfilled") setStockBajo(stockRes.value.data);
+      if (gastosRes.status === "fulfilled") setGastos(gastosRes.value.data);
+      resultados.filter((resultado) => resultado.status === "rejected").forEach((resultado) => console.error("Error al cargar dashboard:", resultado.reason));
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -89,7 +91,8 @@ export default function Dashboard() {
   const updateEstado = async (id, estado, notas) => {
     try {
       await salidasAPI.updateStatus(id, { estado, notas });
-      loadData();
+      setSalidas((prev) => prev.map((salida) => salida.id === id ? { ...salida, estado, notas: notas ?? salida.notas } : salida));
+      loadData().catch(console.error);
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
     }
@@ -99,7 +102,8 @@ export default function Dashboard() {
     if (!confirm("¿Abrir esta salida para volver a operarla? El camion volvera a estar en camino")) return;
     try {
       await salidasAPI.reabrir(id);
-      loadData();
+      setSalidas((prev) => prev.map((salida) => salida.id === id ? { ...salida, estado: "en_camino" } : salida));
+      loadData().catch(console.error);
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
     }
@@ -150,9 +154,9 @@ export default function Dashboard() {
       });
       setRegresando(null);
       setCancelarConRegreso(false);
-      setCancelandoId(null);
-      setCancelMotivo("");
-      loadData();
+       setCancelandoId(null);
+       setCancelMotivo("");
+       loadData().catch(console.error);
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
     }
@@ -170,9 +174,9 @@ export default function Dashboard() {
        await salidasAPI.registrarRegreso(regresando.id, {
         items_regreso: items_para_enviar,
       });
-      setRegresando(null);
-      setEditandoRegreso(false);
-      loadData();
+       setRegresando(null);
+       setEditandoRegreso(false);
+       loadData().catch(console.error);
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
     }

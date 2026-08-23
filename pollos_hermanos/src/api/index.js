@@ -127,8 +127,8 @@ export const repartosAPI = {
 };
 
 export const salidasAPI = {
-  getAll: () => API.get("/salidas-camion"),
-  getMisSalidas: () => API.get("/salidas-camion/mis-salidas"),
+  getAll: (params) => API.get("/salidas-camion", { params }),
+  getMisSalidas: (params) => API.get("/salidas-camion/mis-salidas", { params }),
   getById: (id) => API.get(`/salidas-camion/${id}`),
   create: (data) => API.post("/salidas-camion", data),
   updateStatus: (id, data) => API.put(`/salidas-camion/${id}/status`, data),

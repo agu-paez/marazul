@@ -31,8 +31,17 @@ export default function MisSalidas() {
 
   useEffect(() => {
     loadSalidas();
-    loadDatosPago();
+    cargarResumenCaja();
   }, [isOperador]);
+
+  const cargarResumenCaja = async () => {
+    try {
+      const res = await cierreCajaAPI.getResumenHoy();
+      setResumenCaja(res.data);
+    } catch (error) {
+      console.error("Error al cargar el estado de caja:", error);
+    }
+  };
 
   const loadDatosPago = async () => {
     const resultados = await Promise.allSettled([
@@ -51,7 +60,9 @@ export default function MisSalidas() {
 
   const loadSalidas = async () => {
     try {
-      const res = await (isOperador ? salidasAPI.getAll() : salidasAPI.getMisSalidas());
+      const res = await (isOperador
+        ? salidasAPI.getAll({ fecha: getFechaLocal() })
+        : salidasAPI.getMisSalidas({ fecha: getFechaLocal() }));
       setSalidas(res.data);
     } catch (error) {
       console.error("Error:", error);
@@ -76,6 +87,7 @@ export default function MisSalidas() {
       alert("No se pueden registrar pagos porque la caja está cerrada");
       return;
     }
+    await loadDatosPago();
     setClientePago("");
     setPagoCliente({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", proveedorId: "", banco: "", notas: "", fecha_pago: getFechaLocal() });
     setShowPagoCliente(true);

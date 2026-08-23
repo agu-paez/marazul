@@ -20,7 +20,7 @@ const includeSalida = [
 
 export const getAllSalidas = async (req, res) => {
   try {
-    const where = {};
+    const where = req.query.fecha ? { fecha: req.query.fecha } : {};
 
     const salidas = await SalidaCamion.findAll({
       where,
@@ -67,6 +67,7 @@ export const getMisSalidas = async (req, res) => {
   try {
     const salidas = await SalidaCamion.findAll({
       where: {
+        ...(req.query.fecha ? { fecha: req.query.fecha } : {}),
         [Op.or]: [
           { asignadoRepartidorId: req.user.id },
           { creadoPorId: req.user.id },
@@ -131,9 +132,14 @@ export const createSalida = async (req, res) => {
       return res.status(400).json({ message: "No se pueden crear salidas, la caja del día ya fue cerrada" });
     }
 
+    const productoIds = [...new Set(items.map((item) => item.productoId))];
+    const productos = await Producto.findAll({ where: { id: { [Op.in]: productoIds } } });
+    const productosPorId = new Map(productos.map((producto) => [producto.id, producto]));
+    const cantidadesPorProducto = new Map();
+
     let precioTotal = 0;
     for (const item of items) {
-      const producto = await Producto.findByPk(item.productoId);
+      const producto = productosPorId.get(item.productoId);
       if (!producto) {
         return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
       }
@@ -142,9 +148,10 @@ export const createSalida = async (req, res) => {
       if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo && !Number.isInteger(cantidad))) {
         return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
       }
-      if (producto.stock < cantidad) {
+      cantidadesPorProducto.set(item.productoId, (cantidadesPorProducto.get(item.productoId) || 0) + cantidad);
+      if (producto.stock < cantidadesPorProducto.get(item.productoId)) {
         return res.status(400).json({
-          message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${item.cantidad}`,
+          message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${cantidadesPorProducto.get(item.productoId)}`,
         });
       }
       precioTotal += parseFloat(producto.precio) * cantidad;
@@ -166,15 +173,18 @@ export const createSalida = async (req, res) => {
     });
 
     for (const item of items) {
-      const producto = await Producto.findByPk(item.productoId);
+      const producto = productosPorId.get(item.productoId);
       await SalidaCamionItem.create({
         salidaCamionId: salida.id,
         productoId: item.productoId,
         cantidad: Number(item.cantidad),
         precio_unitario: producto.precio,
       });
+    }
 
-      await producto.update({ stock: parseFloat(producto.stock) - Number(item.cantidad) });
+    for (const [productoId, cantidad] of cantidadesPorProducto) {
+      const producto = productosPorId.get(productoId);
+      await producto.update({ stock: parseFloat(producto.stock) - cantidad });
     }
 
     const salidaCompleta = await SalidaCamion.findByPk(salida.id, {
