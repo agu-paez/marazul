@@ -50,14 +50,18 @@ export const getClienteById = async (req, res) => {
 
 export const createCliente = async (req, res) => {
   try {
-    const { nombre, zona } = req.body;
+    const { nombre, zona, tipo_descuento = "producto" } = req.body;
     if (!nombre || nombre.trim() === "") {
       return res.status(400).json({ message: "El nombre del cliente es requerido" });
     }
 
+    if (!["producto", "mayorista", "nuevo"].includes(tipo_descuento)) {
+      return res.status(400).json({ message: "El tipo de descuento no es válido" });
+    }
     const cliente = await Cliente.create({
       nombre: nombre.trim(),
       zona: zona?.trim() || null,
+      tipo_descuento,
       pendiente_revision: req.userRole === "repartidor",
     });
     res.status(201).json({ message: "Cliente creado", cliente });
@@ -73,11 +77,15 @@ export const updateCliente = async (req, res) => {
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
-    const { nombre, zona, activo } = req.body;
+    const { nombre, zona, activo, tipo_descuento } = req.body;
+    if (tipo_descuento !== undefined && !["producto", "mayorista", "nuevo"].includes(tipo_descuento)) {
+      return res.status(400).json({ message: "El tipo de descuento no es válido" });
+    }
     await cliente.update({
       nombre: nombre || cliente.nombre,
       zona: zona !== undefined ? (zona?.trim() || null) : cliente.zona,
       activo: activo !== undefined ? activo : cliente.activo,
+      tipo_descuento: tipo_descuento || cliente.tipo_descuento,
     });
 
     res.json({ message: "Cliente actualizado", cliente });

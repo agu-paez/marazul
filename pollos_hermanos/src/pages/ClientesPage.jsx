@@ -22,6 +22,7 @@ export default function ClientesPage() {
   const [historial, setHistorial] = useState(null);
   const [nombre, setNombre] = useState("");
   const [zona, setZona] = useState("");
+  const [tipoDescuento, setTipoDescuento] = useState("producto");
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [clientePago, setClientePago] = useState(null);
   const [pagosCC, setPagosCC] = useState([{ medio_pago: "efectivo", monto: 0 }]);
@@ -58,7 +59,7 @@ export default function ClientesPage() {
     e.preventDefault();
     try {
       if (editando) {
-        await clientesAPI.update(editando.id, { nombre, zona });
+        await clientesAPI.update(editando.id, { nombre, zona, tipo_descuento: tipoDescuento });
         if (isAdmin) {
           await clientesAPI.updateMontos(editando.id, {
             saldo_pendiente: parseNumero(montos.saldo_pendiente),
@@ -66,12 +67,13 @@ export default function ClientesPage() {
           });
         }
       } else {
-        await clientesAPI.create({ nombre, zona });
+        await clientesAPI.create({ nombre, zona, tipo_descuento: tipoDescuento });
       }
       setShowForm(false);
       setEditando(null);
       setNombre("");
       setZona("");
+      setTipoDescuento("producto");
       loadClientes();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -90,6 +92,7 @@ export default function ClientesPage() {
     setEditando(c);
     setNombre(c.nombre);
     setZona(c.zona || "");
+    setTipoDescuento(c.tipo_descuento || "producto");
     setMontos({
       saldo_pendiente: String(c.saldo_pendiente ?? 0),
       limite_credito: String(c.limite_credito ?? 30000),
@@ -101,6 +104,7 @@ export default function ClientesPage() {
     setEditando(null);
     setNombre("");
     setZona("");
+    setTipoDescuento("producto");
     setShowForm(true);
   };
 
@@ -250,6 +254,14 @@ export default function ClientesPage() {
                 <select value={zona} onChange={(e) => setZona(e.target.value)} required>
                   <option value="">Seleccionar zona...</option>
                   {zonas.map((item) => <option key={item} value={item}>{item}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Tipo de descuento</label>
+                <select value={tipoDescuento} onChange={(e) => setTipoDescuento(e.target.value)}>
+                  <option value="producto">Descuento de producto</option>
+                  <option value="mayorista">Descuento mayorista</option>
+                  <option value="nuevo">Descuento para cliente nuevo</option>
                 </select>
               </div>
               {editando && (

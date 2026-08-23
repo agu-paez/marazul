@@ -21,6 +21,12 @@ const Cliente = sequelize.define("Cliente", {
     defaultValue: 0,
     comment: "Deuda acumulada en cuenta corriente",
   },
+  tipo_descuento: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: "producto",
+    comment: "Tipo de descuento aplicado al cliente: producto, mayorista o nuevo",
+  },
   saldo_favor: {
     type: DataTypes.DECIMAL(10, 2),
     defaultValue: 0,

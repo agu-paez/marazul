@@ -31,6 +31,12 @@ const Producto = sequelize.define("Producto", {
     defaultValue: 0,
     comment: "Descuento porcentual automatico para ventas mayoristas",
   },
+  descuento_nuevo: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: false,
+    defaultValue: 0,
+    comment: "Descuento porcentual para clientes nuevos",
+  },
   costo: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,

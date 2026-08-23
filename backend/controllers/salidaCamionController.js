@@ -10,7 +10,7 @@ const checkDayClosed = async (fecha) => {
 const includeSalida = [
   {
     model: SalidaCamionItem,
-           include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "descuento", "descuento_mayorista", "permitir_modificar_precio"] }],
+            include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "descuento", "descuento_mayorista", "descuento_nuevo", "permitir_modificar_precio"] }],
   },
   { model: Cliente, as: "cliente", attributes: ["id", "nombre"] },
   { model: User, as: "repartidor_asignado", attributes: ["id", "nombre"] },
@@ -75,7 +75,7 @@ export const getMisSalidas = async (req, res) => {
       include: [
         {
           model: SalidaCamionItem,
-          include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "descuento", "descuento_mayorista", "permitir_modificar_precio"] }],
+          include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "descuento", "descuento_mayorista", "descuento_nuevo", "permitir_modificar_precio"] }],
         },
         { model: Cliente, as: "cliente", attributes: ["id", "nombre"] },
         { model: User, as: "repartidor_asignado", attributes: ["id", "nombre"] },
@@ -646,7 +646,8 @@ export const getStockCamion = async (req, res) => {
            nombre: item.Producto?.nombre,
            unidad: item.Producto?.unidad,
            descuento: item.Producto?.descuento,
-           descuento_mayorista: item.Producto?.descuento_mayorista,
+            descuento_mayorista: item.Producto?.descuento_mayorista,
+            descuento_nuevo: item.Producto?.descuento_nuevo,
            permitir_modificar_precio: item.Producto?.permitir_modificar_precio,
           precio: parseFloat(item.precio_unitario),
           cargado: item.cantidad,

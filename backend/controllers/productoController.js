@@ -53,7 +53,7 @@ export const getLowStock = async (req, res) => {
 
 export const createProducto = async (req, res) => {
   try {
-    const { nombre, descripcion, precio, descuento, descuento_mayorista, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, excluir_de_lista_pdf, permitir_modificar_precio } = req.body;
+    const { nombre, descripcion, precio, descuento, descuento_mayorista, descuento_nuevo, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, excluir_de_lista_pdf, permitir_modificar_precio } = req.body;
 
     if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio)) || !Number.isFinite(Number(costo)) || Number(costo) < 0) {
       return res.status(400).json({ message: "Nombre, precio y costo valido son requeridos" });
@@ -70,6 +70,7 @@ export const createProducto = async (req, res) => {
       precio: Number(precio),
       descuento: Number.isFinite(Number(descuento)) && Number(descuento) >= 0 && Number(descuento) < 100 ? Number(descuento) : 0,
       descuento_mayorista: Number.isFinite(Number(descuento_mayorista)) && Number(descuento_mayorista) >= 0 && Number(descuento_mayorista) < 100 ? Number(descuento_mayorista) : 0,
+      descuento_nuevo: Number.isFinite(Number(descuento_nuevo)) && Number(descuento_nuevo) >= 0 && Number(descuento_nuevo) < 100 ? Number(descuento_nuevo) : 0,
       costo: Number(costo),
       stock: Number.isFinite(Number(stock)) ? Number(stock) : 0,
       unidad,
@@ -102,6 +103,9 @@ export const updateProducto = async (req, res) => {
     }
     if (data.descuento_mayorista !== undefined && (!Number.isFinite(Number(data.descuento_mayorista)) || Number(data.descuento_mayorista) < 0 || Number(data.descuento_mayorista) >= 100)) {
       return res.status(400).json({ message: "El descuento mayorista debe estar entre 0% y 99%" });
+    }
+    if (data.descuento_nuevo !== undefined && (!Number.isFinite(Number(data.descuento_nuevo)) || Number(data.descuento_nuevo) < 0 || Number(data.descuento_nuevo) >= 100)) {
+      return res.status(400).json({ message: "El descuento para clientes nuevos debe estar entre 0% y 99%" });
     }
     delete data.unidades_por_caja;
     if (data.marcaId !== undefined) {
@@ -169,7 +173,7 @@ export const actualizarPreciosPorcentaje = async (req, res) => {
 export const actualizarDescuentos = async (req, res) => {
   try {
     const { descuento, marcaId, tipo = "producto" } = req.body;
-    const campo = tipo === "mayorista" ? "descuento_mayorista" : "descuento";
+    const campo = { mayorista: "descuento_mayorista", nuevo: "descuento_nuevo" }[tipo] || "descuento";
     const porcentaje = Number(descuento);
     if (!Number.isFinite(porcentaje) || porcentaje < 0 || porcentaje >= 100) {
       return res.status(400).json({ message: "El descuento debe estar entre 0% y 99%" });

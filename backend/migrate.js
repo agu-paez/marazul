@@ -57,6 +57,7 @@ const nuevasColumnasProductos = [
   ['unidades_por_caja', 'INTEGER'],
   ['excluir_de_lista_pdf', 'BOOLEAN NOT NULL DEFAULT 0'],
   ['descuento_mayorista', 'DECIMAL(5,2) NOT NULL DEFAULT 0'],
+  ['descuento_nuevo', 'DECIMAL(5,2) NOT NULL DEFAULT 0'],
   ['permitir_modificar_precio', 'BOOLEAN NOT NULL DEFAULT 0'],
 ];
 for (const [columna, tipo] of nuevasColumnasProductos) {
@@ -70,6 +71,13 @@ for (const [columna, tipo] of nuevasColumnasProductos) {
       console.error('Error:', e.message);
     }
   }
+}
+
+try {
+  await sequelize.query("ALTER TABLE Clientes ADD COLUMN tipo_descuento VARCHAR(20) NOT NULL DEFAULT 'producto'");
+  console.log('Columna tipo_descuento agregada a Clientes correctamente');
+} catch (e) {
+  if (!e.message.includes('duplicate column') && !e.message.toLowerCase().includes('duplicate column name')) console.error('Error:', e.message);
 }
 
 const nuevasColumnasVentaItems = [

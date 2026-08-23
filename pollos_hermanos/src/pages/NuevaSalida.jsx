@@ -30,8 +30,7 @@ export default function NuevaSalida() {
     productosAPI.getAll().then((res) => {
       setProductos(res.data);
       const init = {};
-      res.data.forEach((p) => { init[p.id] = 0; });
-      setCantidades(init);
+       setCantidades(init);
     }).catch(console.error);
   };
 
@@ -248,7 +247,7 @@ export default function NuevaSalida() {
                         type="number"
                         min="0"
                         max={p.stock}
-                        value={qty || ""}
+                        value={cantidades[p.id] ?? ""}
                         step={esKg ? "0.01" : "1"}
                         aria-label={`Cantidad de ${p.nombre}${esKg ? " en kilogramos" : ""}`}
                         onChange={(e) => {

@@ -33,6 +33,7 @@ export default function ProductosPage() {
     excluir_de_lista_pdf: false,
     descuento: "",
     descuento_mayorista: "",
+    descuento_nuevo: "",
     permitir_modificar_precio: false,
   });
 
@@ -62,6 +63,7 @@ export default function ProductosPage() {
         costo: parseFloat(form.costo),
         descuento: form.descuento === "" ? 0 : parseFloat(form.descuento),
         descuento_mayorista: form.descuento_mayorista === "" ? 0 : parseFloat(form.descuento_mayorista),
+        descuento_nuevo: form.descuento_nuevo === "" ? 0 : parseFloat(form.descuento_nuevo),
         stock: parseInt(form.stock) || 0,
         marcaId: form.marcaId ? parseInt(form.marcaId) : null,
         codigo_barras: form.codigo_barras.trim() || null,
@@ -75,7 +77,7 @@ export default function ProductosPage() {
       }
       setShowForm(false);
       setEditing(null);
-       setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false, descuento: "", descuento_mayorista: "", permitir_modificar_precio: false });
+       setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false, descuento: "", descuento_mayorista: "", descuento_nuevo: "", permitir_modificar_precio: false });
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -96,6 +98,7 @@ export default function ProductosPage() {
       excluir_de_lista_pdf: Boolean(producto.excluir_de_lista_pdf),
       descuento: producto.descuento ?? "",
       descuento_mayorista: producto.descuento_mayorista ?? "",
+      descuento_nuevo: producto.descuento_nuevo ?? "",
       permitir_modificar_precio: Boolean(producto.permitir_modificar_precio),
     });
     setShowForm(true);
@@ -195,7 +198,7 @@ export default function ProductosPage() {
             onClick={() => {
               setShowForm(!showForm);
               setEditing(null);
-                 setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false, descuento: "", descuento_mayorista: "", permitir_modificar_precio: false });
+                 setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false, descuento: "", descuento_mayorista: "", descuento_nuevo: "", permitir_modificar_precio: false });
             }}
           >
             {showForm ? "Cancelar" : "+ Nuevo Producto"}
@@ -216,6 +219,7 @@ export default function ProductosPage() {
                 <select value={tipoDescuento} onChange={(e) => setTipoDescuento(e.target.value)}>
                   <option value="producto">Descuento a productos</option>
                   <option value="mayorista">Descuento categoría mayorista</option>
+                  <option value="nuevo">Descuento clientes nuevos</option>
                 </select>
               </div>
             )}
@@ -443,11 +447,15 @@ export default function ProductosPage() {
             </div>
             <div className="form-group">
               <label>Descuento producto (%)</label>
-              <input type="number" min="0" max="99" step="0.1" value={Number(form.descuento) ? form.descuento : ""} onChange={(e) => setForm({ ...form, descuento: e.target.value })} />
+                 <input type="number" min="0" max="99" step="0.1" value={form.descuento === "" ? "" : form.descuento} onChange={(e) => setForm({ ...form, descuento: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Descuento mayorista (%)</label>
-              <input type="number" min="0" max="99" step="0.1" value={form.descuento_mayorista} onChange={(e) => setForm({ ...form, descuento_mayorista: e.target.value })} />
+                 <input type="number" min="0" max="99" step="0.1" value={form.descuento_mayorista === "" ? "" : form.descuento_mayorista} onChange={(e) => setForm({ ...form, descuento_mayorista: e.target.value })} />
+             </div>
+             <div className="form-group">
+                 <label>Descuento clientes nuevos (%)</label>
+                 <input type="number" min="0" max="99" step="0.1" value={form.descuento_nuevo === "" ? "" : form.descuento_nuevo} onChange={(e) => setForm({ ...form, descuento_nuevo: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Stock</label>

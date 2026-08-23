@@ -51,8 +51,7 @@ export default function VentasPage() {
     productosAPI.getAll().then((res) => {
       setProductos(res.data);
        const init = {};
-       res.data.forEach((p) => { init[p.id] = 0; });
-       setCantidades(init);
+        setCantidades(init);
     }).catch(console.error);
     clientesAPI.getAll().then((res) => setClientes(res.data)).catch(console.error);
     bancosAPI.getAll().then((res) => setBancos(res.data.map((b) => b.nombre))).catch(console.error);
@@ -75,8 +74,7 @@ export default function VentasPage() {
       salidasAPI.getStockCamion(camionSeleccionado).then((res) => {
         setStockCamion(res.data.items);
         const init = {};
-         res.data.items.forEach((item) => { init[item.productoId] = 0; });
-         setCantidades(init);
+          setCantidades(init);
       }).catch(console.error).finally(() => setStockLoading(false));
     } else {
       setStockCamion([]);
@@ -258,7 +256,8 @@ export default function VentasPage() {
         nombre: sc.nombre || productoCatalogo?.nombre,
         precio: sc.precio,
         descuento: sc.descuento ?? productoCatalogo?.descuento ?? 0,
-        descuento_mayorista: sc.descuento_mayorista ?? productoCatalogo?.descuento_mayorista ?? 0,
+         descuento_mayorista: sc.descuento_mayorista ?? productoCatalogo?.descuento_mayorista ?? 0,
+         descuento_nuevo: sc.descuento_nuevo ?? productoCatalogo?.descuento_nuevo ?? 0,
         permitir_modificar_precio: Boolean(sc.permitir_modificar_precio ?? productoCatalogo?.permitir_modificar_precio),
         unidad: sc.unidad || productoCatalogo?.unidad,
         unidades_por_caja: sc.unidades_por_caja || productoCatalogo?.unidades_por_caja,
@@ -292,16 +291,19 @@ export default function VentasPage() {
     if (preciosPersonalizados[producto.id] !== undefined) return preciosPersonalizados[producto.id];
     let precio = Number(producto.precio);
     if (descuentosAplicados[producto.id]) {
-      precio *= 1 - Number(producto.descuento || 0) / 100;
-    }
-    if (form.tipo_venta === "local") {
-      precio *= 1 - Number(producto.descuento_mayorista || 0) / 100;
+      const campoDescuento = clienteSeleccionado?.tipo_descuento === "mayorista"
+        ? "descuento_mayorista"
+        : clienteSeleccionado?.tipo_descuento === "nuevo" ? "descuento_nuevo" : "descuento";
+      precio *= 1 - Number(producto[campoDescuento] || 0) / 100;
     }
     return Math.round(precio * 100) / 100;
   };
 
   const toggleDescuentoProducto = (producto) => {
-    if (Number(producto.descuento || 0) <= 0) return;
+    const campoDescuento = clienteSeleccionado?.tipo_descuento === "mayorista"
+      ? "descuento_mayorista"
+      : clienteSeleccionado?.tipo_descuento === "nuevo" ? "descuento_nuevo" : "descuento";
+    if (Number(producto[campoDescuento] || 0) <= 0) return;
     setDescuentosAplicados((prev) => ({ ...prev, [producto.id]: !prev[producto.id] }));
     setPreciosPersonalizados((prev) => {
       const nuevos = { ...prev };
@@ -544,8 +546,7 @@ export default function VentasPage() {
       setProductos(productosRes.data);
       setClientes(clientesRes.data);
        const reset = {};
-       productosRes.data.forEach((p) => { reset[p.id] = 0; });
-       setCantidades(reset);
+        setCantidades(reset);
 
       setTimeout(() => setSuccess(false), 5000);
     } catch (error) {
@@ -630,7 +631,7 @@ export default function VentasPage() {
                         </span>
                       )}
                     </div>
-                    {Number(p.descuento || 0) > 0 && (
+                    {Number(p[clienteSeleccionado?.tipo_descuento === "mayorista" ? "descuento_mayorista" : clienteSeleccionado?.tipo_descuento === "nuevo" ? "descuento_nuevo" : "descuento"] || 0) > 0 && (
                       <label style={{ display: "block", margin: "0.35rem 0", fontSize: "0.8rem" }}>
                         <input
                           type="checkbox"
@@ -650,7 +651,7 @@ export default function VentasPage() {
                       </button>
                       <input
                         type="number"
-                         value={qty || ""}
+                         value={cantidades[p.id] ?? ""}
                          step={esKg ? "0.01" : "1"}
                          aria-label={`Cantidad de ${p.nombre}${esKg ? " en kilogramos" : ""}`}
                         min="0"
@@ -791,7 +792,7 @@ export default function VentasPage() {
                       <input
                         type="number"
                         name="monto"
-                        value={borradorMonto[index] ?? (montosEditando[index] ?? pago.monto) || ""}
+                        value={borradorMonto[index] ?? ((montosEditando[index] ?? pago.monto) || "")}
                         onChange={(e) => handleMontoInput(index, e.target.value)}
                         onBlur={(e) => {
                           confirmarMontoPago(index, e.currentTarget.value);

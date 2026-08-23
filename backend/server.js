@@ -166,6 +166,7 @@ const start = async () => {
       references: { model: "Marcas", key: "id" },
     });
     await ensureColumn(Cliente, "zona", { type: DataTypes.STRING, allowNull: true });
+    await ensureColumn(Cliente, "tipo_descuento", { type: DataTypes.STRING, allowNull: false, defaultValue: "producto" });
     await ensureColumn(Cliente, "saldo_favor", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(Cliente, "pendiente_revision", { type: DataTypes.BOOLEAN, defaultValue: false });
     await ensureColumn(SalidaCamion, "autorizadoPorId", {
@@ -181,6 +182,7 @@ const start = async () => {
     await ensureColumn(Producto, "unidades_por_caja", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(Producto, "descuento", { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(Producto, "descuento_mayorista", { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(Producto, "descuento_nuevo", { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(Producto, "permitir_modificar_precio", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
     await ensureColumn(VentaItem, "costo_unitario", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(VentaItem, "unidad_venta", { type: DataTypes.STRING, allowNull: false, defaultValue: "unidad" });
