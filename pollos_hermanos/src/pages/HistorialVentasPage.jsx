@@ -17,6 +17,7 @@ export default function HistorialVentasPage() {
   const [clienteDetalleError, setClienteDetalleError] = useState("");
   const [ventaPagoEditando, setVentaPagoEditando] = useState(null);
   const [pagosEditados, setPagosEditados] = useState([]);
+  const [montosPagoBorrador, setMontosPagoBorrador] = useState({});
   const [guardandoPago, setGuardandoPago] = useState(false);
   const [ventaProductosEditando, setVentaProductosEditando] = useState(null);
   const [ventaModificacionDetalle, setVentaModificacionDetalle] = useState(null);
@@ -153,22 +154,28 @@ export default function HistorialVentasPage() {
       : [{ medio_pago: venta.medio_pago, monto: String(venta.total), nombre_cuenta: "", banco: "", proveedorId: "", alias: "", fecha_hora: "" }];
     setVentaPagoEditando(venta);
     setPagosEditados(pagos);
+    setMontosPagoBorrador({});
   };
 
   const guardarPago = async (e) => {
     e.preventDefault();
     const totalEsperado = (Number(ventaPagoEditando.total) || 0) + (Number(ventaPagoEditando.monto_deuda_pagado) || 0);
-    const diferencia = totalPagosEditados - totalEsperado;
+    const pagosConfirmados = pagosEditados.map((pago, index) => ({
+      ...pago,
+      monto: montosPagoBorrador[index] ?? pago.monto,
+    }));
+    const totalPagosConfirmados = pagosConfirmados.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
+    const diferencia = totalPagosConfirmados - totalEsperado;
     if (Math.abs(diferencia) > 0.01) {
       const mensaje = diferencia > 0
-        ? `La suma de los pagos ($${totalPagosEditados.toFixed(2)}) excede el total esperado ($${totalEsperado.toFixed(2)}).\n\nEl exceso ($${diferencia.toFixed(2)}) se acreditará como saldo a favor del cliente.\n\n¿Continuar?`
-        : `La suma de los pagos ($${totalPagosEditados.toFixed(2)}) es menor al total esperado ($${totalEsperado.toFixed(2)}).\n\nEl faltante ($${Math.abs(diferencia).toFixed(2)}) se registrará en cuenta corriente como saldo pendiente del cliente.\n\n¿Continuar?`;
+        ? `La suma de los pagos ($${totalPagosConfirmados.toFixed(2)}) excede el total esperado ($${totalEsperado.toFixed(2)}).\n\nEl exceso ($${diferencia.toFixed(2)}) se acreditará como saldo a favor del cliente.\n\n¿Continuar?`
+        : `La suma de los pagos ($${totalPagosConfirmados.toFixed(2)}) es menor al total esperado ($${totalEsperado.toFixed(2)}).\n\nEl faltante ($${Math.abs(diferencia).toFixed(2)}) se registrará en cuenta corriente como saldo pendiente del cliente.\n\n¿Continuar?`;
       if (!window.confirm(mensaje)) return;
     }
     setGuardandoPago(true);
     try {
       await ventasAPI.modificarPago(ventaPagoEditando.id, {
-        pagos: pagosEditados.map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0, nombre_cuenta: pago.nombre_cuenta, banco: pago.banco, proveedorId: pago.proveedorId || null, alias: pago.alias || "", fecha_hora: pago.fecha_hora || "" })),
+        pagos: pagosConfirmados.map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0, nombre_cuenta: pago.nombre_cuenta, banco: pago.banco, proveedorId: pago.proveedorId || null, alias: pago.alias || "", fecha_hora: pago.fecha_hora || "" })),
       });
       setVentaPagoEditando(null);
       await loadVentas();
@@ -469,8 +476,16 @@ export default function HistorialVentasPage() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={Number(pago.monto) ? pago.monto : ""}
-                    onChange={(e) => setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, monto: e.target.value } : item))}
+                     value={montosPagoBorrador[index] ?? (Number(pago.monto) ? pago.monto : "")}
+                     onChange={(e) => setMontosPagoBorrador((prev) => ({ ...prev, [index]: e.target.value }))}
+                     onBlur={(e) => {
+                       setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, monto: e.currentTarget.value } : item));
+                       setMontosPagoBorrador((prev) => {
+                         const next = { ...prev };
+                         delete next[index];
+                         return next;
+                       });
+                     }}
                     required
                   />
                   {pagosEditados.length > 1 && (
@@ -506,7 +521,7 @@ export default function HistorialVentasPage() {
                 )}
                 </div>
               ))}
-              <button type="button" className="btn btn-secondary" onClick={() => setPagosEditados((prev) => [...prev, { medio_pago: "efectivo", monto: "0", nombre_cuenta: "", banco: "", proveedorId: "", alias: "", fecha_hora: "" }])}>+ Agregar medio</button>
+               <button type="button" className="btn btn-secondary" onClick={() => setPagosEditados((prev) => [...prev, { medio_pago: "efectivo", monto: "0", nombre_cuenta: "", banco: "", proveedorId: "", alias: "", fecha_hora: "" }])}>+ Agregar medio</button>
               <div className="resumen-row" style={{ marginTop: "1rem" }}>
                 <span>Falta para el total esperado:</span>
                 <strong>${Math.max(0, totalEsperadoPago - totalPagosEditados).toFixed(2)}</strong>
