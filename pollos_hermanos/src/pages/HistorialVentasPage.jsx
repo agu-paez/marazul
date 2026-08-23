@@ -157,6 +157,15 @@ export default function HistorialVentasPage() {
     setMontosPagoBorrador({});
   };
 
+  const confirmarMontoPago = (index, monto) => {
+    setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, monto } : item));
+    setMontosPagoBorrador((prev) => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+  };
+
   const guardarPago = async (e) => {
     e.preventDefault();
     const totalEsperado = (Number(ventaPagoEditando.total) || 0) + (Number(ventaPagoEditando.monto_deuda_pagado) || 0);
@@ -478,14 +487,7 @@ export default function HistorialVentasPage() {
                     step="0.01"
                      value={montosPagoBorrador[index] ?? (Number(pago.monto) ? pago.monto : "")}
                      onChange={(e) => setMontosPagoBorrador((prev) => ({ ...prev, [index]: e.target.value }))}
-                     onBlur={(e) => {
-                       setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, monto: e.currentTarget.value } : item));
-                       setMontosPagoBorrador((prev) => {
-                         const next = { ...prev };
-                         delete next[index];
-                         return next;
-                       });
-                     }}
+                     onBlur={(e) => confirmarMontoPago(index, e.target.value)}
                     required
                   />
                   {pagosEditados.length > 1 && (
