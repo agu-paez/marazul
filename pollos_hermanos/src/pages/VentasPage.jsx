@@ -251,19 +251,22 @@ export default function VentasPage() {
     setDatos(newDatos);
   };
   const productosBase = useMemo(() => esReparto
-    ? stockCamion.map((sc) => ({
+    ? stockCamion.map((sc) => {
+      const productoCatalogo = productos.find((producto) => producto.id === sc.productoId);
+      return {
         id: sc.productoId,
-        nombre: sc.nombre,
+        nombre: sc.nombre || productoCatalogo?.nombre,
         precio: sc.precio,
-         descuento: sc.descuento,
-         descuento_mayorista: sc.descuento_mayorista,
-         permitir_modificar_precio: Boolean(sc.permitir_modificar_precio),
-        unidad: sc.unidad,
-        unidades_por_caja: sc.unidades_por_caja,
+        descuento: sc.descuento ?? productoCatalogo?.descuento ?? 0,
+        descuento_mayorista: sc.descuento_mayorista ?? productoCatalogo?.descuento_mayorista ?? 0,
+        permitir_modificar_precio: Boolean(sc.permitir_modificar_precio ?? productoCatalogo?.permitir_modificar_precio),
+        unidad: sc.unidad || productoCatalogo?.unidad,
+        unidades_por_caja: sc.unidades_por_caja || productoCatalogo?.unidades_por_caja,
         stock: sc.disponible,
         cargado: sc.cargado,
         devuelto: sc.devuelto,
-      }))
+      };
+    })
     : productos, [esReparto, productos, stockCamion]);
   const productosPorId = useMemo(
     () => new Map(productosBase.map((producto) => [producto.id, producto])),
