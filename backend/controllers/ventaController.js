@@ -392,7 +392,7 @@ export const getVentas = async (req, res) => {
         { model: VentaPago },
         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
         { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
-        { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente"] },
+        { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor"] },
         { model: SalidaCamion, as: "salida_camion", attributes: ["id", "camion"] },
       ],
       order: [["createdAt", "DESC"]],

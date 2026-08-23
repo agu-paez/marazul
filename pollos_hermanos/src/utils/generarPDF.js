@@ -65,6 +65,8 @@ export const generarComprobantePDF = async (venta) => {
   const items = venta.VentaItems || [];
   const hasDeuda = venta.monto_deuda_pagado && parseFloat(venta.monto_deuda_pagado) > 0;
   const saldoRestante = hasDeuda ? (venta.cliente?.saldo_pendiente ? parseFloat(venta.cliente.saldo_pendiente) : 0) : 0;
+  const saldoPendiente = parseFloat(venta.cliente?.saldo_pendiente || 0) || 0;
+  const saldoFavor = parseFloat(venta.cliente?.saldo_favor || 0) || 0;
 
   const rowH = 7;
   const tableHeaderH = 8;
@@ -302,6 +304,24 @@ export const generarComprobantePDF = async (venta) => {
     }
     y += 19;
   }
+
+  // ---- SALDOS DE CUENTA ----
+  const saldoBoxH = 24;
+  doc.setFillColor(248, 249, 252);
+  doc.rect(ml, y, cw, saldoBoxH, "F");
+  doc.setDrawColor(210, 212, 220);
+  doc.setLineWidth(0.35);
+  doc.rect(ml, y, cw, saldoBoxH, "S");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 90);
+  doc.text("SALDOS DE CUENTA", ml + 8, y + 6);
+  doc.setFontSize(7.5);
+  doc.setTextColor(210, 38, 38);
+  doc.text(`Saldo a favor nuestro: $${saldoPendiente.toFixed(2)}`, ml + 8, y + 14);
+  doc.setTextColor(37, 99, 235);
+  doc.text(`Saldo a favor del cliente: $${saldoFavor.toFixed(2)}`, pw - mr - 8, y + 14, { align: "right" });
+  y += saldoBoxH + 3;
 
   // ---- FIRMAS ----
   const minFirmaY = ph - 42;
