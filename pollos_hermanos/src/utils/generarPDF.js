@@ -1,6 +1,8 @@
 import jsPDF from "jspdf";
 import { getFechaLocal } from "./fecha.js";
 
+const montoEntero = (valor) => Math.round(Number(valor) || 0).toString();
+
 const createPdf = (...args) => {
   const doc = new jsPDF(...args);
   const setFontSize = doc.setFontSize.bind(doc);
@@ -199,7 +201,7 @@ export const generarComprobantePDF = async (venta) => {
       doc.line(ml, y, ml + cw, y);
       doc.setTextColor(50, 50, 60);
       let rx = ml + padH;
-      const vals = [p.metodo, p.banco, p.titular, `$${p.monto.toFixed(2)}`];
+      const vals = [p.metodo, p.banco, p.titular, `$${montoEntero(p.monto)}`];
       for (let j = 0; j < vals.length; j++) {
         doc.text(vals[j], rx, y + 4.5);
         if (j < vals.length - 1) { doc.setDrawColor(215, 217, 223); doc.setLineWidth(0.1); doc.line(rx + pCols[j], y, rx + pCols[j], y + rowH); }
@@ -257,8 +259,8 @@ export const generarComprobantePDF = async (venta) => {
     let rx = ml + padH;
     doc.text(nombre, rx, y + 4.5); rx += prodCols[0];
     doc.text(`${cant}${esKg ? " kg" : ""}`, rx, y + 4.5); rx += prodCols[1];
-    doc.text(`$${precio.toFixed(2)}`, rx, y + 4.5); rx += prodCols[2];
-     doc.text(`$${sub.toFixed(2)}`, rx, y + 4.5);
+     doc.text(`$${montoEntero(precio)}`, rx, y + 4.5); rx += prodCols[2];
+      doc.text(`$${montoEntero(sub)}`, rx, y + 4.5);
     y += rowH;
   }
   doc.setDrawColor(210, 210, 215);
@@ -276,7 +278,7 @@ export const generarComprobantePDF = async (venta) => {
   doc.setFontSize(13);
   doc.setTextColor(26, 26, 46);
   doc.text("TOTAL", ml + 8, y + 9.5);
-  doc.text(`$${parseFloat(venta.total).toFixed(2)}`, pw - mr - 8, y + 9.5, { align: "right" });
+  doc.text(`$${montoEntero(venta.total)}`, pw - mr - 8, y + 9.5, { align: "right" });
   y += 17;
 
   // ---- DEUDA ----
@@ -294,9 +296,9 @@ export const generarComprobantePDF = async (venta) => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(80, 80, 85);
-    doc.text(`$${parseFloat(venta.monto_deuda_pagado).toFixed(2)}`, ml + 8, y + 12);
+     doc.text(`$${montoEntero(venta.monto_deuda_pagado)}`, ml + 8, y + 12);
     if (saldoRestante > 0) {
-      doc.text(`Saldo pendiente: $${saldoRestante.toFixed(2)}`, pw - mr - 8, y + 6, { align: "right" });
+       doc.text(`Saldo pendiente: $${montoEntero(saldoRestante)}`, pw - mr - 8, y + 6, { align: "right" });
     } else {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(50, 140, 50);
@@ -318,9 +320,9 @@ export const generarComprobantePDF = async (venta) => {
   doc.text("SALDOS DE CUENTA", ml + 8, y + 6);
   doc.setFontSize(7.5);
   doc.setTextColor(210, 38, 38);
-  doc.text(`Saldo pendiente: $${saldoPendiente.toFixed(2)}`, ml + 8, y + 14);
+   doc.text(`Saldo pendiente: $${montoEntero(saldoPendiente)}`, ml + 8, y + 14);
   doc.setTextColor(37, 99, 235);
-  doc.text(`Saldo a favor del cliente: $${saldoFavor.toFixed(2)}`, pw - mr - 8, y + 14, { align: "right" });
+   doc.text(`Saldo a favor del cliente: $${montoEntero(saldoFavor)}`, pw - mr - 8, y + 14, { align: "right" });
   y += saldoBoxH + 3;
 
   // ---- FIRMAS ----

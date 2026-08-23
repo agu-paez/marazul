@@ -264,15 +264,14 @@ export const generarPDFMarcasProductos = async (req, res) => {
 
     const precioConDescuento = (producto) => {
       const precio = Number(producto.precio) * (1 - descuento / 100);
-      // En la lista con descuento se muestran precios enteros: desde .50 sube, debajo queda truncado.
-      return descuento > 0 ? Math.floor(precio + 0.5) : precio;
+      return descuento > 0 ? Math.floor(precio) : precio;
     };
     const precioPorKg = (producto) => {
       const precio = precioConDescuento(producto);
       const kg = Number(producto.kg_por_caja);
       if (Number.isFinite(precio) && precio > 0 && Number.isFinite(kg) && kg > 0) {
         const precioKg = precio / kg;
-        return descuento > 0 ? Math.floor(precioKg + 0.5) : precioKg;
+        return descuento > 0 ? Math.floor(precioKg) : precioKg;
       }
       return null;
     };

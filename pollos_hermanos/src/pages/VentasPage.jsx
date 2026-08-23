@@ -296,7 +296,7 @@ export default function VentasPage() {
         : clienteSeleccionado?.tipo_descuento === "nuevo" ? "descuento_nuevo" : "descuento";
       precio *= 1 - Number(producto[campoDescuento] || 0) / 100;
     }
-    return Math.round(precio * 100) / 100;
+    return descuentosAplicados[producto.id] ? Math.floor(precio) : Math.round(precio * 100) / 100;
   };
 
   const toggleDescuentoProducto = (producto) => {
