@@ -97,7 +97,7 @@ export const crearVenta = async (req, res) => {
         ...salidaCamion.SalidaCamionItems.map((item) => item.productoId),
       ])];
       const productos = await Producto.findAll({ where: { id: { [Op.in]: productoIds } } });
-      productosPorId = new Map(productos.map((producto) => [producto.id, producto]));
+      productosPorId = new Map(productos.map((producto) => [String(producto.id), producto]));
 
       const ventasExistentes = await Venta.findAll({
         where: { salidaCamionId: salidaCamion.id, estado: "completada" },
@@ -106,7 +106,7 @@ export const crearVenta = async (req, res) => {
 
       const stockCamion = {};
       for (const item of salidaCamion.SalidaCamionItems) {
-            const producto = productosPorId.get(item.productoId);
+            const producto = productosPorId.get(String(item.productoId));
         const factor = Number(item.unidades_por_caja) > 0 ? Number(item.unidades_por_caja) : getUnidadesPorCaja(producto);
         const cargado = Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * factor;
         const devuelto = Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * factor;
@@ -115,7 +115,7 @@ export const crearVenta = async (req, res) => {
       for (const v of ventasExistentes) {
         for (const vi of v.VentaItems) {
           if (stockCamion[vi.productoId] !== undefined) {
-            const producto = productosPorId.get(vi.productoId);
+            const producto = productosPorId.get(String(vi.productoId));
             const factor = Number(vi.unidades_por_caja) > 0 ? Number(vi.unidades_por_caja) : getUnidadesPorCaja(producto);
             stockCamion[vi.productoId] -= Number(vi.cantidad_unidades) > 0 ? Number(vi.cantidad_unidades) : Number(vi.cantidad) * factor;
           }
@@ -123,7 +123,7 @@ export const crearVenta = async (req, res) => {
       }
 
       for (const item of items) {
-        const producto = productosPorId.get(item.productoId);
+        const producto = productosPorId.get(String(item.productoId));
         if (!producto) {
           return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
         }
@@ -144,9 +144,9 @@ export const crearVenta = async (req, res) => {
     } else {
       const productoIds = [...new Set(items.map((item) => item.productoId))];
       const productos = await Producto.findAll({ where: { id: { [Op.in]: productoIds } } });
-      productosPorId = new Map(productos.map((producto) => [producto.id, producto]));
+      productosPorId = new Map(productos.map((producto) => [String(producto.id), producto]));
       for (const item of items) {
-        const producto = productosPorId.get(item.productoId);
+        const producto = productosPorId.get(String(item.productoId));
         if (!producto) {
           return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
         }
@@ -169,7 +169,7 @@ export const crearVenta = async (req, res) => {
     let subtotalCalc = 0;
     const stockPorProducto = new Map();
     for (const item of items) {
-      const producto = productosPorId.get(item.productoId);
+      const producto = productosPorId.get(String(item.productoId));
       const precioPersonalizado = Number(item.precio_unitario);
       if (item.precio_unitario !== undefined && (!Number.isFinite(precioPersonalizado) || precioPersonalizado <= 0)) {
         return res.status(400).json({ message: `El precio de "${producto.nombre}" no es válido` });
@@ -308,7 +308,7 @@ export const crearVenta = async (req, res) => {
     }
 
     for (const item of items) {
-      const producto = productosPorId.get(item.productoId);
+      const producto = productosPorId.get(String(item.productoId));
        const precioPersonalizado = Number(item.precio_unitario);
        const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
        const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : Number(producto.precio);
@@ -333,7 +333,7 @@ export const crearVenta = async (req, res) => {
     }
 
     for (const [productoId, cantidadStock] of stockPorProducto) {
-      const producto = productosPorId.get(productoId);
+      const producto = productosPorId.get(String(productoId));
       await producto.update({ stock: parseFloat(producto.stock) - cantidadStock });
     }
 

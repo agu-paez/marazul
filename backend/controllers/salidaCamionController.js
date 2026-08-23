@@ -134,12 +134,12 @@ export const createSalida = async (req, res) => {
 
     const productoIds = [...new Set(items.map((item) => item.productoId))];
     const productos = await Producto.findAll({ where: { id: { [Op.in]: productoIds } } });
-    const productosPorId = new Map(productos.map((producto) => [producto.id, producto]));
+    const productosPorId = new Map(productos.map((producto) => [String(producto.id), producto]));
     const cantidadesPorProducto = new Map();
 
     let precioTotal = 0;
     for (const item of items) {
-      const producto = productosPorId.get(item.productoId);
+      const producto = productosPorId.get(String(item.productoId));
       if (!producto) {
         return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
       }
@@ -148,10 +148,11 @@ export const createSalida = async (req, res) => {
       if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo && !Number.isInteger(cantidad))) {
         return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
       }
-      cantidadesPorProducto.set(item.productoId, (cantidadesPorProducto.get(item.productoId) || 0) + cantidad);
-      if (producto.stock < cantidadesPorProducto.get(item.productoId)) {
+      const productoId = String(item.productoId);
+      cantidadesPorProducto.set(productoId, (cantidadesPorProducto.get(productoId) || 0) + cantidad);
+      if (producto.stock < cantidadesPorProducto.get(productoId)) {
         return res.status(400).json({
-          message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${cantidadesPorProducto.get(item.productoId)}`,
+          message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${cantidadesPorProducto.get(productoId)}`,
         });
       }
       precioTotal += parseFloat(producto.precio) * cantidad;
@@ -173,7 +174,7 @@ export const createSalida = async (req, res) => {
     });
 
     for (const item of items) {
-      const producto = productosPorId.get(item.productoId);
+      const producto = productosPorId.get(String(item.productoId));
       await SalidaCamionItem.create({
         salidaCamionId: salida.id,
         productoId: item.productoId,
@@ -183,7 +184,7 @@ export const createSalida = async (req, res) => {
     }
 
     for (const [productoId, cantidad] of cantidadesPorProducto) {
-      const producto = productosPorId.get(productoId);
+      const producto = productosPorId.get(String(productoId));
       await producto.update({ stock: parseFloat(producto.stock) - cantidad });
     }
 
