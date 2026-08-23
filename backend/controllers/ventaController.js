@@ -661,10 +661,21 @@ export const modificarProductosVenta = async (req, res) => {
       const cantidadStock = esCaja(producto)
         ? cantidad * (unidadVenta === "caja" ? 1 : 1 / factor)
         : cantidad;
-      const precio = Number(item.precio_unitario);
+      const originalesProducto = venta.VentaItems.filter((v) => v.productoId === producto.id);
+      const originalMismaUnidad = originalesProducto.find((v) => normalizarUnidadVenta(producto, v.unidad_venta) === unidadVenta);
+      let precio;
+      if (originalMismaUnidad) {
+        precio = Number(originalMismaUnidad.precio_unitario);
+      } else if (originalesProducto.length > 0) {
+        precio = normalizarUnidadVenta(producto, originalesProducto[0].unidad_venta) === "caja"
+          ? Number(originalesProducto[0].precio_unitario) / factor
+          : Number(originalesProducto[0].precio_unitario) * factor;
+      } else {
+        precio = unidadVenta === "caja" ? Number(producto.precio) : Number(producto.precio) / factor;
+      }
       if (!Number.isFinite(precio) || precio <= 0) {
         await transaction.rollback();
-        return res.status(400).json({ message: `El precio de "${producto.nombre}" no es válido` });
+        return res.status(400).json({ message: `No se pudo determinar el precio de "${producto.nombre}"` });
       }
       productosNuevos.push({ producto, cantidad, unidadVenta, factor, cantidadStock, precio });
     }
