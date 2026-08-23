@@ -245,7 +245,7 @@ export const registrarRegreso = async (req, res) => {
     const vendidoPorProducto = {};
     for (const venta of ventasExistentes) {
       for (const vi of venta.VentaItems) {
-        vendidoPorProducto[vi.productoId] = (vendidoPorProducto[vi.productoId] || 0) + vi.cantidad;
+        vendidoPorProducto[vi.productoId] = (vendidoPorProducto[vi.productoId] || 0) + Number(vi.cantidad);
       }
     }
 
@@ -256,15 +256,15 @@ export const registrarRegreso = async (req, res) => {
         if (producto) {
           const salidaItem = salida.SalidaCamionItems.find((si) => si.productoId === item.productoId);
           if (salidaItem) {
-            const maxDevolver = salidaItem.cantidad - (vendidoPorProducto[item.productoId] || 0);
+            const maxDevolver = (parseFloat(salidaItem.cantidad) || 0) - (Number(vendidoPorProducto[item.productoId]) || 0);
             if (item.cantidad > 0 && item.cantidad > maxDevolver) {
               return res.status(400).json({
                 message: `No se puede devolver ${item.cantidad} unidades de "${producto.nombre}": solo quedan ${maxDevolver} disponibles (${salidaItem.cantidad} cargados - ${vendidoPorProducto[item.productoId] || 0} vendidos)`,
               });
             }
-            const devueltoAnterior = salidaItem.cantidad_devuelta || 0;
-            montoRegreso += producto.precio * item.cantidad;
-            await producto.update({ stock: producto.stock + (item.cantidad - devueltoAnterior) });
+            const devueltoAnterior = parseFloat(salidaItem.cantidad_devuelta) || 0;
+            montoRegreso += parseFloat(producto.precio) * Number(item.cantidad);
+            await producto.update({ stock: parseFloat(producto.stock) + (Number(item.cantidad) - devueltoAnterior) });
             await salidaItem.update({ cantidad_devuelta: item.cantidad });
           }
         }
@@ -284,9 +284,10 @@ export const registrarRegreso = async (req, res) => {
     } else {
       let faltaMercaderia = false;
       for (const si of salida.SalidaCamionItems) {
-        const vendido = vendidoPorProducto[si.productoId] || 0;
-        const devuelto = si.cantidad_devuelta || 0;
-        if (si.cantidad - vendido - devuelto > 0) {
+        const cargado = parseFloat(si.cantidad) || 0;
+        const vendido = Number(vendidoPorProducto[si.productoId]) || 0;
+        const devuelto = parseFloat(si.cantidad_devuelta) || 0;
+        if (cargado - vendido - devuelto > 0) {
           faltaMercaderia = true;
           break;
         }
@@ -403,17 +404,17 @@ export const updateSalidaStatus = async (req, res) => {
       const vendidoPorProducto = {};
       for (const venta of ventasReparto) {
         for (const vi of venta.VentaItems) {
-          vendidoPorProducto[vi.productoId] = (vendidoPorProducto[vi.productoId] || 0) + vi.cantidad;
+          vendidoPorProducto[vi.productoId] = (vendidoPorProducto[vi.productoId] || 0) + Number(vi.cantidad);
         }
       }
 
       for (const item of salida.SalidaCamionItems) {
-        const vendido = vendidoPorProducto[item.productoId] || 0;
-        const aRestaurar = item.cantidad - vendido;
+        const vendido = Number(vendidoPorProducto[item.productoId]) || 0;
+        const aRestaurar = (parseFloat(item.cantidad) || 0) - vendido;
         if (aRestaurar > 0) {
           const prod = await Producto.findByPk(item.productoId);
           if (prod) {
-            await prod.update({ stock: prod.stock + aRestaurar });
+            await prod.update({ stock: parseFloat(prod.stock) + aRestaurar });
           }
         }
       }
@@ -481,7 +482,7 @@ export const updateSalidaCompleta = async (req, res) => {
     for (const oldItem of salida.SalidaCamionItems) {
       const prod = await Producto.findByPk(oldItem.productoId);
       if (prod) {
-        await prod.update({ stock: prod.stock + oldItem.cantidad });
+        await prod.update({ stock: parseFloat(prod.stock) + (parseFloat(oldItem.cantidad) || 0) });
       }
     }
 
