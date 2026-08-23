@@ -160,6 +160,7 @@ export const ventasAPI = {
   create: (data) => API.post("/ventas", data),
   delete: (id) => API.delete(`/ventas/${id}`),
   modificarPago: (id, data) => API.put(`/ventas/${id}/pago`, data),
+  modificarProductos: (id, data) => API.put(`/ventas/${id}/productos`, data),
   getStats: () => API.get("/ventas/stats"),
 };
 

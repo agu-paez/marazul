@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { ventasAPI, clientesAPI, bancosAPI, proveedoresAPI } from "../api";
+import { ventasAPI, clientesAPI, bancosAPI, proveedoresAPI, productosAPI } from "../api";
 import BancoAutocomplete from "../components/BancoAutocomplete";
 import {
   generarComprobantePDF,
@@ -18,6 +18,10 @@ export default function HistorialVentasPage() {
   const [ventaPagoEditando, setVentaPagoEditando] = useState(null);
   const [pagosEditados, setPagosEditados] = useState([]);
   const [guardandoPago, setGuardandoPago] = useState(false);
+  const [ventaProductosEditando, setVentaProductosEditando] = useState(null);
+  const [productosDisponibles, setProductosDisponibles] = useState([]);
+  const [itemsEditados, setItemsEditados] = useState([]);
+  const [guardandoProductos, setGuardandoProductos] = useState(false);
   const [bancos, setBancos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [filtros, setFiltros] = useState({
@@ -32,6 +36,7 @@ export default function HistorialVentasPage() {
     loadVentas();
     bancosAPI.getAll().then((res) => setBancos(res.data.map((banco) => banco.nombre))).catch(console.error);
     proveedoresAPI.getAll().then((res) => setProveedores(res.data)).catch(console.error);
+    productosAPI.getAll().then((res) => setProductosDisponibles(res.data)).catch(console.error);
   }, []);
 
   const loadVentas = async (params = {}) => {
@@ -70,6 +75,51 @@ export default function HistorialVentasPage() {
       loadVentas();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const abrirEditarProductos = (venta) => {
+    setVentaProductosEditando(venta);
+    setItemsEditados((venta.VentaItems || []).map((item) => ({
+      productoId: item.productoId,
+      cantidad: String(item.cantidad),
+      precio_unitario: String(item.precio_unitario),
+      unidad_venta: item.unidad_venta || "unidad",
+      nombre: item.Producto?.nombre || "Producto",
+    })));
+  };
+
+  const agregarProductoEditado = () => {
+    const producto = productosDisponibles.find((item) => !itemsEditados.some((actual) => actual.productoId === item.id));
+    if (!producto) return;
+    setItemsEditados((prev) => [...prev, {
+      productoId: producto.id,
+      cantidad: "1",
+      precio_unitario: String(producto.precio),
+      unidad_venta: "unidad",
+      nombre: producto.nombre,
+    }]);
+  };
+
+  const guardarProductos = async (e) => {
+    e.preventDefault();
+    if (!itemsEditados.length) return;
+    setGuardandoProductos(true);
+    try {
+      await ventasAPI.modificarProductos(ventaProductosEditando.id, {
+        items: itemsEditados.map(({ productoId, cantidad, precio_unitario, unidad_venta }) => ({
+          productoId,
+          cantidad: Number(cantidad),
+          precio_unitario: Number(precio_unitario),
+          unidad_venta,
+        })),
+      });
+      setVentaProductosEditando(null);
+      await loadVentas();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    } finally {
+      setGuardandoProductos(false);
     }
   };
 
@@ -208,7 +258,9 @@ export default function HistorialVentasPage() {
                  <th>Acciones</th>
                  <th>Modificado por</th>
                  <th>Qué modificó</th>
-                <th>Mercaderías</th>
+                 <th>Saldo nuestro</th>
+                 <th>Saldo cliente</th>
+                 <th>Mercaderías</th>
               </tr>
             </thead>
             <tbody>
@@ -243,8 +295,8 @@ export default function HistorialVentasPage() {
                         PDF
                       </button>
                       {(user?.role === "admin" || v.usuarioId === user?.id) && (
-                        <button className="btn btn-sm btn-secondary" onClick={() => abrirEditarPago(v)}>
-                          Modificar pago
+                        <button className="btn btn-sm btn-secondary" onClick={() => abrirEditarProductos(v)}>
+                          Modificar factura
                         </button>
                       )}
                       {(user?.role === "admin") && (
@@ -258,8 +310,10 @@ export default function HistorialVentasPage() {
                     </div>
                   </td>
                   <td>{v.pago_modificado_por?.nombre || "-"}{v.pago_modificado_en && <small><br />{new Date(v.pago_modificado_en).toLocaleString("es-AR")}</small>}</td>
-                  <td>{detalleModificacion(v)}</td>
-                  <td>
+                   <td>{detalleModificacion(v)}</td>
+                   <td className="monto-regreso">${Number(v.cliente?.saldo_pendiente || 0).toFixed(2)}</td>
+                   <td style={{ color: "#2563eb" }}>${Number(v.cliente?.saldo_favor || 0).toFixed(2)}</td>
+                   <td>
                     <div className="badge-grid">
                       {v.VentaItems?.map((item) => (
                         <span key={item.id} className="badge">
@@ -304,6 +358,57 @@ export default function HistorialVentasPage() {
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setClienteDetalle(null)}>Cerrar</button>
             </div>
+          </div>
+        </div>
+      )}
+      {ventaProductosEditando && (
+        <div className="modal-overlay" onClick={() => setVentaProductosEditando(null)}>
+          <div className="modal-card modal-wide historial-pago-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Modificar factura {ventaProductosEditando.numero_comprobante}</h3>
+            <p className="subtitle">Actualiza productos, cantidades o precios. El stock, total y saldo se recalcularán.</p>
+            <form onSubmit={guardarProductos}>
+              {itemsEditados.map((item, index) => (
+                <div className="item-row" key={`${item.productoId}-${index}`}>
+                  <select
+                    value={item.productoId}
+                    onChange={(e) => {
+                      const producto = productosDisponibles.find((actual) => actual.id === Number(e.target.value));
+                      setItemsEditados((prev) => prev.map((actual, i) => i === index ? { ...actual, productoId: producto.id, nombre: producto.nombre, precio_unitario: String(producto.precio) } : actual));
+                    }}
+                    required
+                  >
+                    {productosDisponibles.map((producto) => <option key={producto.id} value={producto.id}>{producto.nombre}</option>)}
+                  </select>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={item.cantidad}
+                    onChange={(e) => setItemsEditados((prev) => prev.map((actual, i) => i === index ? { ...actual, cantidad: e.target.value } : actual))}
+                    required
+                    aria-label={`Cantidad de ${item.nombre}`}
+                  />
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={item.precio_unitario}
+                    onChange={(e) => setItemsEditados((prev) => prev.map((actual, i) => i === index ? { ...actual, precio_unitario: e.target.value } : actual))}
+                    required
+                    aria-label={`Precio de ${item.nombre}`}
+                  />
+                  {itemsEditados.length > 1 && <button type="button" className="btn btn-sm btn-cancel" onClick={() => setItemsEditados((prev) => prev.filter((_, i) => i !== index))}>X</button>}
+                </div>
+              ))}
+              <button type="button" className="btn btn-secondary" onClick={agregarProductoEditado}>+ Agregar producto</button>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => { const venta = ventaProductosEditando; setVentaProductosEditando(null); abrirEditarPago(venta); }}>
+                  Modificar pagos
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setVentaProductosEditando(null)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={guardandoProductos}>{guardandoProductos ? "Guardando..." : "Guardar factura"}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

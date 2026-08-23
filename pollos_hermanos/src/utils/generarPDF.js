@@ -318,7 +318,7 @@ export const generarComprobantePDF = async (venta) => {
   doc.text("SALDOS DE CUENTA", ml + 8, y + 6);
   doc.setFontSize(7.5);
   doc.setTextColor(210, 38, 38);
-  doc.text(`Saldo a favor nuestro: $${saldoPendiente.toFixed(2)}`, ml + 8, y + 14);
+  doc.text(`Saldo pendiente: $${saldoPendiente.toFixed(2)}`, ml + 8, y + 14);
   doc.setTextColor(37, 99, 235);
   doc.text(`Saldo a favor del cliente: $${saldoFavor.toFixed(2)}`, pw - mr - 8, y + 14, { align: "right" });
   y += saldoBoxH + 3;

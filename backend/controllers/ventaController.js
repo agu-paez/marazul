@@ -620,6 +620,146 @@ export const modificarPagoVenta = async (req, res) => {
   }
 };
 
+export const modificarProductosVenta = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "La factura debe conservar al menos un producto" });
+    }
+
+    const venta = await Venta.findByPk(req.params.id, { include: [{ model: VentaItem }], transaction, lock: transaction.LOCK.UPDATE });
+    if (!venta || venta.estado !== "completada") {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Venta no encontrada" });
+    }
+    if (req.userRole !== "admin" && venta.usuarioId !== req.user.id) {
+      await transaction.rollback();
+      return res.status(403).json({ message: "Solo puedes modificar tus propias facturas" });
+    }
+    if (venta.fecha !== getFechaLocal()) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Solo se pueden modificar facturas del día" });
+    }
+    if (await CierreCaja.findOne({ where: { fecha: venta.fecha }, transaction })) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "No se puede modificar la factura: la caja de ese día ya fue cerrada" });
+    }
+
+    const esReparto = venta.tipo_venta === "reparto";
+    const productosNuevos = [];
+    for (const item of items) {
+      const producto = await Producto.findByPk(item.productoId, { transaction });
+      const cantidad = Number(item.cantidad);
+      if (!producto || !Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo(producto) && !Number.isInteger(cantidad))) {
+        await transaction.rollback();
+        return res.status(400).json({ message: `El producto o cantidad de la factura no es válido` });
+      }
+      const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
+      const factor = getUnidadesPorCaja(producto);
+      const cantidadStock = esCaja(producto)
+        ? cantidad * (unidadVenta === "caja" ? 1 : 1 / factor)
+        : cantidad;
+      const precio = Number(item.precio_unitario);
+      if (!Number.isFinite(precio) || precio <= 0) {
+        await transaction.rollback();
+        return res.status(400).json({ message: `El precio de "${producto.nombre}" no es válido` });
+      }
+      productosNuevos.push({ producto, cantidad, unidadVenta, factor, cantidadStock, precio });
+    }
+
+    if (!esReparto) {
+      for (const item of venta.VentaItems) {
+        const producto = await Producto.findByPk(item.productoId, { transaction, lock: transaction.LOCK.UPDATE });
+        if (producto) {
+          const factor = getUnidadesPorCaja(producto);
+          const cantidadStock = esCaja(producto)
+            ? Number(item.cantidad) * (item.unidad_venta === "caja" ? 1 : 1 / factor)
+            : Number(item.cantidad);
+          await producto.increment("stock", { by: cantidadStock, transaction });
+        }
+      }
+      const stockDisponible = new Map();
+      const stockDevuelto = new Map();
+      for (const item of venta.VentaItems) {
+        const productoOriginal = await Producto.findByPk(item.productoId, { transaction });
+        const factor = getUnidadesPorCaja(productoOriginal);
+        const cantidadStock = esCaja(productoOriginal)
+          ? Number(item.cantidad) * (item.unidad_venta === "caja" ? 1 : 1 / factor)
+          : Number(item.cantidad);
+        stockDevuelto.set(item.productoId, (stockDevuelto.get(item.productoId) || 0) + cantidadStock);
+      }
+      for (const item of productosNuevos) {
+        const stock = stockDisponible.has(item.producto.id)
+          ? stockDisponible.get(item.producto.id)
+          : Number(item.producto.stock) + (stockDevuelto.get(item.producto.id) || 0);
+        const stockRestante = stock - item.cantidadStock;
+        if (stockRestante < 0) {
+          await transaction.rollback();
+          return res.status(400).json({ message: `Stock insuficiente para "${item.producto.nombre}"` });
+        }
+        stockDisponible.set(item.producto.id, stockRestante);
+      }
+      for (const item of productosNuevos) {
+        await item.producto.decrement("stock", { by: item.cantidadStock, transaction });
+      }
+    }
+
+    const subtotalNuevo = productosNuevos.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
+    const pagosAnteriores = await VentaPago.findAll({ where: { ventaId: venta.id }, transaction });
+    const pagosNoCC = pagosAnteriores.filter((pago) => pago.medio_pago !== "cuenta_corriente").map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0 }));
+    const totalEsperado = subtotalNuevo + (Number(venta.monto_deuda_pagado) || 0);
+    const totalNoCC = pagosNoCC.reduce((sum, pago) => sum + pago.monto, 0);
+    const creditoAnterior = pagosAnteriores.filter((pago) => pago.medio_pago === "cuenta_corriente").reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
+    const creditoNuevo = Math.max(0, totalEsperado - totalNoCC);
+    const sobranteNuevo = Math.max(0, totalNoCC - totalEsperado);
+    const sobranteAnterior = Number(venta.monto_sobrante) || 0;
+
+    if (venta.clienteId && Math.abs(creditoNuevo - creditoAnterior) > 0.01 || venta.clienteId && Math.abs(sobranteNuevo - sobranteAnterior) > 0.01) {
+      const cliente = await Cliente.findByPk(venta.clienteId, { transaction, lock: transaction.LOCK.UPDATE });
+      if (cliente) {
+        const saldo = (Number(cliente.saldo_pendiente) || 0) - (Number(cliente.saldo_favor) || 0)
+          + creditoNuevo - creditoAnterior - sobranteNuevo + sobranteAnterior;
+        await cliente.update({ saldo_pendiente: Math.max(0, saldo).toFixed(2), saldo_favor: Math.max(0, -saldo).toFixed(2) }, { transaction });
+      }
+    }
+
+    await VentaItem.destroy({ where: { ventaId: venta.id }, transaction });
+    await VentaItem.bulkCreate(productosNuevos.map((item) => ({
+      ventaId: venta.id,
+      productoId: item.producto.id,
+      cantidad: item.cantidad,
+      precio_unitario: item.precio,
+      costo_unitario: (Number(item.producto.costo) || 0) / (esCaja(item.producto) && item.unidadVenta === "unidad" ? item.factor : 1),
+      unidad_venta: item.unidadVenta,
+      unidades_por_caja: esCaja(item.producto) ? item.factor : null,
+      cantidad_unidades: item.cantidad * (item.unidadVenta === "caja" ? item.factor : 1),
+    })), { transaction });
+
+    await VentaPago.destroy({ where: { ventaId: venta.id }, transaction });
+    await VentaPago.bulkCreate([
+      ...pagosNoCC,
+      ...(creditoNuevo > 0 ? [{ medio_pago: "cuenta_corriente", monto: creditoNuevo }] : []),
+    ].map((pago) => ({ ventaId: venta.id, medio_pago: pago.medio_pago, monto: pago.monto.toFixed(2) })), { transaction });
+
+    await venta.update({ subtotal: subtotalNuevo.toFixed(2), total: subtotalNuevo.toFixed(2), monto_sobrante: sobranteNuevo.toFixed(2) }, { transaction });
+    await transaction.commit();
+    const ventaActualizada = await Venta.findByPk(venta.id, {
+      include: [
+        { model: VentaItem, include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja"] }] },
+        { model: VentaPago },
+        { model: User, as: "vendedor", attributes: ["id", "nombre"] },
+        { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor", "limite_credito"] },
+      ],
+    });
+    res.json({ message: "Productos de la factura actualizados", venta: ventaActualizada });
+  } catch (error) {
+    if (!transaction.finished) await transaction.rollback();
+    res.status(500).json({ message: "Error al modificar los productos de la factura", error: error.message });
+  }
+};
+
 export const deleteVenta = async (req, res) => {
   try {
     if (req.userRole !== "admin") {
