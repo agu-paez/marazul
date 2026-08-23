@@ -19,6 +19,7 @@ export default function HistorialVentasPage() {
   const [pagosEditados, setPagosEditados] = useState([]);
   const [guardandoPago, setGuardandoPago] = useState(false);
   const [ventaProductosEditando, setVentaProductosEditando] = useState(null);
+  const [ventaModificacionDetalle, setVentaModificacionDetalle] = useState(null);
   const [productosDisponibles, setProductosDisponibles] = useState([]);
   const [itemsEditados, setItemsEditados] = useState([]);
   const [guardandoProductos, setGuardandoProductos] = useState(false);
@@ -179,6 +180,20 @@ export default function HistorialVentasPage() {
   };
 
   const totalPagosEditados = pagosEditados.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
+  const formatearModificacion = (venta, tipo) => {
+    const detalleKey = tipo === "pagos" ? "pago_modificacion_detalle" : "productos_modificacion_detalle";
+    const detalle = venta[detalleKey];
+    if (!detalle) return "Sin modificaciones";
+    try {
+      const datos = typeof detalle === "string" ? JSON.parse(detalle) : detalle;
+      const mostrar = tipo === "pagos"
+        ? (item) => `${item.medio_pago}: $${Number(item.monto).toFixed(2)}`
+        : (item) => `${item.cantidad} ${item.unidad_venta || "unidad"} ${item.nombre}`;
+      return `${datos.anteriores?.map(mostrar).join(", ")} -> ${datos.nuevos?.map(mostrar).join(", ")}`;
+    } catch {
+      return "Detalle no disponible";
+    }
+  };
   const abrirDetalleCliente = async (venta) => {
     const cliente = venta.cliente;
     if (!cliente?.id) return;
@@ -304,10 +319,15 @@ export default function HistorialVentasPage() {
                     </div>
                   </td>
                    <td>{[v.pago_modificado_por?.nombre, v.productos_modificado_por?.nombre].filter(Boolean).join(" / ") || "-"}</td>
-                   <td>{[
-                     v.pago_modificado_por && "Pagos",
-                     v.productos_modificado_por && "Productos",
-                   ].filter(Boolean).join(" y ") || "-"}</td>
+                   <td>
+                     <button
+                       type="button"
+                       className="btn btn-sm btn-secondary"
+                       onClick={() => setVentaModificacionDetalle(v)}
+                     >
+                       Detalle
+                     </button>
+                   </td>
                    <td className="monto-regreso">${Number(v.cliente?.saldo_pendiente || 0).toFixed(2)}</td>
                    <td style={{ color: "#2563eb" }}>${Number(v.cliente?.saldo_favor || 0).toFixed(2)}</td>
                    <td>
@@ -354,6 +374,28 @@ export default function HistorialVentasPage() {
             )}
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setClienteDetalle(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {ventaModificacionDetalle && (
+        <div className="modal-overlay" onClick={() => setVentaModificacionDetalle(null)}>
+          <div className="modal-card modal-wide historial-pago-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Modificaciones de {ventaModificacionDetalle.numero_comprobante}</h3>
+            <h4>Pagos</h4>
+            <p>
+              <strong>{ventaModificacionDetalle.pago_modificado_por?.nombre || "Sin modificaciones"}</strong>
+              {ventaModificacionDetalle.pago_modificado_en && ` - ${new Date(ventaModificacionDetalle.pago_modificado_en).toLocaleString("es-AR")}`}
+            </p>
+            {ventaModificacionDetalle.pago_modificado_por && <p>{formatearModificacion(ventaModificacionDetalle, "pagos")}</p>}
+            <h4>Productos</h4>
+            <p>
+              <strong>{ventaModificacionDetalle.productos_modificado_por?.nombre || "Sin modificaciones"}</strong>
+              {ventaModificacionDetalle.productos_modificado_en && ` - ${new Date(ventaModificacionDetalle.productos_modificado_en).toLocaleString("es-AR")}`}
+            </p>
+            {ventaModificacionDetalle.productos_modificado_por && <p>{formatearModificacion(ventaModificacionDetalle, "productos")}</p>}
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setVentaModificacionDetalle(null)}>Cerrar</button>
             </div>
           </div>
         </div>
