@@ -257,7 +257,7 @@ export default function VentasPage() {
         precio: sc.precio,
          descuento: sc.descuento,
          descuento_mayorista: sc.descuento_mayorista,
-         permitir_modificar_precio: sc.permitir_modificar_precio,
+         permitir_modificar_precio: Boolean(sc.permitir_modificar_precio),
         unidad: sc.unidad,
         unidades_por_caja: sc.unidades_por_caja,
         stock: sc.disponible,
@@ -946,7 +946,7 @@ export default function VentasPage() {
                   <div key={p.id} className="resumen-row">
                      <span>
                        {cantidades[p.id]}{esKg ? " kg" : ""} {p.nombre}
-                       {(esKg || p.permitir_modificar_precio) && (
+                        {(esKg || Boolean(p.permitir_modificar_precio)) && (
                          <button type="button" className="btn btn-sm btn-secondary" style={{ marginLeft: "0.5rem" }} onClick={() => abrirEdicionPrecio(p)}>
                            Modificar precio
                         </button>
