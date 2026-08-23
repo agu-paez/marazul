@@ -582,6 +582,27 @@ tr.cliente-pendiente-revision td:first-child {
   flex: 1;
 }
 
+/* Modal Registrar Pago CC: los campos bancarios se apilan para no desbordar */
+.pago-cc-modal {
+  width: min(440px, calc(100vw - 2rem));
+}
+
+.pago-cc-modal .item-row {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pago-cc-modal .item-row > select,
+.pago-cc-modal .item-row > input {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.pago-cc-modal .item-row > .btn-cancel {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 h2 {
   margin-bottom: 0.5rem;
   color: var(--primary);
