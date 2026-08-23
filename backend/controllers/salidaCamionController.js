@@ -660,11 +660,11 @@ export const getStockCamion = async (req, res) => {
             descuento_mayorista: item.Producto?.descuento_mayorista,
             descuento_nuevo: item.Producto?.descuento_nuevo,
            permitir_modificar_precio: item.Producto?.permitir_modificar_precio,
-          precio: parseFloat(item.precio_unitario),
-          cargado: item.cantidad,
+           precio: parseFloat(item.precio_unitario),
+          cargado: parseFloat(item.cantidad),
           vendido: 0,
-          devuelto: item.cantidad_devuelta || 0,
-          disponible: item.cantidad - (item.cantidad_devuelta || 0),
+          devuelto: parseFloat(item.cantidad_devuelta) || 0,
+          disponible: parseFloat(item.cantidad) - (parseFloat(item.cantidad_devuelta) || 0),
         };
       }
     }
@@ -672,8 +672,8 @@ export const getStockCamion = async (req, res) => {
     for (const venta of ventasDelCamion) {
       for (const vi of venta.VentaItems) {
         if (stockDisponible[vi.productoId]) {
-          stockDisponible[vi.productoId].vendido += vi.cantidad;
-          stockDisponible[vi.productoId].disponible -= vi.cantidad;
+          stockDisponible[vi.productoId].vendido += Number(vi.cantidad);
+          stockDisponible[vi.productoId].disponible -= Number(vi.cantidad);
         }
       }
     }

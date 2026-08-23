@@ -177,12 +177,12 @@ export default function MisSalidas() {
       }
       const items = (salida.SalidaCamionItems || []).map((item) => {
         const stock = stockMap[item.productoId];
-        const vendido = stock ? stock.vendido : 0;
-        const maxDevolver = item.cantidad - vendido;
+        const vendido = Number(stock?.vendido) || 0;
+        const maxDevolver = Math.max(0, (Number(item.cantidad) || 0) - vendido);
         return {
           productoId: item.productoId,
           nombre: item.Producto?.nombre,
-          precio_unitario: parseFloat(item.precio_unitario),
+          precio_unitario: parseFloat(item.precio_unitario) || 0,
           cantidad_enviada: item.cantidad,
           cantidad_vendida: vendido,
           max_devolver: maxDevolver,
@@ -197,14 +197,16 @@ export default function MisSalidas() {
 
   const handleCantidadRegreso = (index, value) => {
     const newItems = [...itemsRegreso];
-        const cant = parseFloat(value) || 0;
-    newItems[index].cantidad_regreso = Math.min(cant, newItems[index].max_devolver);
+    const cant = parseFloat(value) || 0;
+    const max = Number(newItems[index].max_devolver);
+    const maxSeguro = Number.isFinite(max) ? Math.max(0, max) : cant;
+    newItems[index].cantidad_regreso = Math.min(cant, maxSeguro);
     setItemsRegreso(newItems);
   };
 
   const calcularMontoRegreso = () => {
     return itemsRegreso.reduce((sum, item) => {
-      return sum + item.precio_unitario * item.cantidad_regreso;
+      return sum + (item.precio_unitario || 0) * (Number(item.cantidad_regreso) || 0);
     }, 0);
   };
 
