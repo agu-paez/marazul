@@ -248,7 +248,7 @@ export default function NuevaSalida() {
                         type="number"
                         min="0"
                         max={p.stock}
-                        value={qty}
+                        value={qty || ""}
                         step={esKg ? "0.01" : "1"}
                         aria-label={`Cantidad de ${p.nombre}${esKg ? " en kilogramos" : ""}`}
                         onChange={(e) => {

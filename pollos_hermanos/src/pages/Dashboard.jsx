@@ -426,7 +426,7 @@ export default function Dashboard() {
                         <input
                           type="number"
                           min="0"
-                          value={item.cantidad_regreso}
+                          value={item.cantidad_regreso || ""}
                           onChange={(e) => handleCantidadRegreso(index, e.target.value)}
                           className="input-cantidad"
                         />
@@ -611,7 +611,7 @@ export default function Dashboard() {
                 </div>
                 <div className="form-group">
                   <label htmlFor="gasto-otros">Otros gastos</label>
-                  <input id="gasto-otros" type="number" min="0" step="0.01" value={gastos.otros || ""} onChange={(event) => setGastos({ ...gastos, otros: event.target.value })} disabled={resumen?.cerrado} />
+                  <input id="gasto-otros" type="number" min="0" step="0.01" value={Number(gastos.otros) ? gastos.otros : ""} onChange={(event) => setGastos({ ...gastos, otros: event.target.value })} disabled={resumen?.cerrado} />
                 </div>
               </div>
               <div className="form-group">

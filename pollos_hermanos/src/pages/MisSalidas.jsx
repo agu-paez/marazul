@@ -502,7 +502,7 @@ export default function MisSalidas() {
                           type="number"
                           min="0"
                           max={item.max_devolver}
-                          value={item.cantidad_regreso}
+                          value={item.cantidad_regreso || ""}
                           onChange={(e) => handleCantidadRegreso(index, e.target.value)}
                           className="input-cantidad"
                         />

@@ -259,7 +259,7 @@ export default function ClientesPage() {
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={montos.saldo_pendiente}
+                      value={Number(montos.saldo_pendiente) ? montos.saldo_pendiente : ""}
                       onChange={(e) => setMontos({ ...montos, saldo_pendiente: e.target.value })}
                       disabled={!isAdmin}
                       required
@@ -270,7 +270,7 @@ export default function ClientesPage() {
                     <input
                       type="text"
                       inputMode="decimal"
-                      value={montos.limite_credito}
+                      value={Number(montos.limite_credito) ? montos.limite_credito : ""}
                       onChange={(e) => setMontos({ ...montos, limite_credito: e.target.value })}
                       disabled={!isAdmin}
                       required
@@ -451,7 +451,7 @@ export default function ClientesPage() {
                      type="text"
                      inputMode="decimal"
                     name="monto"
-                    value={pago.monto}
+                    value={Number(pago.monto) ? pago.monto : ""}
                     onChange={(e) => handlePagoChange(index, e)}
                     min="0"
                     step="0.01"

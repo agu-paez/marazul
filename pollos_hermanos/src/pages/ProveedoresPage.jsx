@@ -308,7 +308,7 @@ export default function ProveedoresPage() {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={Math.abs(saldosForm.mercaderias_compradas)}
+                  value={Math.abs(saldosForm.mercaderias_compradas) || ""}
                   onChange={(e) => setSaldosForm({ ...saldosForm, mercaderias_compradas: -(parseFloat(e.target.value) || 0) })}
                   style={{ paddingLeft: "1.5rem" }}
                 />
@@ -320,7 +320,7 @@ export default function ProveedoresPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={saldosForm.dinero_ventas}
+                value={saldosForm.dinero_ventas || ""}
                 onChange={(e) => setSaldosForm({ ...saldosForm, dinero_ventas: parseFloat(e.target.value) || 0 })}
               />
             </div>

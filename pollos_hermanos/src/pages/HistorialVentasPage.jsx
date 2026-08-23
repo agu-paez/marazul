@@ -388,7 +388,7 @@ export default function HistorialVentasPage() {
                     type="number"
                     min="0.01"
                     step="0.01"
-                    value={item.cantidad}
+                    value={Number(item.cantidad) ? item.cantidad : ""}
                     onChange={(e) => setItemsEditados((prev) => prev.map((actual, i) => i === index ? { ...actual, cantidad: e.target.value } : actual))}
                     required
                     aria-label={`Cantidad de ${item.nombre}`}
@@ -434,7 +434,7 @@ export default function HistorialVentasPage() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={pago.monto}
+                    value={Number(pago.monto) ? pago.monto : ""}
                     onChange={(e) => setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, monto: e.target.value } : item))}
                     required
                   />

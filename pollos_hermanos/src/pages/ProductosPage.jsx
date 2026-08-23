@@ -425,7 +425,7 @@ export default function ProductosPage() {
               <input
                 type="number"
                 step="0.01"
-                value={form.precio}
+                value={Number(form.precio) ? form.precio : ""}
                 onChange={(e) => setForm({ ...form, precio: e.target.value })}
                 required
               />
@@ -436,14 +436,14 @@ export default function ProductosPage() {
                 type="number"
                 min="0"
                 step="0.01"
-                value={form.costo}
+                value={Number(form.costo) ? form.costo : ""}
                 onChange={(e) => setForm({ ...form, costo: e.target.value })}
                 required
               />
             </div>
             <div className="form-group">
               <label>Descuento producto (%)</label>
-              <input type="number" min="0" max="99" step="0.1" value={form.descuento} onChange={(e) => setForm({ ...form, descuento: e.target.value })} />
+              <input type="number" min="0" max="99" step="0.1" value={Number(form.descuento) ? form.descuento : ""} onChange={(e) => setForm({ ...form, descuento: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Descuento mayorista (%)</label>
@@ -453,7 +453,7 @@ export default function ProductosPage() {
               <label>Stock</label>
               <input
                 type="number"
-                value={form.stock}
+                value={Number(form.stock) ? form.stock : ""}
                 onChange={(e) => setForm({ ...form, stock: e.target.value })}
               />
             </div>
@@ -474,7 +474,7 @@ export default function ProductosPage() {
                 type="number"
                 step="0.01"
                 min="0"
-                value={form.kg_por_caja}
+                value={Number(form.kg_por_caja) ? form.kg_por_caja : ""}
                 onChange={(e) => setForm({ ...form, kg_por_caja: e.target.value })}
                 placeholder="Ej: 15"
               />

@@ -650,7 +650,7 @@ export default function VentasPage() {
                       </button>
                       <input
                         type="number"
-                         value={qty}
+                         value={qty || ""}
                          step={esKg ? "0.01" : "1"}
                          aria-label={`Cantidad de ${p.nombre}${esKg ? " en kilogramos" : ""}`}
                         min="0"
@@ -791,7 +791,7 @@ export default function VentasPage() {
                       <input
                         type="number"
                         name="monto"
-                        value={borradorMonto[index] ?? (montosEditando[index] ?? pago.monto)}
+                        value={borradorMonto[index] ?? (montosEditando[index] ?? pago.monto) || ""}
                         onChange={(e) => handleMontoInput(index, e.target.value)}
                         onBlur={(e) => {
                           confirmarMontoPago(index, e.currentTarget.value);
