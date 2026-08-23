@@ -78,12 +78,6 @@ export default function HistorialVentasPage() {
     }
   };
 
-  const precioCatalogoProducto = (producto, unidadVenta) => {
-    const esCajaProd = String(producto?.unidad || "").toLowerCase() === "caja";
-    const factor = esCajaProd && Number(producto.unidades_por_caja) > 0 ? Number(producto.unidades_por_caja) : 1;
-    return unidadVenta === "caja" ? Number(producto.precio) : Number(producto.precio) / factor;
-  };
-
   const abrirEditarProductos = (venta) => {
     setVentaProductosEditando(venta);
     setItemsEditados((venta.VentaItems || []).map((item) => ({
@@ -101,7 +95,7 @@ export default function HistorialVentasPage() {
     setItemsEditados((prev) => [...prev, {
       productoId: producto.id,
       cantidad: "1",
-      precio_unitario: String(precioCatalogoProducto(producto, "unidad")),
+      precio_unitario: String(producto.precio),
       unidad_venta: "unidad",
       nombre: producto.nombre,
     }]);
@@ -113,9 +107,10 @@ export default function HistorialVentasPage() {
     setGuardandoProductos(true);
     try {
       await ventasAPI.modificarProductos(ventaProductosEditando.id, {
-        items: itemsEditados.map(({ productoId, cantidad, unidad_venta }) => ({
+        items: itemsEditados.map(({ productoId, cantidad, precio_unitario, unidad_venta }) => ({
           productoId,
           cantidad: Number(cantidad),
+          precio_unitario: Number(precio_unitario),
           unidad_venta,
         })),
       });
@@ -370,7 +365,7 @@ export default function HistorialVentasPage() {
         <div className="modal-overlay" onClick={() => setVentaProductosEditando(null)}>
           <div className="modal-card modal-wide historial-pago-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Modificar factura {ventaProductosEditando.numero_comprobante}</h3>
-            <p className="subtitle">Solo se pueden modificar productos y cantidades. Los precios se mantienen como fueron vendidos.</p>
+            <p className="subtitle">Actualiza productos, cantidades o precios. El stock, total y saldo se recalcularán.</p>
             <form onSubmit={guardarProductos}>
               {itemsEditados.map((item, index) => (
                 <div className="item-row" key={`${item.productoId}-${index}`}>
@@ -378,7 +373,7 @@ export default function HistorialVentasPage() {
                     value={item.productoId}
                     onChange={(e) => {
                       const producto = productosDisponibles.find((actual) => actual.id === Number(e.target.value));
-                      setItemsEditados((prev) => prev.map((actual, i) => i === index ? { ...actual, productoId: producto.id, nombre: producto.nombre, precio_unitario: String(precioCatalogoProducto(producto, actual.unidad_venta)) } : actual));
+                      setItemsEditados((prev) => prev.map((actual, i) => i === index ? { ...actual, productoId: producto.id, nombre: producto.nombre, precio_unitario: String(producto.precio) } : actual));
                     }}
                     required
                   >
@@ -393,9 +388,6 @@ export default function HistorialVentasPage() {
                     required
                     aria-label={`Cantidad de ${item.nombre}`}
                   />
-                  <span className="badge" title="Precio de venta original (no modificable)">
-                    ${Number(item.precio_unitario || 0).toFixed(2)}
-                  </span>
                   <input
                     type="number"
                     min="0.01"
