@@ -6,6 +6,20 @@ import BancoAutocomplete from "../components/BancoAutocomplete";
 import { generarHistorialDeudasPDF, generarPagoClientePDF } from "../utils/generarPDF";
 import { getFechaLocal } from "../utils/fecha";
 
+const redondearUnid = (n) => Math.round(n * 1000) / 1000;
+
+const formatCant = (n) => {
+  const num = Number(n) || 0;
+  return Number.isInteger(num) ? String(num) : String(Number(num.toFixed(2)));
+};
+
+const textoCarga = (item, cant) => {
+  const factor = Number(item?.factor) || 1;
+  if (factor <= 1) return `${formatCant(cant)} unid.`;
+  const carga = Number(cant) || 0;
+  const etiqueta = Math.abs(carga - 1) < 0.005 ? "caja" : "cajas";
+  return `${formatCant(carga)} ${etiqueta} (${formatCant(redondearUnid(carga * factor))} unid.)`;
+};
 
 export default function MisSalidas() {
   const { user } = useAuth();
@@ -177,16 +191,24 @@ export default function MisSalidas() {
       }
       const items = (salida.SalidaCamionItems || []).map((item) => {
         const stock = stockMap[item.productoId];
-        const enviada = Number(stock?.cargado) || 0;
-        const vendido = Number(stock?.vendido) || 0;
-        const maxDevolver = Math.max(0, enviada - vendido);
+        const factorStock = Number(stock?.factor);
+        const esCajaProd = String(item.Producto?.unidad || "").toLowerCase() === "caja";
+        const factor = Number.isFinite(factorStock) && factorStock > 0
+          ? factorStock
+          : esCajaProd && Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) > 0
+            ? Number(item.unidades_por_caja || item.Producto?.unidades_por_caja)
+            : 1;
+        const enviadaU = Number(stock?.cargado) || 0;
+        const vendidoU = Number(stock?.vendido) || 0;
+        const maxDevolverU = Math.max(0, enviadaU - vendidoU);
         return {
           productoId: item.productoId,
           nombre: item.Producto?.nombre,
+          factor,
           precio_unidad: Number(stock?.precio_unidad) || 0,
-          cantidad_enviada: enviada,
-          cantidad_vendida: vendido,
-          max_devolver: maxDevolver,
+          cantidad_enviada: redondearUnid(enviadaU / factor),
+          cantidad_vendida: redondearUnid(vendidoU / factor),
+          max_devolver: redondearUnid(maxDevolverU / factor),
           cantidad_regreso: 0,
         };
       });
@@ -201,13 +223,14 @@ export default function MisSalidas() {
     const cant = parseFloat(value) || 0;
     const max = Number(newItems[index].max_devolver);
     const maxSeguro = Number.isFinite(max) ? Math.max(0, max) : cant;
-    newItems[index].cantidad_regreso = Math.min(cant, maxSeguro);
+    newItems[index].cantidad_regreso = Math.min(Math.max(0, cant), maxSeguro);
     setItemsRegreso(newItems);
   };
 
   const calcularMontoRegreso = () => {
     return itemsRegreso.reduce((sum, item) => {
-      return sum + (item.precio_unidad || 0) * (Number(item.cantidad_regreso) || 0);
+      const unidades = (Number(item.cantidad_regreso) || 0) * (Number(item.factor) || 1);
+      return sum + (item.precio_unidad || 0) * unidades;
     }, 0);
   };
 
@@ -220,15 +243,19 @@ export default function MisSalidas() {
     setShowConfirm(true);
   };
 
+  const itemsParaEnviar = (soloConCantidad) =>
+    itemsRegreso
+      .filter((item) => !soloConCantidad || Number(item.cantidad_regreso) > 0)
+      .map((item) => {
+        const unidades = redondearUnid((Number(item.cantidad_regreso) || 0) * (Number(item.factor) || 1));
+        return { productoId: item.productoId, cantidad: unidades, cantidad_unidades: unidades };
+      });
+
   const ejecutarCancelacion = async () => {
     if (!regresando) return;
     try {
-      const items_para_enviar = itemsRegreso.map((item) => ({
-        productoId: item.productoId,
-        cantidad: item.cantidad_regreso,
-      }));
       await salidasAPI.registrarRegreso(regresando.id, {
-        items_regreso: items_para_enviar,
+        items_regreso: itemsParaEnviar(false),
         cancelar: true,
         motivo: cancelMotivo,
       });
@@ -245,15 +272,8 @@ export default function MisSalidas() {
   const ejecutarRegreso = async () => {
     setShowConfirm(false);
     try {
-      const items_para_enviar = itemsRegreso
-        .filter((item) => item.cantidad_regreso > 0)
-        .map((item) => ({
-          productoId: item.productoId,
-          cantidad: item.cantidad_regreso,
-        }));
-
       await salidasAPI.registrarRegreso(regresando.id, {
-        items_regreso: items_para_enviar,
+        items_regreso: itemsParaEnviar(true),
       });
       setRegresando(null);
       loadSalidas();
@@ -494,26 +514,33 @@ export default function MisSalidas() {
                 <thead>
                   <tr>
                     <th>Producto</th>
-                    <th>Enviada (unid.)</th>
-                    <th>Vendida (unid.)</th>
-                    <th>A Devolver (unid.)</th>
+                    <th>Enviada</th>
+                    <th>Vendida</th>
+                    <th>A Devolver</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itemsRegreso.map((item, index) => (
                     <tr key={item.productoId}>
                       <td><strong>{item.nombre}</strong></td>
-                      <td>{item.cantidad_enviada}</td>
-                      <td>{item.cantidad_vendida}</td>
+                      <td>{textoCarga(item, item.cantidad_enviada)}</td>
+                      <td>{textoCarga(item, item.cantidad_vendida)}</td>
                       <td>
                         <input
                           type="number"
                           min="0"
+                          step={Number(item.factor) > 1 ? "0.01" : "1"}
                           max={item.max_devolver}
                           value={item.cantidad_regreso || ""}
                           onChange={(e) => handleCantidadRegreso(index, e.target.value)}
                           className="input-cantidad"
+                          title={`Maximo: ${textoCarga(item, item.max_devolver)}`}
                         />
+                        {Number(item.factor) > 1 && (
+                          <small style={{ display: "block", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                            {formatCant(item.max_devolver)} {Math.abs(Number(item.max_devolver) - 1) < 0.005 ? "caja" : "cajas"} = {formatCant(redondearUnid(item.max_devolver * item.factor))} unid.
+                          </small>
+                        )}
                       </td>
                     </tr>
                   ))}

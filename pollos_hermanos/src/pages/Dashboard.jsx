@@ -6,6 +6,21 @@ import { dinero } from "../utils/numero";
 const getFechaLocal = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
 
+const redondearUnid = (n) => Math.round(n * 1000) / 1000;
+
+const formatCant = (n) => {
+  const num = Number(n) || 0;
+  return Number.isInteger(num) ? String(num) : String(Number(num.toFixed(2)));
+};
+
+const textoCarga = (item, cant) => {
+  const factor = Number(item?.factor) || 1;
+  if (factor <= 1) return `${formatCant(cant)} unid.`;
+  const carga = Number(cant) || 0;
+  const etiqueta = Math.abs(carga - 1) < 0.005 ? "caja" : "cajas";
+  return `${formatCant(carga)} ${etiqueta} (${formatCant(redondearUnid(carga * factor))} unid.)`;
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -126,20 +141,21 @@ export default function Dashboard() {
       const factor = esCajaProd && Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) > 0
         ? Number(item.unidades_por_caja || item.Producto?.unidades_por_caja)
         : 1;
+      const stock = stockMap[item.productoId];
+      const enviadaU = Number(stock?.cargado) > 0 ? Number(stock.cargado) : (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : (Number(item.cantidad) || 0) * factor);
+      const vendidaU = Number(stock?.vendido) || 0;
       const devueltasUnidades = Number(item.cantidad_devuelta_unidades) > 0
         ? Number(item.cantidad_devuelta_unidades)
         : (Number(item.cantidad_devuelta) || 0) * factor;
-      const stock = stockMap[item.productoId];
-      const enviada = Number(stock?.cargado) > 0 ? Number(stock.cargado) : (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : (Number(item.cantidad) || 0) * factor);
-      const vendida = Number(stock?.vendido) || 0;
-      const maxDevolver = Math.max(0, Number(stock ? enviada - vendida : enviada));
+      const maxDevolverU = Math.max(0, Number(stock ? enviadaU - vendidaU : enviadaU));
       return {
         productoId: item.productoId,
         nombre: item.Producto?.nombre,
-        cantidad_enviada: enviada,
-        cantidad_vendida: vendida,
-        max_devolver: maxDevolver,
-        cantidad_regreso: Math.min(devueltasUnidades, maxDevolver),
+        factor,
+        cantidad_enviada: redondearUnid(enviadaU / factor),
+        cantidad_vendida: redondearUnid(vendidaU / factor),
+        max_devolver: redondearUnid(maxDevolverU / factor),
+        cantidad_regreso: redondearUnid(Math.min(devueltasUnidades, maxDevolverU) / factor),
       };
     });
     setItemsRegreso(items);
@@ -166,15 +182,17 @@ export default function Dashboard() {
     setShowConfirm(true);
   };
 
+  const itemsParaEnviar = () =>
+    itemsRegreso.map((item) => {
+      const unidades = redondearUnid((Number(item.cantidad_regreso) || 0) * (Number(item.factor) || 1));
+      return { productoId: item.productoId, cantidad: unidades, cantidad_unidades: unidades };
+    });
+
   const ejecutarCancelacion = async () => {
     if (!regresando) return;
     try {
-      const items_para_enviar = itemsRegreso.map((item) => ({
-        productoId: item.productoId,
-        cantidad: item.cantidad_regreso,
-      }));
       await salidasAPI.registrarRegreso(regresando.id, {
-        items_regreso: items_para_enviar,
+        items_regreso: itemsParaEnviar(),
         cancelar: true,
         motivo: cancelMotivo,
       });
@@ -192,13 +210,8 @@ export default function Dashboard() {
     setShowConfirm(false);
     if (!regresando) return;
     try {
-      const items_para_enviar = itemsRegreso.map((item) => ({
-        productoId: item.productoId,
-        cantidad: item.cantidad_regreso,
-      }));
-
-       await salidasAPI.registrarRegreso(regresando.id, {
-        items_regreso: items_para_enviar,
+      await salidasAPI.registrarRegreso(regresando.id, {
+        items_regreso: itemsParaEnviar(),
       });
        setRegresando(null);
        setEditandoRegreso(false);
@@ -443,26 +456,33 @@ export default function Dashboard() {
                 <thead>
                   <tr>
                     <th>Producto</th>
-                    <th>Enviada (unid.)</th>
-                    <th>Vendida (unid.)</th>
-                    <th>A Devolver (unid.)</th>
+                    <th>Enviada</th>
+                    <th>Vendida</th>
+                    <th>A Devolver</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itemsRegreso.map((item, index) => (
                     <tr key={item.productoId}>
                       <td data-label="Producto"><strong>{item.nombre}</strong></td>
-                      <td data-label="Enviada">{item.cantidad_enviada}</td>
-                      <td data-label="Vendida">{item.cantidad_vendida}</td>
+                      <td data-label="Enviada">{textoCarga(item, item.cantidad_enviada)}</td>
+                      <td data-label="Vendida">{textoCarga(item, item.cantidad_vendida)}</td>
                       <td data-label="A devolver">
                         <input
                           type="number"
                           min="0"
+                          step={Number(item.factor) > 1 ? "0.01" : "1"}
                           max={item.max_devolver}
                           value={item.cantidad_regreso || ""}
                           onChange={(e) => handleCantidadRegreso(index, e.target.value)}
                           className="input-cantidad"
+                          title={`Maximo: ${textoCarga(item, item.max_devolver)}`}
                         />
+                        {Number(item.factor) > 1 && (
+                          <small style={{ display: "block", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                            {formatCant(item.max_devolver)} {Math.abs(Number(item.max_devolver) - 1) < 0.005 ? "caja" : "cajas"} = {formatCant(redondearUnid(item.max_devolver * item.factor))} unid.
+                          </small>
+                        )}
                       </td>
                     </tr>
                   ))}
