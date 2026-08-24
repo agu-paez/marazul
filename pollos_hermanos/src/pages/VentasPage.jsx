@@ -827,33 +827,6 @@ export default function VentasPage() {
             </div>
           </div>
 
-          {tieneDeuda && (
-            <div className="form-card" style={{ marginTop: "0.5rem", borderLeft: "3px solid #e74c3c" }}>
-              <div className="resumen-row">
-                <span style={{ fontWeight: "bold", color: "#e74c3c" }}>
-                  Deuda pendiente en cuenta corriente:
-                </span>
-                <strong className="monto-regreso">${deudaAnterior.toFixed(2)}</strong>
-              </div>
-              <div className="form-group" style={{ marginTop: "0.5rem" }}>
-                <label style={{ cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={pagarDeuda}
-                    onChange={(e) => setPagarDeuda(e.target.checked)}
-                    style={{ marginRight: "0.5rem" }}
-                  />
-                  Agregar pago de deuda al total a pagar
-                </label>
-              </div>
-              {pagarDeuda && (
-                <div className="resumen-row" style={{ marginTop: "0.25rem" }}>
-                  <span>Monto de deuda a pagar:</span>
-                  <strong className="monto-regreso">${deudaAnterior.toFixed(2)}</strong>
-                </div>
-              )}
-            </div>
-          )}
           {clienteSeleccionado && deudaAnterior < 0 && (
             <div className="form-card" style={{ marginTop: "0.5rem", borderLeft: "3px solid #10b981" }}>
               <div className="resumen-row">
