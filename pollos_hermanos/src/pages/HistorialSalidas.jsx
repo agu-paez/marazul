@@ -2,12 +2,17 @@ import { useState, useEffect, useMemo } from "react";
 import { salidasAPI, ventasAPI } from "../api";
 import { generarResumenEntregaPDF } from "../utils/generarPDF";
 
+const DENOMINACIONES = [2000, 1000, 500, 200, 100, 50, 20];
+
 export default function HistorialSalidas() {
   const [salidas, setSalidas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtros, setFiltros] = useState({ buscar: "", fecha: "", estado: "" });
   const [detalle, setDetalle] = useState(null);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [conteos, setConteos] = useState({});
+  const [conteoModalId, setConteoModalId] = useState(null);
+  const [conteoBilletes, setConteoBilletes] = useState({});
 
   useEffect(() => {
     loadSalidas();
@@ -70,8 +75,27 @@ export default function HistorialSalidas() {
 
   const handleDownloadResumen = async (id) => {
     const data = await cargarDetalle(id);
-    if (data) generarResumenEntregaPDF({ ...data.salida, sobrantes: data.sobrantes }, data.ventas);
+    if (data) generarResumenEntregaPDF({ ...data.salida, sobrantes: data.sobrantes }, data.ventas, conteos[id]);
   };
+
+  const abrirConteo = (id) => {
+    setConteoBilletes(conteos[id]?.billetes || {});
+    setConteoModalId(id);
+  };
+
+  const guardarConteo = () => {
+    setConteos({ ...conteos, [conteoModalId]: { billetes: conteoBilletes } });
+    setConteoModalId(null);
+  };
+
+  const totalConteo = useMemo(
+    () =>
+      Object.entries(conteoBilletes).reduce(
+        (suma, [valor, cant]) => suma + Number(valor) * (Number(cant) || 0),
+        0
+      ),
+    [conteoBilletes]
+  );
 
   const salidasFiltradas = useMemo(() => {
     return salidas.filter((s) => {
@@ -136,7 +160,44 @@ export default function HistorialSalidas() {
             )}
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setDetalle(null)}>Cerrar</button>
-              <button className="btn btn-primary" onClick={() => generarResumenEntregaPDF({ ...detalle.salida, sobrantes: detalle.sobrantes }, detalle.ventas)}>Generar PDF</button>
+              <button className="btn btn-primary" onClick={() => generarResumenEntregaPDF({ ...detalle.salida, sobrantes: detalle.sobrantes }, detalle.ventas, conteos[detalle.salida.id])}>Generar PDF</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {conteoModalId !== null && (
+        <div className="modal-overlay" onClick={() => setConteoModalId(null)}>
+          <div className="modal-card conteo-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Conteo de Billetes</h3>
+            <p className="subtitle">Calculadora de efectivo para corroborar con las ventas en efectivo de la salida</p>
+            {DENOMINACIONES.map((den) => (
+              <div key={den} className="conteo-row">
+                <span className="conteo-den">$ {den}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={conteoBilletes[den] ?? ""}
+                  onChange={(e) =>
+                    setConteoBilletes({
+                      ...conteoBilletes,
+                      [den]: e.target.value === "" ? "" : Math.max(0, Math.floor(Number(e.target.value) || 0)),
+                    })
+                  }
+                  placeholder="0"
+                />
+                <span className="conteo-sub">$ {(den * (Number(conteoBilletes[den]) || 0)).toLocaleString("es-UY")}</span>
+              </div>
+            ))}
+            <div className="conteo-total">
+              <span>Total contado</span>
+              <strong>$ {totalConteo.toLocaleString("es-UY")}</strong>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setConteoBilletes({})}>Limpiar</button>
+              <button className="btn btn-cancel" onClick={() => setConteoModalId(null)}>Cerrar</button>
+              <button className="btn btn-primary" onClick={guardarConteo}>Guardar</button>
             </div>
           </div>
         </div>
@@ -228,6 +289,9 @@ export default function HistorialSalidas() {
                     )}
                     <button className="btn btn-sm btn-secondary" onClick={() => handleVerDetalle(s.id)} disabled={loadingDetalle}>
                       Detalle
+                    </button>
+                    <button className="btn btn-sm btn-secondary" onClick={() => abrirConteo(s.id)}>
+                      Conteo{conteos[s.id] ? " ✓" : ""}
                     </button>
                     <button className="btn btn-sm btn-primary" onClick={() => handleDownloadResumen(s.id)} disabled={loadingDetalle}>
                       PDF

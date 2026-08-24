@@ -991,7 +991,7 @@ export const generarTransferenciaIndividualPDF = async (pago, fecha) => {
   doc.save(`transferencia-${nombreProv}${aliasPart}-${titular}-${fecha}.pdf`);
 };
 
-export const generarResumenEntregaPDF = async (salida, ventas) => {
+export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
   const doc = createPdf();
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
@@ -1324,6 +1324,35 @@ export const generarResumenEntregaPDF = async (salida, ventas) => {
     doc.setTextColor(150, 150, 150);
     doc.text("Sin observaciones", ml + 3, y + 4);
     y += 9;
+  }
+
+  // 6. Control de conteo de billetes contra efectivo registrado
+  if (conteo && typeof conteo === "object") {
+    const totalConteo = Object.entries(conteo.billetes || {}).reduce(
+      (s, [valor, cant]) => s + Number(valor) * (Number(cant) || 0),
+      0
+    );
+    const dif = Math.round((totalConteo - pagosResumen.efectivo) * 100) / 100;
+    const ok = Math.abs(dif) < 0.01;
+    const lineasConteo = doc.splitTextToSize(
+      ok
+        ? `Billetes contados: $${totalConteo.toFixed(2)} | Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)}`
+        : `Billetes contados: $${totalConteo.toFixed(2)} - Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)} = DIFERENCIA: $${dif.toFixed(2)}`,
+      cw - 10
+    );
+    addPageIfNeeded(20 + lineasConteo.length * 4);
+    doc.setFillColor(ok ? 236 : 254, ok ? 253 : 226, ok ? 245 : 226);
+    doc.setDrawColor(ok ? 16 : 220, ok ? 185 : 38, ok ? 129 : 38);
+    doc.rect(ml, y - 3, cw, 16 + lineasConteo.length * 4, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(ok ? 21 : 153, ok ? 128 : 27, ok ? 61 : 27);
+    doc.text(ok ? "CONTEO CORROBORADO" : "DIFERENCIA EN CONTEO DE EFECTIVO", ml + 4, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(60, 60, 70);
+    doc.text(lineasConteo, ml + 4, y + 11);
+    y += 16 + lineasConteo.length * 4 + 6;
   }
 
   // Summary box
