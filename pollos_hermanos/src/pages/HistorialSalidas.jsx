@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { salidasAPI, ventasAPI } from "../api";
 import { generarResumenEntregaPDF } from "../utils/generarPDF";
 
-const DENOMINACIONES = [2000, 1000, 500, 200, 100, 50, 20];
+const DENOMINACIONES = [20000, 10000, 2000, 1000, 500, 200, 100];
 
 export default function HistorialSalidas() {
   const [salidas, setSalidas] = useState([]);
@@ -48,8 +48,10 @@ export default function HistorialSalidas() {
       const vendidos = {};
       for (const venta of ventasRes.data) {
         for (const item of venta.VentaItems || []) {
-          const factor = Number(item.unidades_por_caja) > 0 ? Number(item.unidades_por_caja) : 1;
-          vendidos[item.productoId] = (vendidos[item.productoId] || 0) + (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * factor);
+          const esCajaVenta = String(item.unidad_venta || "").toLowerCase() === "caja";
+          const factor = esCajaVenta && Number(item.unidades_por_caja) > 0 ? Number(item.unidades_por_caja) : 1;
+          const unidades = Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * factor;
+          vendidos[item.productoId] = Math.round(((vendidos[item.productoId] || 0) + unidades) * 100) / 100;
         }
       }
       const items = (salidaRes.data.SalidaCamionItems || []).map((item) => ({
@@ -58,7 +60,7 @@ export default function HistorialSalidas() {
         unidadesPorCaja: Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1,
         cargadoUnidades: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
         devueltoUnidades: Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
-        faltante: Math.max(0, (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) - (Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) - (vendidos[item.productoId] || 0)),
+        faltante: Math.max(0, Math.round(((Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) - (Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) - (vendidos[item.productoId] || 0)) * 100) / 100),
       }));
       return { salida: salidaRes.data, ventas: ventasRes.data, items, sobrantes: items.filter((item) => item.faltante > 0) };
     } catch (error) {

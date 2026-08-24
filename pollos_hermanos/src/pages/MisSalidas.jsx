@@ -178,12 +178,12 @@ export default function MisSalidas() {
       const items = (salida.SalidaCamionItems || []).map((item) => {
         const stock = stockMap[item.productoId];
         const vendido = Number(stock?.vendido) || 0;
-        const maxDevolver = Math.max(0, (Number(item.cantidad) || 0) - vendido);
+        const maxDevolver = Math.max(0, Number(stock?.disponible) || 0);
         return {
           productoId: item.productoId,
           nombre: item.Producto?.nombre,
-          precio_unitario: parseFloat(item.precio_unitario) || 0,
-          cantidad_enviada: item.cantidad,
+          precio_unidad: Number(stock?.precio_unidad) || 0,
+          cantidad_enviada: Number(stock?.cargado) || 0,
           cantidad_vendida: vendido,
           max_devolver: maxDevolver,
           cantidad_regreso: 0,
@@ -206,7 +206,7 @@ export default function MisSalidas() {
 
   const calcularMontoRegreso = () => {
     return itemsRegreso.reduce((sum, item) => {
-      return sum + (item.precio_unitario || 0) * (Number(item.cantidad_regreso) || 0);
+      return sum + (item.precio_unidad || 0) * (Number(item.cantidad_regreso) || 0);
     }, 0);
   };
 
@@ -493,8 +493,8 @@ export default function MisSalidas() {
                 <thead>
                   <tr>
                     <th>Producto</th>
-                    <th>Mercaderia Enviada</th>
-                    <th>Mercaderia a Devolver</th>
+                    <th>Mercaderia Enviada (unid.)</th>
+                    <th>Mercaderia a Devolver (unid.)</th>
                   </tr>
                 </thead>
                 <tbody>

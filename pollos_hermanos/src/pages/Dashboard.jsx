@@ -112,18 +112,27 @@ export default function Dashboard() {
   const openRegresoForm = (salida, esEdicion = false) => {
     setRegresando(salida);
     setEditandoRegreso(esEdicion);
-    const items = (salida.SalidaCamionItems || []).map((item) => ({
-      productoId: item.productoId,
-      nombre: item.Producto?.nombre,
-      cantidad_enviada: item.cantidad,
-      cantidad_regreso: item.cantidad_devuelta || 0,
-    }));
+    const items = (salida.SalidaCamionItems || []).map((item) => {
+      const esCajaProd = String(item.Producto?.unidad || "").toLowerCase() === "caja";
+      const factor = esCajaProd && Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) > 0
+        ? Number(item.unidades_por_caja || item.Producto?.unidades_por_caja)
+        : 1;
+      const devueltasUnidades = Number(item.cantidad_devuelta_unidades) > 0
+        ? Number(item.cantidad_devuelta_unidades)
+        : (Number(item.cantidad_devuelta) || 0) * factor;
+      return {
+        productoId: item.productoId,
+        nombre: item.Producto?.nombre,
+        cantidad_enviada: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : (Number(item.cantidad) || 0) * factor,
+        cantidad_regreso: devueltasUnidades,
+      };
+    });
     setItemsRegreso(items);
   };
 
   const handleCantidadRegreso = (index, value) => {
     const newItems = [...itemsRegreso];
-    const cant = parseInt(value) || 0;
+    const cant = parseFloat(value) || 0;
     newItems[index].cantidad_regreso = Math.max(0, cant);
     setItemsRegreso(newItems);
   };
@@ -417,8 +426,8 @@ export default function Dashboard() {
                 <thead>
                   <tr>
                     <th>Producto</th>
-                    <th>Mercaderia Enviada</th>
-                    <th>Mercaderia a Devolver</th>
+                    <th>Mercaderia Enviada (unid.)</th>
+                    <th>Mercaderia a Devolver (unid.)</th>
                   </tr>
                 </thead>
                 <tbody>

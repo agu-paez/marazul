@@ -7,6 +7,32 @@ const checkDayClosed = async (fecha) => {
   return !!cierre;
 };
 
+// Todas las cuentas internas se hacen en UNIDADES fisicas para evitar mezclar
+// cajas (unidad de carga de la salida) con unidades sueltas (unidad de venta).
+const esProductoCaja = (producto) => String(producto?.unidad || "").toLowerCase() === "caja";
+
+const getUnidadesPorCaja = (producto) =>
+  esProductoCaja(producto) && Number(producto.unidades_por_caja) > 0 ? Number(producto.unidades_por_caja) : 1;
+
+const factorDeItem = (item) =>
+  Number(item.unidades_por_caja) > 0 ? Number(item.unidades_por_caja) : getUnidadesPorCaja(item.Producto);
+
+const cargadoEnUnidades = (item) =>
+  Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : (parseFloat(item.cantidad) || 0) * factorDeItem(item);
+
+const devueltoEnUnidades = (item) =>
+  Number(item.cantidad_devuelta_unidades) > 0
+    ? Number(item.cantidad_devuelta_unidades)
+    : (parseFloat(item.cantidad_devuelta) || 0) * factorDeItem(item);
+
+const unidadesDeVentaItem = (vi) => {
+  if (Number(vi.cantidad_unidades) > 0) return Number(vi.cantidad_unidades);
+  const esCajaVenta = String(vi.unidad_venta || "").toLowerCase() === "caja";
+  return Number(vi.cantidad) * (esCajaVenta ? Number(vi.unidades_por_caja) || 1 : 1);
+};
+
+const redondearUnidades = (valor) => Math.round(valor * 100) / 100;
+
 const includeSalida = [
   {
     model: SalidaCamionItem,
@@ -175,10 +201,13 @@ export const createSalida = async (req, res) => {
 
     for (const item of items) {
       const producto = productosPorId.get(String(item.productoId));
+      const factorCaja = getUnidadesPorCaja(producto);
       await SalidaCamionItem.create({
         salidaCamionId: salida.id,
         productoId: item.productoId,
         cantidad: Number(item.cantidad),
+        cantidad_unidades: Number(item.cantidad) * factorCaja,
+        unidades_por_caja: esProductoCaja(producto) ? factorCaja : null,
         precio_unitario: producto.precio,
       });
     }
@@ -236,7 +265,7 @@ export const registrarRegreso = async (req, res) => {
 
     const ventasExistentes = await Venta.findAll({
       where: { salidaCamionId: salida.id, estado: "completada" },
-      include: [{ model: VentaItem, attributes: ["productoId", "cantidad"] }],
+      include: [{ model: VentaItem, attributes: ["productoId", "cantidad", "cantidad_unidades", "unidades_por_caja", "unidad_venta"] }],
     });
     if (!cancelar && ventasExistentes.length === 0) {
       return res.status(400).json({ message: "Debe registrar la mercaderia como Venta por Reparto antes de confirmar el regreso" });
@@ -245,7 +274,7 @@ export const registrarRegreso = async (req, res) => {
     const vendidoPorProducto = {};
     for (const venta of ventasExistentes) {
       for (const vi of venta.VentaItems) {
-        vendidoPorProducto[vi.productoId] = (vendidoPorProducto[vi.productoId] || 0) + Number(vi.cantidad);
+        vendidoPorProducto[vi.productoId] = redondearUnidades((vendidoPorProducto[vi.productoId] || 0) + unidadesDeVentaItem(vi));
       }
     }
 
@@ -256,16 +285,21 @@ export const registrarRegreso = async (req, res) => {
         if (producto) {
           const salidaItem = salida.SalidaCamionItems.find((si) => si.productoId === item.productoId);
           if (salidaItem) {
-            const maxDevolver = (parseFloat(salidaItem.cantidad) || 0) - (Number(vendidoPorProducto[item.productoId]) || 0);
-            if (item.cantidad > 0 && item.cantidad > maxDevolver) {
+            const factor = factorDeItem(salidaItem);
+            const devuelvenUnidades = Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) || 0;
+            const maxDevolver = redondearUnidades(cargadoEnUnidades(salidaItem) - (vendidoPorProducto[item.productoId] || 0));
+            if (devuelvenUnidades > 0 && devuelvenUnidades > maxDevolver + 0.009) {
               return res.status(400).json({
-                message: `No se puede devolver ${item.cantidad} unidades de "${producto.nombre}": solo quedan ${maxDevolver} disponibles (${salidaItem.cantidad} cargados - ${vendidoPorProducto[item.productoId] || 0} vendidos)`,
+                message: `No se puede devolver ${redondearUnidades(devuelvenUnidades)} unidades de "${producto.nombre}": solo quedan ${maxDevolver} disponibles (${cargadoEnUnidades(salidaItem)} cargados - ${vendidoPorProducto[item.productoId] || 0} vendidos)`,
               });
             }
-            const devueltoAnterior = parseFloat(salidaItem.cantidad_devuelta) || 0;
-            montoRegreso += parseFloat(producto.precio) * Number(item.cantidad);
-            await producto.update({ stock: parseFloat(producto.stock) + (Number(item.cantidad) - devueltoAnterior) });
-            await salidaItem.update({ cantidad_devuelta: item.cantidad });
+            const devueltoAnterior = devueltoEnUnidades(salidaItem);
+            montoRegreso += (parseFloat(producto.precio) / factor) * devuelvenUnidades;
+            await producto.update({ stock: parseFloat(producto.stock) + (devuelvenUnidades - devueltoAnterior) / factor });
+            await salidaItem.update({
+              cantidad_devuelta: devuelvenUnidades / factor,
+              cantidad_devuelta_unidades: devuelvenUnidades,
+            });
           }
         }
       }
@@ -284,10 +318,8 @@ export const registrarRegreso = async (req, res) => {
     } else {
       let faltaMercaderia = false;
       for (const si of salida.SalidaCamionItems) {
-        const cargado = parseFloat(si.cantidad) || 0;
-        const vendido = Number(vendidoPorProducto[si.productoId]) || 0;
-        const devuelto = parseFloat(si.cantidad_devuelta) || 0;
-        if (cargado - vendido - devuelto > 0) {
+        const pendiente = redondearUnidades(cargadoEnUnidades(si) - (vendidoPorProducto[si.productoId] || 0) - devueltoEnUnidades(si));
+        if (pendiente > 0.009) {
           faltaMercaderia = true;
           break;
         }
@@ -338,8 +370,9 @@ export const reabrirSalida = async (req, res) => {
 export const updateSalidaStatus = async (req, res) => {
   try {
     const salida = await SalidaCamion.findByPk(req.params.id, {
-      include: [{ model: SalidaCamionItem }],
+      include: [{ model: SalidaCamionItem, include: [{ model: Producto }] }],
     });
+
     if (!salida) {
       return res.status(404).json({ message: "Salida no encontrada" });
     }
@@ -349,7 +382,6 @@ export const updateSalidaStatus = async (req, res) => {
         return res.status(403).json({ message: "No tienes permiso para modificar esta salida" });
       }
     }
-
     if (req.userRole === "operador" && salida.estado !== "pendiente") {
       return res.status(400).json({ message: "Solo se pueden enviar salidas pendientes" });
     }
@@ -398,23 +430,22 @@ export const updateSalidaStatus = async (req, res) => {
     if (estado === "cancelado") {
       const ventasReparto = await Venta.findAll({
         where: { salidaCamionId: salida.id, estado: "completada" },
-        include: [{ model: VentaItem, attributes: ["productoId", "cantidad"] }],
+        include: [{ model: VentaItem, attributes: ["productoId", "cantidad", "cantidad_unidades", "unidades_por_caja", "unidad_venta"] }],
       });
 
       const vendidoPorProducto = {};
       for (const venta of ventasReparto) {
         for (const vi of venta.VentaItems) {
-          vendidoPorProducto[vi.productoId] = (vendidoPorProducto[vi.productoId] || 0) + Number(vi.cantidad);
+          vendidoPorProducto[vi.productoId] = redondearUnidades((vendidoPorProducto[vi.productoId] || 0) + unidadesDeVentaItem(vi));
         }
       }
 
       for (const item of salida.SalidaCamionItems) {
-        const vendido = Number(vendidoPorProducto[item.productoId]) || 0;
-        const aRestaurar = (parseFloat(item.cantidad) || 0) - vendido;
-        if (aRestaurar > 0) {
+        const pendienteUnidades = Math.max(0, redondearUnidades(cargadoEnUnidades(item) - (vendidoPorProducto[item.productoId] || 0)));
+        if (pendienteUnidades > 0) {
           const prod = await Producto.findByPk(item.productoId);
           if (prod) {
-            await prod.update({ stock: parseFloat(prod.stock) + aRestaurar });
+            await prod.update({ stock: parseFloat(prod.stock) + pendienteUnidades / factorDeItem(item) });
           }
         }
       }
@@ -505,6 +536,8 @@ export const updateSalidaCompleta = async (req, res) => {
           salidaCamionId: salida.id,
           productoId: item.productoId,
           cantidad: item.cantidad,
+          cantidad_unidades: Number(item.cantidad) * getUnidadesPorCaja(producto),
+          unidades_por_caja: esProductoCaja(producto) ? getUnidadesPorCaja(producto) : null,
           precio_unitario: producto.precio,
         });
         await producto.update({ stock: producto.stock - item.cantidad });
@@ -646,13 +679,14 @@ export const getStockCamion = async (req, res) => {
 
     const ventasDelCamion = await Venta.findAll({
       where: { salidaCamionId: salida.id, estado: "completada" },
-      include: [{ model: VentaItem, attributes: ["productoId", "cantidad"] }],
+      include: [{ model: VentaItem, attributes: ["productoId", "cantidad", "cantidad_unidades", "unidades_por_caja", "unidad_venta"] }],
     });
 
     const stockDisponible = {};
     for (const item of salida.SalidaCamionItems) {
       const productoId = item.productoId;
       if (!stockDisponible[productoId]) {
+        const factor = factorDeItem(item);
         stockDisponible[productoId] = {
           productoId,
            nombre: item.Producto?.nombre,
@@ -662,10 +696,12 @@ export const getStockCamion = async (req, res) => {
             descuento_nuevo: item.Producto?.descuento_nuevo,
            permitir_modificar_precio: item.Producto?.permitir_modificar_precio,
            precio: parseFloat(item.precio_unitario),
-          cargado: parseFloat(item.cantidad),
+          precio_unidad: parseFloat(item.precio_unitario) / factor,
+          factor,
+          cargado: redondearUnidades(cargadoEnUnidades(item)),
           vendido: 0,
-          devuelto: parseFloat(item.cantidad_devuelta) || 0,
-          disponible: parseFloat(item.cantidad) - (parseFloat(item.cantidad_devuelta) || 0),
+          devuelto: redondearUnidades(devueltoEnUnidades(item)),
+          disponible: redondearUnidades(cargadoEnUnidades(item) - devueltoEnUnidades(item)),
         };
       }
     }
@@ -673,8 +709,9 @@ export const getStockCamion = async (req, res) => {
     for (const venta of ventasDelCamion) {
       for (const vi of venta.VentaItems) {
         if (stockDisponible[vi.productoId]) {
-          stockDisponible[vi.productoId].vendido += Number(vi.cantidad);
-          stockDisponible[vi.productoId].disponible -= Number(vi.cantidad);
+          const unidades = unidadesDeVentaItem(vi);
+          stockDisponible[vi.productoId].vendido = redondearUnidades(stockDisponible[vi.productoId].vendido + unidades);
+          stockDisponible[vi.productoId].disponible = redondearUnidades(stockDisponible[vi.productoId].disponible - unidades);
         }
       }
     }

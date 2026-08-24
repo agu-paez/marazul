@@ -1142,7 +1142,7 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
   drawEncabezado();
   drawInfoBox();
 
-  if (salida.sobrantes?.length > 0) {
+  if (salida.estado === "sobrante" && salida.sobrantes?.length > 0) {
     const faltantesTexto = salida.sobrantes.map((item) => `${item.Producto?.nombre || "Producto"}: ${item.faltante}`).join(" | ");
     const lineas = doc.splitTextToSize(`FALTO DEVOLVER: ${faltantesTexto}`, cw - 10);
     addPageIfNeeded(14 + lineas.length * 4);
