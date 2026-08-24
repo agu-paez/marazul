@@ -1,4 +1,4 @@
-import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, Cliente, ClientePago, User, Role, Proveedor, GastoDia, PagoEmpleado, ProveedorMovimiento } from "../models/index.js";
+import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, VentaPago, Cliente, ClientePago, User, Role, Proveedor, GastoDia, PagoEmpleado, ProveedorMovimiento } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
 import { Op } from "sequelize";
 
@@ -447,7 +447,10 @@ export const getDetalleCierre = async (req, res) => {
     const ventasHoy = await Venta.findAll({
       where: { fecha, estado: "completada" },
       attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "medio_pago", "total", "tipo_venta", "proveedorId"],
-      include: [{ model: Proveedor, attributes: ["id", "nombre", "alias"] }],
+      include: [
+        { model: VentaPago, attributes: ["medio_pago", "monto"] },
+        { model: Proveedor, attributes: ["id", "nombre", "alias"] },
+      ],
     });
     const pagosClientesHoy = await ClientePago.findAll({
       where: { fecha },
@@ -542,12 +545,32 @@ export const getDetalleCierre = async (req, res) => {
         });
       }
 
-      if (venta.medio_pago === "efectivo" && (!venta.datos_transferencia || parseDatos(venta.datos_transferencia).length === 0) && (!venta.datos_tarjeta || parseDatos(venta.datos_tarjeta).length === 0)) {
+      // Ventas con pago dividido: la porcion en efectivo vive en VentaPago
+      // (Venta.medio_pago queda como "dividido"). Ventas viejas sin VentaPagos
+      // conservan la clasificacion historica por medio_pago.
+      const pagosVenta = Array.isArray(venta.VentaPagos) ? venta.VentaPagos : [];
+      const efectivoVenta = pagosVenta
+        .filter((p) => String(p.medio_pago || "").toLowerCase() === "efectivo")
+        .reduce((suma, p) => suma + (parseFloat(p.monto) || 0), 0);
+      const esEfectivoSimple = venta.medio_pago === "efectivo"
+        && (!venta.datos_transferencia || parseDatos(venta.datos_transferencia).length === 0)
+        && (!venta.datos_tarjeta || parseDatos(venta.datos_tarjeta).length === 0);
+
+      if (esEfectivoSimple) {
         pagos.push({
           tipo: "Efectivo",
           fecha_hora: `${venta.fecha} ${venta.hora}`,
           nombre_cuenta: "-",
           monto: monto,
+          banco: "-",
+          proveedor: null,
+        });
+      } else if (pagosVenta.length > 0 && efectivoVenta > 0) {
+        pagos.push({
+          tipo: "Efectivo",
+          fecha_hora: `${venta.fecha} ${venta.hora}`,
+          nombre_cuenta: "-",
+          monto: efectivoVenta,
           banco: "-",
           proveedor: null,
         });

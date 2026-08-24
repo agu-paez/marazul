@@ -1,4 +1,4 @@
-import { SalidaCamion, SalidaCamionItem, Producto, User, Cliente, CierreCaja, Venta, VentaItem } from "../models/index.js";
+import { SalidaCamion, SalidaCamionItem, Producto, User, Cliente, CierreCaja, Venta, VentaItem, VentaPago } from "../models/index.js";
 import { Op } from "sequelize";
 import { getFechaLocal } from "../utils/fecha.js";
 
@@ -109,6 +109,7 @@ export const getVentasDeSalida = async (req, res) => {
           attributes: ["productoId", "cantidad", "cantidad_unidades", "unidad_venta", "unidades_por_caja", "precio_unitario"],
           include: [{ model: Producto, attributes: ["id", "nombre", "unidad"] }],
         },
+        { model: VentaPago },
         { model: Cliente, as: "cliente", attributes: ["id", "nombre"] },
       ],
       order: [["createdAt", "ASC"]],
