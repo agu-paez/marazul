@@ -1143,7 +1143,26 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
   drawInfoBox();
 
   if (salida.estado === "sobrante" && salida.sobrantes?.length > 0) {
-    const faltantesTexto = salida.sobrantes.map((item) => `${item.Producto?.nombre || "Producto"}: ${item.faltante}`).join(" | ");
+    const faltantesTexto = salida.sobrantes
+      .map((item) => {
+        const nombre = item.Producto?.nombre || "Producto";
+        const valor = Number(item.faltante) || 0;
+        const factor = Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1;
+        let texto = `${valor}`;
+        if (factor > 1 && Number.isInteger(valor)) {
+          const cajas = Math.floor(valor / factor);
+          const sueltas = valor - cajas * factor;
+          if (Number(item.Producto?.prod_sueltos || 0) > 0) {
+            texto = sueltas ? `${cajas} cj. + ${sueltas} u.` : `${cajas} cj.`;
+          } else {
+            texto = sueltas ? `${valor} u.` : `${cajas} cj.`;
+          }
+        } else if (factor > 1) {
+          texto = `${(valor / factor).toFixed(2)} cj.`;
+        }
+        return `${nombre}: ${texto}`;
+      })
+      .join(" | ");
     const lineas = doc.splitTextToSize(`FALTO DEVOLVER: ${faltantesTexto}`, cw - 10);
     addPageIfNeeded(14 + lineas.length * 4);
     doc.setFillColor(254, 226, 226);

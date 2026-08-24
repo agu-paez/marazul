@@ -89,6 +89,37 @@ export const getSalidaById = async (req, res) => {
   }
 };
 
+// Ventas completadas de una salida, sin filtrar por vendedor: el historial
+// debe mostrar todas las ventas del camion aunque las haya registrado otro usuario.
+export const getVentasDeSalida = async (req, res) => {
+  try {
+    const salida = await SalidaCamion.findByPk(req.params.id, { attributes: ["id", "asignadoRepartidorId", "creadoPorId"] });
+    if (!salida) {
+      return res.status(404).json({ message: "Salida no encontrada" });
+    }
+    if (req.userRole !== "admin" && salida.asignadoRepartidorId !== req.user.id && salida.creadoPorId !== req.user.id) {
+      return res.status(403).json({ message: "No tienes permisos para ver esta salida" });
+    }
+
+    const ventas = await Venta.findAll({
+      where: { salidaCamionId: req.params.id, estado: "completada" },
+      include: [
+        {
+          model: VentaItem,
+          attributes: ["productoId", "cantidad", "cantidad_unidades", "unidad_venta", "unidades_por_caja", "precio_unitario"],
+          include: [{ model: Producto, attributes: ["id", "nombre", "unidad"] }],
+        },
+        { model: Cliente, as: "cliente", attributes: ["id", "nombre"] },
+      ],
+      order: [["createdAt", "ASC"]],
+    });
+
+    res.json(ventas);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener ventas de la salida", error: error.message });
+  }
+};
+
 export const getMisSalidas = async (req, res) => {
   try {
     const salidas = await SalidaCamion.findAll({

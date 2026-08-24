@@ -12,6 +12,7 @@ import {
   registrarRegreso,
   getCamionesActivos,
   getStockCamion,
+  getVentasDeSalida,
 } from "../controllers/salidaCamionController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 
@@ -23,6 +24,7 @@ router.get("/stats", authorize("admin"), getSalidasStats);
 router.get("/mis-salidas", getMisSalidas);
 router.get("/activos", getCamionesActivos);
 router.get("/:id/stock", getStockCamion);
+router.get("/:id/ventas", getVentasDeSalida);
 
 router.get("/", authorize("admin", "operador"), getAllSalidas);
 router.get("/:id", getSalidaById);

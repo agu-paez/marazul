@@ -1,8 +1,25 @@
 import { useState, useEffect, useMemo } from "react";
-import { salidasAPI, ventasAPI } from "../api";
+import { salidasAPI } from "../api";
 import { generarResumenEntregaPDF } from "../utils/generarPDF";
 
 const DENOMINACIONES = [20000, 10000, 2000, 1000, 500, 200, 100];
+
+const formatoCajas = (item, unidades) => {
+  const cant = Math.round((Number(unidades) || 0) * 100) / 100;
+  if (!cant) return "0";
+  const factor = Number(item.unidadesPorCaja) > 0 ? Number(item.unidadesPorCaja) : 1;
+  if (factor <= 1) return `${cant}`;
+  if (!Number.isInteger(cant)) return `${cant} unid.`;
+  const cajas = Math.floor(cant / factor);
+  const sueltas = cant - cajas * factor;
+  const palabraCaja = cajas === 1 ? "caja" : "cajas";
+  if (item.tieneSueltos) {
+    if (!sueltas) return `${cajas} ${palabraCaja}`;
+    if (!cajas) return `${sueltas} ${sueltas === 1 ? "suelta" : "sueltas"}`;
+    return `${cajas} ${palabraCaja} + ${sueltas} ${sueltas === 1 ? "suelta" : "sueltas"}`;
+  }
+  return sueltas ? `${cant} unid.` : `${cajas} ${palabraCaja}`;
+};
 
 export default function HistorialSalidas() {
   const [salidas, setSalidas] = useState([]);
@@ -43,7 +60,7 @@ export default function HistorialSalidas() {
     try {
       const [salidaRes, ventasRes] = await Promise.all([
         salidasAPI.getById(id),
-        ventasAPI.getAll({ salidaCamionId: id }),
+        salidasAPI.getVentas(id),
       ]);
       const vendidos = {};
       for (const venta of ventasRes.data) {
@@ -56,6 +73,7 @@ export default function HistorialSalidas() {
       }
       const items = (salidaRes.data.SalidaCamionItems || []).map((item) => ({
         ...item,
+        tieneSueltos: Number(item.Producto?.prod_sueltos || 0) > 0,
         vendido: vendidos[item.productoId] || 0,
         unidadesPorCaja: Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1,
         cargadoUnidades: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
@@ -137,7 +155,7 @@ export default function HistorialSalidas() {
               <div className="sobrante-alert">
                 <strong>Faltó devolver mercadería</strong>
                 <span>Productos pendientes:</span>
-                {detalle.sobrantes.map((item) => <span key={item.id}>• {item.Producto?.nombre || "Producto"}: {item.faltante}</span>)}
+                {detalle.sobrantes.map((item) => <span key={item.id}>• {item.Producto?.nombre || "Producto"}: {formatoCajas(item, item.faltante)}</span>)}
               </div>
             )}
             <div className="table-container">
@@ -145,13 +163,27 @@ export default function HistorialSalidas() {
                 <thead><tr><th>Producto</th><th>Llevó</th><th>Vendió</th><th>Devolvió</th><th>Faltó devolver</th></tr></thead>
                 <tbody>{detalle.items.map((item) => <tr key={item.id}>
                   <td>{item.Producto?.nombre || "-"}</td>
-                  <td>{item.cantidad}</td>
-                  <td>{item.vendido}</td>
-                  <td>{item.devueltoUnidades || 0} unidades</td>
-                  <td className={item.faltante > 0 ? "monto-regreso" : ""}><strong>{item.faltante}</strong></td>
+                  <td>{formatoCajas(item, item.cargadoUnidades)}</td>
+                  <td>{formatoCajas(item, item.vendido)}</td>
+                  <td>{formatoCajas(item, item.devueltoUnidades)}</td>
+                  <td className={item.faltante > 0 ? "monto-regreso" : ""}><strong>{formatoCajas(item, item.faltante)}</strong></td>
                 </tr>)}</tbody>
               </table>
             </div>
+            {(detalle.ventas || []).length > 0 && (
+              <div className="table-container" style={{ marginTop: "1rem" }}>
+                <table>
+                  <thead><tr><th>Comprobante</th><th>Cliente</th><th>Total</th></tr></thead>
+                  <tbody>{detalle.ventas.map((venta) => (
+                    <tr key={venta.id}>
+                      <td>{venta.numero_comprobante || `#${venta.id}`}</td>
+                      <td>{venta.cliente?.nombre || "-"}</td>
+                      <td>$ {Number(venta.total || 0).toFixed(2)}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
             {detalle.salida.notas && (
               <div style={{ marginTop: "1rem", padding: "0.75rem 1rem", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: "8px", whiteSpace: "pre-line" }}>
                 <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: "600", marginBottom: "0.25rem" }}>Observaciones</div>

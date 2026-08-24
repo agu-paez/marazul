@@ -139,6 +139,7 @@ export const salidasAPI = {
   getStats: () => API.get("/salidas-camion/stats"),
   getCamionesActivos: () => API.get("/salidas-camion/activos"),
   getStockCamion: (id) => API.get(`/salidas-camion/${id}/stock`),
+  getVentas: (id) => API.get(`/salidas-camion/${id}/ventas`),
 };
 
 export const cierreCajaAPI = {
