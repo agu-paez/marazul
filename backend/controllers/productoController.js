@@ -53,7 +53,7 @@ export const getLowStock = async (req, res) => {
 
 export const createProducto = async (req, res) => {
   try {
-    const { nombre, descripcion, precio, descuento, descuento_mayorista, descuento_nuevo, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, excluir_de_lista_pdf, permitir_modificar_precio } = req.body;
+    const { nombre, descripcion, precio, descuento, descuento_mayorista, descuento_nuevo, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, prod_sueltos, excluir_de_lista_pdf, permitir_modificar_precio } = req.body;
 
     if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio)) || !Number.isFinite(Number(costo)) || Number(costo) < 0) {
       return res.status(400).json({ message: "Nombre, precio y costo valido son requeridos" });
@@ -77,6 +77,7 @@ export const createProducto = async (req, res) => {
       marcaId: marca ? marca.id : null,
       codigo_barras: codigo_barras?.trim() || null,
       kg_por_caja: Number.isFinite(Number(kg_por_caja)) ? Number(kg_por_caja) : null,
+      prod_sueltos: Number.isFinite(Number(prod_sueltos)) && Number(prod_sueltos) > 0 ? Math.floor(Number(prod_sueltos)) : null,
       excluir_de_lista_pdf: Boolean(excluir_de_lista_pdf),
       permitir_modificar_precio: Boolean(permitir_modificar_precio),
     });
@@ -108,6 +109,9 @@ export const updateProducto = async (req, res) => {
       return res.status(400).json({ message: "El descuento para clientes nuevos debe estar entre 0% y 99%" });
     }
     delete data.unidades_por_caja;
+    if (data.prod_sueltos !== undefined) {
+      data.prod_sueltos = Number.isFinite(Number(data.prod_sueltos)) && Number(data.prod_sueltos) > 0 ? Math.floor(Number(data.prod_sueltos)) : null;
+    }
     if (data.marcaId !== undefined) {
       const marca = data.marcaId ? await Marca.findByPk(data.marcaId) : null;
       if (data.marcaId && !marca) {

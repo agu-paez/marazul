@@ -18,6 +18,7 @@ const textoCajaSuelta = (item, cant) => {
   const unid = Number(cant) || 0;
   if (factor <= 1) return `${formatCant(unid)} unid.`;
   const cajas = Math.floor(unid / factor + 0.000000001);
+  if (!item?.tieneSueltos) return `${formatCant(cajas)} ${cajas === 1 ? "caja" : "cajas"}`;
   const sueltas = redondearUnid(unid - cajas * factor);
   const partes = [];
   if (cajas > 0) partes.push(`${formatCant(cajas)} ${cajas === 1 ? "caja" : "cajas"}`);
@@ -209,6 +210,7 @@ export default function MisSalidas() {
           productoId: item.productoId,
           nombre: item.Producto?.nombre,
           factor,
+          tieneSueltos: Number(stock?.tiene_sueltos ?? item.Producto?.prod_sueltos) > 0,
           precio_unidad: Number(stock?.precio_unidad) || 0,
           cantidad_enviada: redondearUnid(enviadaU),
           cantidad_vendida: redondearUnid(vendidoU),
@@ -228,6 +230,16 @@ export default function MisSalidas() {
     const max = Math.max(0, Number(item.max_devolver) || 0);
     const v = Math.max(0, Number(unidades) || 0);
     item.cantidad_regreso = redondearUnid(Math.min(v, max));
+    setItemsRegreso(newItems);
+  };
+
+  const setRegresoCajas = (index, valorCajas) => {
+    const newItems = [...itemsRegreso];
+    const item = newItems[index];
+    const factor = Number(item.factor) || 1;
+    const max = Math.max(0, Number(item.max_devolver) || 0);
+    const cajas = Math.max(0, Math.floor(Number(valorCajas) || 0));
+    item.cantidad_regreso = redondearUnid(Math.min(cajas * factor, max));
     setItemsRegreso(newItems);
   };
 
@@ -550,7 +562,7 @@ export default function MisSalidas() {
                         <td>{textoCajaSuelta(item, item.cantidad_enviada)}</td>
                         <td>{textoCajaSuelta(item, item.cantidad_vendida)}</td>
                         <td>
-                          {factor > 1 ? (
+                          {factor > 1 && item.tieneSueltos ? (
                             <div style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
                               <input
                                 type="number"
@@ -574,6 +586,17 @@ export default function MisSalidas() {
                                 title="Unidades sueltas"
                               />
                             </div>
+                          ) : factor > 1 ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              max={Math.floor(item.max_devolver / factor + 0.000000001)}
+                              value={Math.round((actual / factor) * 100) / 100 || ""}
+                              onChange={(e) => setRegresoCajas(index, e.target.value)}
+                              className="input-cantidad"
+                              title="Cajas"
+                            />
                           ) : (
                             <input
                               type="number"
@@ -589,16 +612,6 @@ export default function MisSalidas() {
                             <small style={{ display: "block", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
                               Maximo: {textoCajaSuelta(item, item.max_devolver)}
                             </small>
-                          )}
-                          {Number(item.max_devolver) > 0 && (
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-secondary"
-                              style={{ marginTop: "0.25rem" }}
-                              onClick={() => setCantidadRegreso(index, item.max_devolver)}
-                            >
-                              Devolver todo ({textoCajaSuelta(item, item.max_devolver)})
-                            </button>
                           )}
                         </td>
                       </tr>

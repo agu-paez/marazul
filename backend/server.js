@@ -207,6 +207,7 @@ const start = async () => {
     await ensureColumn(Producto, "costo", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(Producto, "excluir_de_lista_pdf", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
     await ensureColumn(Producto, "unidades_por_caja", { type: DataTypes.INTEGER, allowNull: true });
+    await ensureColumn(Producto, "prod_sueltos", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(Producto, "descuento", { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(Producto, "descuento_mayorista", { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(Producto, "descuento_nuevo", { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 });

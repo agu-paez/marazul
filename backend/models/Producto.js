@@ -66,6 +66,11 @@ const Producto = sequelize.define("Producto", {
     allowNull: true,
     comment: "Cantidad de unidades que contiene una caja",
   },
+  prod_sueltos: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: "Si se completa (>0), el producto tambien se vende y devuelve por unidades suellas ademas de cajas",
+  },
   codigo_barras: {
     type: DataTypes.STRING,
     allowNull: true,

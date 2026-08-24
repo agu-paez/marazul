@@ -20,6 +20,7 @@ export default function VentasPage() {
   const [busqueda, setBusqueda] = useState("");
   const [mostrarSoloSeleccionados, setMostrarSoloSeleccionados] = useState(false);
   const [cantidades, setCantidades] = useState({});
+  const [cantidadesSueltas, setCantidadesSueltas] = useState({});
   const [form, setForm] = useState({
     tipo_venta: user?.role === "repartidor" ? "reparto" : "local",
     clienteId: "",
@@ -50,8 +51,9 @@ export default function VentasPage() {
   useEffect(() => {
     productosAPI.getAll().then((res) => {
       setProductos(res.data);
-       const init = {};
-        setCantidades(init);
+        const init = {};
+         setCantidades(init);
+        setCantidadesSueltas({});
     }).catch(console.error);
     clientesAPI.getAll().then((res) => setClientes(res.data)).catch(console.error);
     bancosAPI.getAll().then((res) => setBancos(res.data.map((b) => b.nombre))).catch(console.error);
@@ -75,6 +77,7 @@ export default function VentasPage() {
         setStockCamion(res.data.items);
         const init = {};
           setCantidades(init);
+          setCantidadesSueltas({});
       }).catch(console.error).finally(() => setStockLoading(false));
     } else {
       setStockCamion([]);
@@ -259,9 +262,10 @@ export default function VentasPage() {
          descuento_mayorista: sc.descuento_mayorista ?? productoCatalogo?.descuento_mayorista ?? 0,
          descuento_nuevo: sc.descuento_nuevo ?? productoCatalogo?.descuento_nuevo ?? 0,
         permitir_modificar_precio: Boolean(sc.permitir_modificar_precio ?? productoCatalogo?.permitir_modificar_precio),
-        unidad: sc.unidad || productoCatalogo?.unidad,
-        unidades_por_caja: sc.unidades_por_caja || productoCatalogo?.unidades_por_caja,
-        stock: sc.disponible,
+         unidad: sc.unidad || productoCatalogo?.unidad,
+         unidades_por_caja: sc.unidades_por_caja || productoCatalogo?.unidades_por_caja,
+         tiene_sueltos: Number(sc.tiene_sueltos ?? productoCatalogo?.prod_sueltos) > 0,
+         stock: sc.disponible,
         cargado: sc.cargado,
         devuelto: sc.devuelto,
       };
@@ -277,16 +281,21 @@ export default function VentasPage() {
     return productosBase.filter((p) => {
       const coincideBusqueda = p.nombre.toLowerCase().includes(termino)
         || (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino));
-      return coincideBusqueda && (!mostrarSoloSeleccionados || (cantidades[p.id] || 0) > 0);
+      return coincideBusqueda && (!mostrarSoloSeleccionados || ((cantidades[p.id] || 0) > 0 || Number(cantidadesSueltas[p.id]) > 0));
     });
-  }, [productosBase, busqueda, mostrarSoloSeleccionados, cantidades]);
+  }, [productosBase, busqueda, mostrarSoloSeleccionados, cantidades, cantidadesSueltas]);
 
   const productosSeleccionados = useMemo(
-    () => productosBase.filter((p) => (cantidades[p.id] || 0) > 0),
-    [productosBase, cantidades]
+    () => productosBase.filter((p) => (cantidades[p.id] || 0) > 0 || Number(cantidadesSueltas[p.id]) > 0),
+    [productosBase, cantidades, cantidadesSueltas]
   );
 
   const esProductoKg = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
+  const esCajaReparto = (producto) => esReparto
+    && String(producto?.unidad || "").toLowerCase() === "caja"
+    && Number(producto?.unidades_por_caja) > 0;
+  const getFactorCaja = (producto) => (esCajaReparto(producto) ? Number(producto.unidades_por_caja) : 1);
+  const getMaxCajasReparto = (producto) => Math.floor((Number(producto?.stock) || 0) / getFactorCaja(producto));
   const getPrecioVenta = (producto) => {
     if (preciosPersonalizados[producto.id] !== undefined) return preciosPersonalizados[producto.id];
     let precio = Number(producto.precio);
@@ -333,7 +342,11 @@ export default function VentasPage() {
 
   const calcularSubtotal = () => {
     return productosSeleccionados.reduce((sum, p) => {
-      return sum + getPrecioVenta(p) * (cantidades[p.id] || 0);
+      const porCajas = getPrecioVenta(p) * (cantidades[p.id] || 0);
+      const porSueltas = esCajaReparto(p)
+        ? (getPrecioVenta(p) / getFactorCaja(p)) * (Number(cantidadesSueltas[p.id]) || 0)
+        : 0;
+      return sum + porCajas + porSueltas;
     }, 0);
   };
 
@@ -465,12 +478,39 @@ export default function VentasPage() {
         clienteId,
         medio_pago: form.medio_pago,
         notas: form.notas,
-        items: productosSeleccionados.map((p) => ({
-           productoId: p.id,
-           cantidad: cantidades[p.id],
-           precio_unitario: getPrecioVenta(p),
-           cantidad_unidades: getCantidadUnidades(p),
-        })),
+        items: productosSeleccionados.flatMap((p) => {
+          if (!esCajaReparto(p)) {
+            return [{
+               productoId: p.id,
+               cantidad: cantidades[p.id],
+               precio_unitario: getPrecioVenta(p),
+               cantidad_unidades: getCantidadUnidades(p),
+            }];
+          }
+          const factor = getFactorCaja(p);
+          const cajas = Number(cantidades[p.id]) || 0;
+          const sueltas = Number(cantidadesSueltas[p.id]) || 0;
+          const itemsProducto = [];
+          if (cajas > 0) {
+            itemsProducto.push({
+              productoId: p.id,
+              cantidad: cajas,
+              precio_unitario: getPrecioVenta(p),
+              cantidad_unidades: cajas * factor,
+              unidad_venta: "caja",
+            });
+          }
+          if (sueltas > 0) {
+            itemsProducto.push({
+              productoId: p.id,
+              cantidad: sueltas,
+              precio_unitario: getPrecioVenta(p) / factor,
+              cantidad_unidades: sueltas,
+              unidad_venta: "unidad",
+            });
+          }
+          return itemsProducto;
+        }),
       };
       if (esReparto && camionSeleccionado) {
         data.salidaCamionId = parseInt(camionSeleccionado);
@@ -546,7 +586,8 @@ export default function VentasPage() {
        ]).then(([productosRes, clientesRes]) => {
          setProductos(productosRes.data);
          setClientes(clientesRes.data);
-         setCantidades({});
+          setCantidades({});
+          setCantidadesSueltas({});
        }).catch(console.error);
 
       setTimeout(() => setSuccess(false), 5000);
@@ -610,22 +651,28 @@ export default function VentasPage() {
           {productosFiltrados.length === 0 ? (
             <p className="empty">{esReparto && !camionSeleccionado ? "Seleccione un camion primero" : "No se encontraron productos"}</p>
           ) : (
-            <div className="producto-grid">
-              {productosFiltrados.map((p) => {
-                 const qty = cantidades[p.id] || 0;
-                 const seleccionado = qty > 0;
-                 const esKg = ["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase());
-                 return (
+             <div className="producto-grid">
+               {productosFiltrados.map((p) => {
+                  const qty = cantidades[p.id] || 0;
+                  const sueltasQty = Number(cantidadesSueltas[p.id]) || 0;
+                  const seleccionado = qty > 0 || sueltasQty > 0;
+                  const esKg = ["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase());
+                  const enCajas = esCajaReparto(p);
+                  const maxCajas = getMaxCajasReparto(p);
+                  const sueltosRestantes = Math.max(0, Math.round((Number(p.stock) - maxCajas * getFactorCaja(p)) * 100) / 100);
+                  return (
                   <div
                     key={p.id}
                     className={`producto-card ${seleccionado ? "selected" : ""}`}
                   >
                      <div className="producto-card-name">{p.nombre}</div>
                      <div className="producto-card-price">
-                        ${getPrecioVenta(p).toFixed(2)} {esKg ? "/ kg" : ""}
+                        ${getPrecioVenta(p).toFixed(2)} {enCajas ? "/ caja" : esKg ? "/ kg" : ""}
                     </div>
                     <div className={`producto-card-stock ${p.stock <= (p.stock_minimo || 10) ? "bajo" : ""}`}>
-                      Stock: {p.stock}
+                      {enCajas
+                        ? `Stock: ${maxCajas} ${maxCajas === 1 ? "caja" : "cajas"}${p.tiene_sueltos && sueltosRestantes > 0 ? ` + ${sueltosRestantes} sueltas` : ""}`
+                        : `Stock: ${p.stock}`}
                       {esReparto && p.devuelto > 0 && (
                         <span style={{ color: "#e74c3c", fontSize: "0.75rem", marginLeft: "0.25rem" }}>
                           (devuelto: {p.devuelto})
@@ -642,6 +689,61 @@ export default function VentasPage() {
                         Aplicar descuento
                       </label>
                     )}
+                    {enCajas ? (
+                      <div className="producto-card-qty" style={{ flexDirection: "column", gap: "0.3rem" }}>
+                        <div style={{ display: "flex", gap: "0.3rem", alignItems: "center", justifyContent: "center" }}>
+                          <button
+                            type="button"
+                            onClick={() => setCantidades((prev) => ({ ...prev, [p.id]: Math.max(0, Math.min((prev[p.id] || 0) - 1, maxCajas)) }))}
+                            disabled={qty === 0 || (esReparto && !camionSeleccionado)}
+                          >
+                            -
+                          </button>
+                          <input
+                            type="number"
+                            value={cantidades[p.id] ?? ""}
+                            step="1"
+                            aria-label={`Cajas de ${p.nombre}`}
+                            min="0"
+                            max={maxCajas}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 0;
+                              const clamped = Math.max(0, Math.min(val, maxCajas));
+                              setCantidades((prev) => ({ ...prev, [p.id]: clamped }));
+                            }}
+                            disabled={esReparto && !camionSeleccionado}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setCantidades((prev) => ({ ...prev, [p.id]: Math.max(0, Math.min((prev[p.id] || 0) + 1, maxCajas)) }))}
+                            disabled={qty >= maxCajas || (esReparto && !camionSeleccionado)}
+                          >
+                            +
+                          </button>
+                        </div>
+                        {p.tiene_sueltos && (
+                          <div style={{ display: "flex", gap: "0.3rem", alignItems: "center", justifyContent: "center", fontSize: "0.75rem" }}>
+                            <span>Sueltas:</span>
+                            <input
+                              type="number"
+                              value={cantidadesSueltas[p.id] ?? ""}
+                              step="1"
+                              aria-label={`Unidades sueltas de ${p.nombre}`}
+                              min="0"
+                              style={{ width: "3.6rem" }}
+                              max={Math.max(0, Number(p.stock) - qty * getFactorCaja(p))}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                const maxSueltas = Math.max(0, Math.floor(Number(p.stock) - qty * getFactorCaja(p)));
+                                const clamped = Math.max(0, Math.min(val, maxSueltas));
+                                setCantidadesSueltas((prev) => ({ ...prev, [p.id]: clamped }));
+                              }}
+                              disabled={esReparto && !camionSeleccionado}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
                     <div className="producto-card-qty">
                       <button
                         type="button"
@@ -672,6 +774,7 @@ export default function VentasPage() {
                         +
                       </button>
                     </div>
+                    )}
                   </div>
                 );
               })}
