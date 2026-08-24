@@ -1353,19 +1353,21 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
     );
     const dif = Math.round((totalConteo - pagosResumen.efectivo) * 100) / 100;
     const ok = Math.abs(dif) < 0.01;
+    const sobra = !ok && dif > 0;
+    const enVerde = ok || sobra;
     const lineasConteo = doc.splitTextToSize(
       ok
         ? `Billetes contados: $${totalConteo.toFixed(2)} | Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)}`
-        : `Billetes contados: $${totalConteo.toFixed(2)} - Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)} = DIFERENCIA: $${dif.toFixed(2)}`,
+        : `Billetes contados: $${totalConteo.toFixed(2)} - Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)} = DIFERENCIA ${sobra ? "SOBRANTE" : "FALTANTE"}: $${Math.abs(dif).toFixed(2)}`,
       cw - 10
     );
     addPageIfNeeded(20 + lineasConteo.length * 4);
-    doc.setFillColor(ok ? 236 : 254, ok ? 253 : 226, ok ? 245 : 226);
-    doc.setDrawColor(ok ? 16 : 220, ok ? 185 : 38, ok ? 129 : 38);
+    doc.setFillColor(enVerde ? 236 : 254, enVerde ? 253 : 226, enVerde ? 245 : 226);
+    doc.setDrawColor(enVerde ? 16 : 220, enVerde ? 185 : 38, enVerde ? 129 : 38);
     doc.rect(ml, y - 3, cw, 16 + lineasConteo.length * 4, "FD");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.setTextColor(ok ? 21 : 153, ok ? 128 : 27, ok ? 61 : 27);
+    doc.setTextColor(enVerde ? 21 : 153, enVerde ? 128 : 27, enVerde ? 61 : 27);
     doc.text(ok ? "CONTEO CORROBORADO" : "DIFERENCIA EN CONTEO DE EFECTIVO", ml + 4, y + 4);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
