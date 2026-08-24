@@ -13,12 +13,16 @@ const formatCant = (n) => {
   return Number.isInteger(num) ? String(num) : String(Number(num.toFixed(2)));
 };
 
-const textoUnidades = (item, cant) => {
+const textoCajaSuelta = (item, cant) => {
   const factor = Number(item?.factor) || 1;
   const unid = Number(cant) || 0;
   if (factor <= 1) return `${formatCant(unid)} unid.`;
-  const cajas = redondearUnid(unid / factor);
-  return `${formatCant(unid)} unid. (${formatCant(cajas)} ${Math.abs(cajas - 1) < 0.005 ? "caja" : "cajas"})`;
+  const cajas = Math.floor(unid / factor + 0.000000001);
+  const sueltas = redondearUnid(unid - cajas * factor);
+  const partes = [];
+  if (cajas > 0) partes.push(`${formatCant(cajas)} ${cajas === 1 ? "caja" : "cajas"}`);
+  if (sueltas > 0) partes.push(`${formatCant(sueltas)} ${sueltas === 1 ? "suelta" : "sueltas"}`);
+  return partes.length > 0 ? partes.join(" + ") : "0";
 };
 
 export default function MisSalidas() {
@@ -218,12 +222,28 @@ export default function MisSalidas() {
     }
   };
 
-  const handleCantidadRegreso = (index, value) => {
+  const setCantidadRegreso = (index, unidades) => {
     const newItems = [...itemsRegreso];
-    const cant = parseFloat(value) || 0;
-    const max = Number(newItems[index].max_devolver);
-    const maxSeguro = Number.isFinite(max) ? Math.max(0, max) : cant;
-    newItems[index].cantidad_regreso = Math.min(Math.max(0, cant), maxSeguro);
+    const item = newItems[index];
+    const max = Math.max(0, Number(item.max_devolver) || 0);
+    const v = Math.max(0, Number(unidades) || 0);
+    item.cantidad_regreso = redondearUnid(Math.min(v, max));
+    setItemsRegreso(newItems);
+  };
+
+  const setRegresoCajaSuelta = (index, nuevasCajas, nuevasSueltas) => {
+    const newItems = [...itemsRegreso];
+    const item = newItems[index];
+    const factor = Number(item.factor) || 1;
+    const max = Math.max(0, Number(item.max_devolver) || 0);
+    const actual = Number(item.cantidad_regreso) || 0;
+    const cajasActuales = Math.floor(actual / factor + 0.000000001);
+    const sueltasActuales = redondearUnid(actual - cajasActuales * factor);
+    let cajas = nuevasCajas === undefined ? cajasActuales : Math.max(0, Math.floor(Number(nuevasCajas) || 0));
+    if (cajas * factor > max) cajas = Math.floor(max / factor + 0.000000001);
+    let sueltas = nuevasSueltas === undefined ? sueltasActuales : Math.max(0, Math.floor(Number(nuevasSueltas) || 0));
+    sueltas = Math.min(sueltas, Math.floor(max - cajas * factor + 0.000000001));
+    item.cantidad_regreso = redondearUnid(Math.min(max, cajas * factor + sueltas));
     setItemsRegreso(newItems);
   };
 
@@ -513,46 +533,77 @@ export default function MisSalidas() {
                 <thead>
                   <tr>
                     <th>Producto</th>
-                    <th>Enviada (unid.)</th>
-                    <th>Vendida (unid.)</th>
-                    <th>A Devolver (unid.)</th>
+                    <th>Enviada</th>
+                    <th>Vendida</th>
+                    <th>A Devolver</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {itemsRegreso.map((item, index) => (
-                    <tr key={item.productoId}>
-                      <td><strong>{item.nombre}</strong></td>
-                      <td>{textoUnidades(item, item.cantidad_enviada)}</td>
-                      <td>{textoUnidades(item, item.cantidad_vendida)}</td>
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          max={item.max_devolver}
-                          value={item.cantidad_regreso || ""}
-                          onChange={(e) => handleCantidadRegreso(index, e.target.value)}
-                          className="input-cantidad"
-                          title={`Maximo: ${textoUnidades(item, item.max_devolver)}`}
-                        />
-                        {Number(item.factor) > 1 && Number(item.max_devolver) > 0 && (
-                          <small style={{ display: "block", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                            Maximo: {formatCant(item.max_devolver)} unid. = {formatCant(redondearUnid(item.max_devolver / item.factor))} {Math.abs(redondearUnid(item.max_devolver / item.factor) - 1) < 0.005 ? "caja" : "cajas"}
-                          </small>
-                        )}
-                        {Number(item.max_devolver) > 0 && (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-secondary"
-                            style={{ marginTop: "0.25rem" }}
-                            onClick={() => handleCantidadRegreso(index, String(item.max_devolver))}
-                          >
-                            Devolver todo
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {itemsRegreso.map((item, index) => {
+                    const factor = Number(item.factor) || 1;
+                    const actual = Number(item.cantidad_regreso) || 0;
+                    const cajasVal = Math.floor(actual / factor + 0.000000001);
+                    const sueltasVal = redondearUnid(actual - cajasVal * factor);
+                    return (
+                      <tr key={item.productoId}>
+                        <td><strong>{item.nombre}</strong></td>
+                        <td>{textoCajaSuelta(item, item.cantidad_enviada)}</td>
+                        <td>{textoCajaSuelta(item, item.cantidad_vendida)}</td>
+                        <td>
+                          {factor > 1 ? (
+                            <div style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={cajasVal || ""}
+                                onChange={(e) => setRegresoCajaSuelta(index, e.target.value, undefined)}
+                                className="input-cantidad"
+                                style={{ width: "4.2rem" }}
+                                title="Cajas"
+                              />
+                              <span style={{ fontSize: "0.8rem" }}>+</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={sueltasVal || ""}
+                                onChange={(e) => setRegresoCajaSuelta(index, undefined, e.target.value)}
+                                className="input-cantidad"
+                                style={{ width: "4.2rem" }}
+                                title="Unidades sueltas"
+                              />
+                            </div>
+                          ) : (
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              max={item.max_devolver}
+                              value={item.cantidad_regreso || ""}
+                              onChange={(e) => setCantidadRegreso(index, e.target.value)}
+                              className="input-cantidad"
+                            />
+                          )}
+                          {factor > 1 && Number(item.max_devolver) > 0 && (
+                            <small style={{ display: "block", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                              Maximo: {textoCajaSuelta(item, item.max_devolver)}
+                            </small>
+                          )}
+                          {Number(item.max_devolver) > 0 && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-secondary"
+                              style={{ marginTop: "0.25rem" }}
+                              onClick={() => setCantidadRegreso(index, item.max_devolver)}
+                            >
+                              Devolver todo ({textoCajaSuelta(item, item.max_devolver)})
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
