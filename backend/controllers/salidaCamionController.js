@@ -36,7 +36,7 @@ const redondearUnidades = (valor) => Math.round(valor * 100) / 100;
 const includeSalida = [
   {
     model: SalidaCamionItem,
-            include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "descuento", "descuento_mayorista", "descuento_nuevo", "permitir_modificar_precio"] }],
+            include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja", "descuento", "descuento_mayorista", "descuento_nuevo", "permitir_modificar_precio"] }],
   },
   { model: Cliente, as: "cliente", attributes: ["id", "nombre"] },
   { model: User, as: "repartidor_asignado", attributes: ["id", "nombre"] },
@@ -102,7 +102,7 @@ export const getMisSalidas = async (req, res) => {
       include: [
         {
           model: SalidaCamionItem,
-          include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "descuento", "descuento_mayorista", "descuento_nuevo", "permitir_modificar_precio"] }],
+          include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja", "descuento", "descuento_mayorista", "descuento_nuevo", "permitir_modificar_precio"] }],
         },
         { model: Cliente, as: "cliente", attributes: ["id", "nombre"] },
         { model: User, as: "repartidor_asignado", attributes: ["id", "nombre"] },
@@ -668,7 +668,7 @@ export const getStockCamion = async (req, res) => {
       include: [
         {
           model: SalidaCamionItem,
-          include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad"] }],
+          include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja"] }],
         },
       ],
     });

@@ -109,9 +109,18 @@ export default function Dashboard() {
     }
   };
 
-  const openRegresoForm = (salida, esEdicion = false) => {
+  const openRegresoForm = async (salida, esEdicion = false) => {
     setRegresando(salida);
     setEditandoRegreso(esEdicion);
+    const stockMap = {};
+    try {
+      const res = await salidasAPI.getStockCamion(salida.id);
+      for (const stock of res.data.items) {
+        stockMap[stock.productoId] = stock;
+      }
+    } catch (error) {
+      console.error("Error al obtener stock del camion:", error);
+    }
     const items = (salida.SalidaCamionItems || []).map((item) => {
       const esCajaProd = String(item.Producto?.unidad || "").toLowerCase() === "caja";
       const factor = esCajaProd && Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) > 0
@@ -120,11 +129,17 @@ export default function Dashboard() {
       const devueltasUnidades = Number(item.cantidad_devuelta_unidades) > 0
         ? Number(item.cantidad_devuelta_unidades)
         : (Number(item.cantidad_devuelta) || 0) * factor;
+      const stock = stockMap[item.productoId];
+      const enviada = Number(stock?.cargado) > 0 ? Number(stock.cargado) : (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : (Number(item.cantidad) || 0) * factor);
+      const vendida = Number(stock?.vendido) || 0;
+      const maxDevolver = Math.max(0, Number(stock ? enviada - vendida : enviada));
       return {
         productoId: item.productoId,
         nombre: item.Producto?.nombre,
-        cantidad_enviada: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : (Number(item.cantidad) || 0) * factor,
-        cantidad_regreso: devueltasUnidades,
+        cantidad_enviada: enviada,
+        cantidad_vendida: vendida,
+        max_devolver: maxDevolver,
+        cantidad_regreso: Math.min(devueltasUnidades, maxDevolver),
       };
     });
     setItemsRegreso(items);
@@ -133,7 +148,9 @@ export default function Dashboard() {
   const handleCantidadRegreso = (index, value) => {
     const newItems = [...itemsRegreso];
     const cant = parseFloat(value) || 0;
-    newItems[index].cantidad_regreso = Math.max(0, cant);
+    const max = Number(newItems[index].max_devolver);
+    const maxSeguro = Number.isFinite(max) ? Math.max(0, max) : cant;
+    newItems[index].cantidad_regreso = Math.min(Math.max(0, cant), maxSeguro);
     setItemsRegreso(newItems);
   };
 
@@ -426,19 +443,22 @@ export default function Dashboard() {
                 <thead>
                   <tr>
                     <th>Producto</th>
-                    <th>Mercaderia Enviada (unid.)</th>
-                    <th>Mercaderia a Devolver (unid.)</th>
+                    <th>Enviada (unid.)</th>
+                    <th>Vendida (unid.)</th>
+                    <th>A Devolver (unid.)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itemsRegreso.map((item, index) => (
                     <tr key={item.productoId}>
                       <td data-label="Producto"><strong>{item.nombre}</strong></td>
-                      <td data-label="Mercadería enviada">{item.cantidad_enviada}</td>
-                      <td data-label="Mercadería a devolver">
+                      <td data-label="Enviada">{item.cantidad_enviada}</td>
+                      <td data-label="Vendida">{item.cantidad_vendida}</td>
+                      <td data-label="A devolver">
                         <input
                           type="number"
                           min="0"
+                          max={item.max_devolver}
                           value={item.cantidad_regreso || ""}
                           onChange={(e) => handleCantidadRegreso(index, e.target.value)}
                           className="input-cantidad"

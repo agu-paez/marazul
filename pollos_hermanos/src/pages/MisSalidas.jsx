@@ -177,13 +177,14 @@ export default function MisSalidas() {
       }
       const items = (salida.SalidaCamionItems || []).map((item) => {
         const stock = stockMap[item.productoId];
+        const enviada = Number(stock?.cargado) || 0;
         const vendido = Number(stock?.vendido) || 0;
-        const maxDevolver = Math.max(0, Number(stock?.disponible) || 0);
+        const maxDevolver = Math.max(0, enviada - vendido);
         return {
           productoId: item.productoId,
           nombre: item.Producto?.nombre,
           precio_unidad: Number(stock?.precio_unidad) || 0,
-          cantidad_enviada: Number(stock?.cargado) || 0,
+          cantidad_enviada: enviada,
           cantidad_vendida: vendido,
           max_devolver: maxDevolver,
           cantidad_regreso: 0,
@@ -493,8 +494,9 @@ export default function MisSalidas() {
                 <thead>
                   <tr>
                     <th>Producto</th>
-                    <th>Mercaderia Enviada (unid.)</th>
-                    <th>Mercaderia a Devolver (unid.)</th>
+                    <th>Enviada (unid.)</th>
+                    <th>Vendida (unid.)</th>
+                    <th>A Devolver (unid.)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -502,6 +504,7 @@ export default function MisSalidas() {
                     <tr key={item.productoId}>
                       <td><strong>{item.nombre}</strong></td>
                       <td>{item.cantidad_enviada}</td>
+                      <td>{item.cantidad_vendida}</td>
                       <td>
                         <input
                           type="number"
