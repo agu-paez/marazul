@@ -5,8 +5,29 @@
   RewriteCond %{REQUEST_URI} ^/api/ [NC]
   RewriteRule ^ - [L]
 
-  # Serve existing files normally and route React paths to the SPA entry point.
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
+  # Serve existing files normally.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Missing asset/static files must return 404 instead of the HTML shell,
+  # otherwise stale deploys cause "MIME type text/html" module errors.
+  RewriteRule \.(js|mjs|css|svg|png|jpe?g|gif|webp|ico|woff2?|ttf|map|json|wasm)$ - [R=404,L]
+
+  # Route React paths to the SPA entry point.
   RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Hashed build assets never change: cache them aggressively.
+  <FilesMatch "\.(js|mjs|css|woff2?)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.(svg|png|jpe?g|gif|webp|ico)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+  # Always revalidate the entry point so a new deploy is picked up instantly.
+  <FilesMatch "^index\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
 </IfModule>

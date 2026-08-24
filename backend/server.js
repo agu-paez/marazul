@@ -118,9 +118,25 @@ app.get("/api/health", (req, res) => {
 
 if (isProduction) {
   const distPath = path.join(__dirname, "..", "pollos_hermanos", "dist");
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, {
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+        // Hashed build assets never change: safe to cache forever.
+        res.set("Cache-Control", "public, max-age=31536000, immutable");
+      } else {
+        res.set("Cache-Control", "no-cache");
+      }
+    },
+  }));
+  // Missing static files (e.g. assets of a build not yet deployed) must return
+  // 404 instead of the HTML shell, which causes MIME type module errors.
+  app.get(/\.[a-zA-Z0-9]+$/, (req, res) => {
+    res.status(404).json({ message: "Archivo no encontrado" });
+  });
   // React Router needs the SPA entry point for direct visits and page reloads.
   app.get(/^(?!\/api(?:\/|$)).*/, (req, res) => {
+    res.set("Cache-Control", "no-cache");
     res.sendFile(path.join(distPath, "index.html"));
   });
 }
