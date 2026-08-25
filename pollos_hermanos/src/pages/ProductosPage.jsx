@@ -468,8 +468,9 @@ export default function ProductosPage() {
             <div className="form-group">
               <label>Unidad</label>
               <select value={form.unidad} onChange={(e) => setForm({ ...form, unidad: e.target.value })}>
-                <option value="pieza">Pieza</option>
-                <option value="kilogramo">Kilogramo</option>
+                 <option value="pieza">Pieza</option>
+                 <option value="cajon">Cajón</option>
+                 <option value="kilogramo">Kilogramo</option>
                 <option value="litro">Litro</option>
               </select>
             </div>

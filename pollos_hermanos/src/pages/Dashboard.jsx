@@ -60,9 +60,7 @@ export default function Dashboard() {
 
       const promises = [
         salidasAPI.getStats(),
-        salidasAPI.getAll(localStorage.getItem("dashboardFecha")
-          ? { fecha: localStorage.getItem("dashboardFecha") }
-          : ultimoCierre ? { desde: ultimoCierre } : {}),
+        salidasAPI.getAll(ultimoCierre ? { desde: ultimoCierre } : {}),
         cierreCajaAPI.getResumenHoy(fecha),
         productosAPI.getLowStock(),
         gastosAPI.getHoy(),
