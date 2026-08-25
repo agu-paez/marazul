@@ -6,11 +6,6 @@ import { dinero } from "../utils/numero";
 const getFechaLocal = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
 
-const getFechaDashboard = () => {
-  const guardada = localStorage.getItem("dashboardFecha");
-  return /^\d{4}-\d{2}-\d{2}$/.test(guardada || "") ? guardada : getFechaLocal();
-};
-
 const redondearUnid = (n) => Math.round(n * 1000) / 1000;
 
 const formatCant = (n) => {
@@ -57,7 +52,8 @@ export default function Dashboard() {
   const [empleados, setEmpleados] = useState([]);
   const [pagosForm, setPagosForm] = useState({});
   const [guardandoPagos, setGuardandoPagos] = useState(false);
-  const [fechaConsulta, setFechaConsulta] = useState(getFechaDashboard);
+  const [fechaConsulta, setFechaConsulta] = useState(getFechaLocal());
+  const [ultimaFechaCierre, setUltimaFechaCierre] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -65,9 +61,17 @@ export default function Dashboard() {
 
   const loadData = async (fecha = fechaConsulta) => {
     try {
+      const historialRes = await cierreCajaAPI.getHistorial();
+      const cierres = historialRes.data || [];
+      const ultimoCierre = cierres
+        .map((cierre) => String(cierre.fecha).slice(0, 10))
+        .sort()
+        .pop() || null;
+      setUltimaFechaCierre(ultimoCierre);
+
       const promises = [
         salidasAPI.getStats(),
-        salidasAPI.getAll({ fecha }),
+        salidasAPI.getAll(ultimoCierre ? { desde: ultimoCierre } : {}),
         cierreCajaAPI.getResumenHoy(fecha),
         productosAPI.getLowStock(),
         gastosAPI.getHoy(),
@@ -335,7 +339,6 @@ export default function Dashboard() {
              value={fechaConsulta}
              onChange={(event) => {
                setFechaConsulta(event.target.value);
-               localStorage.setItem("dashboardFecha", event.target.value);
                setCierreExitoso(false);
                loadData(event.target.value).catch(console.error);
              }}
@@ -944,7 +947,10 @@ export default function Dashboard() {
       {!cierreExitoso && (
         <>
           <div className="section">
-            <h3>Repartos del {fechaConsulta} ({salidas.length})</h3>
+            <h3>Repartos desde el último cierre ({salidas.length})</h3>
+            {ultimaFechaCierre && (
+              <p className="subtitle">Mostrando salidas posteriores al cierre del {ultimaFechaCierre}.</p>
+            )}
             {salidas.length === 0 ? (
               <p className="empty">No hay salidas registradas hoy</p>
             ) : (

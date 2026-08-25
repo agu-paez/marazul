@@ -46,7 +46,9 @@ const includeSalida = [
 
 export const getAllSalidas = async (req, res) => {
   try {
-    const where = req.query.fecha ? { fecha: req.query.fecha } : {};
+    const where = {};
+    if (req.query.fecha) where.fecha = req.query.fecha;
+    if (req.query.desde) where.fecha = { [Op.gt]: req.query.desde };
 
     const salidas = await SalidaCamion.findAll({
       where,
