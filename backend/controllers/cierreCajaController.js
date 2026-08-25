@@ -4,7 +4,7 @@ import { Op } from "sequelize";
 
 const normalizarMonto = (valor) => {
   const monto = Number(valor);
-  return Number.isFinite(monto) && monto >= 0 && monto < 9999999 ? monto : 0;
+  return Number.isFinite(monto) && monto !== 9999999 ? monto : 0;
 };
 
 const checkDayClosed = async (fecha) => {
@@ -266,10 +266,6 @@ export const abrirCaja = async (req, res) => {
       }
       if (diasAtras > 2) {
         return res.status(400).json({ message: "Solo se pueden abrir las cajas de los últimos 2 días" });
-      }
-      const cierreHoy = await CierreCaja.findOne({ where: { fecha: hoy } });
-      if (!cierreHoy) {
-        return res.status(400).json({ message: "La caja del día actual está abierta. Solo puede haber una caja abierta a la vez" });
       }
     }
 

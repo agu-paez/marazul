@@ -176,19 +176,16 @@ export default function HistorialCierres() {
     return Math.round((Date.UTC(a2, m2 - 1, d2) - Date.UTC(a1, m1 - 1, d1)) / 86400000);
   };
 
-  const hoyCerrado = cierres.some((c) => String(c.fecha).slice(0, 10) === today);
-
   const puedeAbrir = (fecha) => {
     const diff = diasAtras(fecha);
     if (diff === 0) return true;
     if (diff < 1 || diff > 2) return false;
-    return hoyCerrado;
+    return true;
   };
 
   const motivoNoAbrir = (fecha) => {
     const diff = diasAtras(fecha);
     if (diff > 2) return "Solo se pueden abrir las cajas de los últimos 2 días";
-    if (diff >= 1 && !hoyCerrado) return "La caja de hoy está abierta. Solo puede haber una caja abierta a la vez";
     return "";
   };
 
