@@ -34,7 +34,7 @@ const SalidaCamion = sequelize.define("SalidaCamion", {
     allowNull: true,
   },
   precio_total: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: true,
     defaultValue: 0,
   },
@@ -46,13 +46,13 @@ const SalidaCamion = sequelize.define("SalidaCamion", {
     },
   },
   monto_salida: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: true,
     defaultValue: 0,
     comment: "Monto con el que salió el camión",
   },
   monto_regreso: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: true,
     defaultValue: 0,
     comment: "Monto con el que regresó el camión",

@@ -16,7 +16,7 @@ const Producto = sequelize.define("Producto", {
     allowNull: true,
   },
   precio: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: false,
   },
   descuento: {
@@ -38,13 +38,13 @@ const Producto = sequelize.define("Producto", {
     comment: "Descuento porcentual para clientes nuevos",
   },
   costo: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: false,
     defaultValue: 0,
     comment: "Costo unitario del producto",
   },
   stock: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
   },
   stock_minimo: {
@@ -58,7 +58,7 @@ const Producto = sequelize.define("Producto", {
     defaultValue: "pieza",
   },
   kg_por_caja: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: true,
   },
   codigo_barras: {

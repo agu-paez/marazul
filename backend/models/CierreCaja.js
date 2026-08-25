@@ -16,7 +16,7 @@ const CierreCaja = sequelize.define("CierreCaja", {
     allowNull: false,
   },
   total_ventas: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
   },
   salidas_count: {
@@ -24,15 +24,15 @@ const CierreCaja = sequelize.define("CierreCaja", {
     defaultValue: 0,
   },
   mercaderia_enviada: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
   },
   mercaderia_devuelta: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
   },
   ventas_netas: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
   },
   usuario_cierre: {
@@ -40,11 +40,11 @@ const CierreCaja = sequelize.define("CierreCaja", {
     allowNull: false,
   },
   gastos_combustible: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
   },
   gastos_otros: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
   },
   descripcion_otros_gastos: {

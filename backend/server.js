@@ -148,7 +148,7 @@ const start = async () => {
     await sequelize.authenticate();
     console.log("Base de datos conectada");
 
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
     console.log("Modelos sincronizados");
     await Cliente.update({ zona: "Mayorista" }, { where: { zona: "Zona 7" } });
     await SalidaCamion.update({ destino: "Mayorista" }, { where: { destino: "Zona 7" } });

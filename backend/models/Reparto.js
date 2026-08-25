@@ -30,7 +30,7 @@ const Reparto = sequelize.define("Reparto", {
     defaultValue: 1,
   },
   precio_total: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: true,
   },
   estado: {

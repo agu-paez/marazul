@@ -8,16 +8,16 @@ const VentaItem = sequelize.define("VentaItem", {
     autoIncrement: true,
   },
   cantidad: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: false,
     defaultValue: 1,
   },
   precio_unitario: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: false,
   },
   costo_unitario: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: false,
     defaultValue: 0,
   },

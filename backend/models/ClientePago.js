@@ -8,7 +8,7 @@ const ClientePago = sequelize.define("ClientePago", {
     autoIncrement: true,
   },
   monto: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: false,
   },
   medio_pago: {

@@ -4,7 +4,7 @@ import { Op } from "sequelize";
 
 const normalizarMonto = (valor) => {
   const monto = Number(valor);
-  return Number.isFinite(monto) && monto !== 9999999 ? monto : 0;
+  return Number.isFinite(monto) && monto >= 0 ? monto : 0;
 };
 
 const checkDayClosed = async (fecha) => {

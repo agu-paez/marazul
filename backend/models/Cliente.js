@@ -17,7 +17,7 @@ const Cliente = sequelize.define("Cliente", {
     comment: "Zona asignada para el reparto",
   },
   saldo_pendiente: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
     comment: "Deuda acumulada en cuenta corriente",
   },
@@ -28,12 +28,12 @@ const Cliente = sequelize.define("Cliente", {
     comment: "Tipo de descuento aplicado al cliente: producto, mayorista o nuevo",
   },
   saldo_favor: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
     comment: "Credito a favor del cliente",
   },
   limite_credito: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 30000,
     comment: "Limite de credito en cuenta corriente",
   },

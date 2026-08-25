@@ -9,9 +9,9 @@ await sequelize.query("UPDATE Clientes SET zona = 'Mayorista' WHERE zona = 'Zona
 await sequelize.query("UPDATE SalidaCamions SET destino = 'Mayorista' WHERE destino = 'Zona 7'");
 
 for (const [tabla, columna, definicion] of [
-  ['VentaItems', 'cantidad', 'DECIMAL(10,2) NOT NULL DEFAULT 1'],
-  ['SalidaCamionItems', 'cantidad', 'DECIMAL(10,2) NOT NULL DEFAULT 1'],
-  ['SalidaCamionItems', 'cantidad_devuelta', 'DECIMAL(10,2) NOT NULL DEFAULT 0'],
+  ['VentaItems', 'cantidad', 'DECIMAL(13,2) NOT NULL DEFAULT 1'],
+  ['SalidaCamionItems', 'cantidad', 'DECIMAL(13,2) NOT NULL DEFAULT 1'],
+  ['SalidaCamionItems', 'cantidad_devuelta', 'DECIMAL(13,2) NOT NULL DEFAULT 0'],
 ]) {
   try {
     await sequelize.query(`ALTER TABLE ${tabla} MODIFY COLUMN ${columna} ${definicion}`);
@@ -66,7 +66,7 @@ try {
 }
 
 const nuevasColumnasProductos = [
-  ['kg_por_caja', 'DECIMAL(10,2)'],
+  ['kg_por_caja', 'DECIMAL(13,2)'],
   ['excluir_de_lista_pdf', 'BOOLEAN NOT NULL DEFAULT 0'],
   ['descuento_mayorista', 'DECIMAL(5,2) NOT NULL DEFAULT 0'],
   ['descuento_nuevo', 'DECIMAL(5,2) NOT NULL DEFAULT 0'],
@@ -152,6 +152,35 @@ for (const [tabla, columna] of columnasAEliminar) {
       console.log(`La columna ${columna} no existe o ya fue eliminada`);
     } else {
       console.error('Error:', e.message);
+    }
+  }
+}
+
+const upgradeDecimal = [
+  ['CierreCajas', ['total_ventas', 'mercaderia_enviada', 'mercaderia_devuelta', 'ventas_netas', 'gastos_combustible', 'gastos_otros']],
+  ['Ventas', ['subtotal', 'total', 'monto_deuda_pagado', 'monto_sobrante']],
+  ['SalidaCamions', ['precio_total', 'monto_salida', 'monto_regreso']],
+  ['VentaItems', ['precio_unitario', 'costo_unitario']],
+  ['SalidaCamionItems', ['precio_unitario']],
+  ['Clientes', ['saldo_pendiente', 'saldo_favor', 'limite_credito']],
+  ['VentaPagos', ['monto']],
+  ['ClientePagos', ['monto']],
+  ['PagoEmpleados', ['monto']],
+  ['GastoDias', ['combustible', 'otros']],
+  ['ProveedorMovimientoes', ['mercaderias_compradas', 'dinero_ventas', 'diferencia']],
+  ['Repartos', ['precio_total']],
+  ['RepartoItems', ['precio_unitario']],
+  ['Productos', ['precio', 'costo', 'stock', 'kg_por_caja']],
+];
+for (const [tabla, columnas] of upgradeDecimal) {
+  for (const columna of columnas) {
+    try {
+      await sequelize.query(`ALTER TABLE \`${tabla}\` MODIFY COLUMN \`${columna}\` DECIMAL(13,2) NOT NULL DEFAULT 0`);
+      console.log(`Columna ${columna} de ${tabla} actualizada a DECIMAL(13,2)`);
+    } catch (e) {
+      if (!e.message.includes("Unknown column") && !e.message.toLowerCase().includes("doesn't exist")) {
+        console.error(`Error actualizando ${tabla}.${columna}:`, e.message);
+      }
     }
   }
 }

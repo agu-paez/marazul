@@ -51,11 +51,11 @@ const Venta = sequelize.define("Venta", {
     comment: "Indica si la venta tiene multiples medios de pago",
   },
   subtotal: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
   },
   total: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
   },
   notas: {
@@ -93,13 +93,13 @@ const Venta = sequelize.define("Venta", {
     comment: "Datos identificatorios de otros medios de pago",
   },
   monto_deuda_pagado: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: true,
     defaultValue: null,
     comment: "Monto pagado de deuda incluido en esta venta",
   },
   monto_sobrante: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: true,
     defaultValue: 0,
     comment: "Excedente del pago dividido registrado como saldo a favor del cliente",

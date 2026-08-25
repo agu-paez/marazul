@@ -13,7 +13,7 @@ const VentaPago = sequelize.define("VentaPago", {
     validate: { isIn: [["efectivo", "transferencia", "tarjeta", "cuenta_corriente", "otro"]] },
   },
   monto: {
-    type: DataTypes.DECIMAL(10, 2),
+    type: DataTypes.DECIMAL(13, 2),
     allowNull: false,
   },
 });
