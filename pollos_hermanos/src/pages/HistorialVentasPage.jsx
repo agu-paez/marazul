@@ -80,11 +80,7 @@ export default function HistorialVentasPage() {
     }
   };
 
-  const precioCatalogoProducto = (producto, unidadVenta) => {
-    const esCajaProd = String(producto?.unidad || "").toLowerCase() === "caja";
-    const factor = esCajaProd && Number(producto.unidades_por_caja) > 0 ? Number(producto.unidades_por_caja) : 1;
-    return unidadVenta === "caja" ? Number(producto.precio) : Number(producto.precio) / factor;
-  };
+  const precioCatalogoProducto = (producto) => Number(producto.precio);
 
   const abrirEditarProductos = (venta) => {
     setVentaProductosEditando(venta);
@@ -92,7 +88,6 @@ export default function HistorialVentasPage() {
       productoId: item.productoId,
       cantidad: String(item.cantidad),
       precio_unitario: String(item.precio_unitario),
-      unidad_venta: item.unidad_venta || "unidad",
       nombre: item.Producto?.nombre || "Producto",
     })));
   };
@@ -103,8 +98,7 @@ export default function HistorialVentasPage() {
     setItemsEditados((prev) => [...prev, {
       productoId: producto.id,
       cantidad: "1",
-      precio_unitario: String(precioCatalogoProducto(producto, "unidad")),
-      unidad_venta: "unidad",
+       precio_unitario: String(precioCatalogoProducto(producto)),
       nombre: producto.nombre,
     }]);
   };
@@ -115,10 +109,9 @@ export default function HistorialVentasPage() {
     setGuardandoProductos(true);
     try {
       await ventasAPI.modificarProductos(ventaProductosEditando.id, {
-        items: itemsEditados.map(({ productoId, cantidad, unidad_venta }) => ({
+        items: itemsEditados.map(({ productoId, cantidad }) => ({
           productoId,
           cantidad: Number(cantidad),
-          unidad_venta,
         })),
       });
       setVentaProductosEditando(null);
@@ -205,7 +198,7 @@ export default function HistorialVentasPage() {
       const datos = typeof detalle === "string" ? JSON.parse(detalle) : detalle;
       const mostrar = tipo === "pagos"
         ? (item) => `${item.medio_pago}: $${Number(item.monto).toFixed(2)}`
-        : (item) => `${item.cantidad} ${item.unidad_venta || "unidad"} ${item.nombre}`;
+        : (item) => `${item.cantidad} ${item.nombre}`;
       return `${datos.anteriores?.map(mostrar).join(", ")} -> ${datos.nuevos?.map(mostrar).join(", ")}`;
     } catch {
       return "Detalle no disponible";
@@ -429,7 +422,7 @@ export default function HistorialVentasPage() {
                     value={item.productoId}
                     onChange={(e) => {
                       const producto = productosDisponibles.find((actual) => actual.id === Number(e.target.value));
-                      setItemsEditados((prev) => prev.map((actual, i) => i === index ? { ...actual, productoId: producto.id, nombre: producto.nombre, precio_unitario: String(precioCatalogoProducto(producto, actual.unidad_venta)) } : actual));
+                      setItemsEditados((prev) => prev.map((actual, i) => i === index ? { ...actual, productoId: producto.id, nombre: producto.nombre, precio_unitario: String(precioCatalogoProducto(producto)) } : actual));
                     }}
                     required
                   >

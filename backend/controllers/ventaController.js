@@ -3,10 +3,7 @@ import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { getFechaLocal } from "../utils/fecha.js";
 
-const esCaja = (producto) => String(producto?.unidad || "").toLowerCase() === "caja";
 const esKilogramo = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
-const getUnidadesPorCaja = (producto) => esCaja(producto) && Number(producto.unidades_por_caja) > 0 ? Number(producto.unidades_por_caja) : 1;
-const normalizarUnidadVenta = (producto, unidadVenta) => esCaja(producto) && unidadVenta === "caja" ? "caja" : "unidad";
 const obtenerDatosPago = (pago) => ({
   nombre_cuenta: String(pago.nombre_cuenta || "").trim(),
   banco: String(pago.banco || "").trim(),
@@ -101,23 +98,17 @@ export const crearVenta = async (req, res) => {
 
       const ventasExistentes = await Venta.findAll({
         where: { salidaCamionId: salidaCamion.id, estado: "completada" },
-          include: [{ model: VentaItem, attributes: ["productoId", "cantidad", "cantidad_unidades", "unidades_por_caja"] }],
+          include: [{ model: VentaItem, attributes: ["productoId", "cantidad"] }],
       });
 
       const stockCamion = {};
       for (const item of salidaCamion.SalidaCamionItems) {
-            const producto = productosPorId.get(String(item.productoId));
-        const factor = Number(item.unidades_por_caja) > 0 ? Number(item.unidades_por_caja) : getUnidadesPorCaja(producto);
-        const cargado = Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * factor;
-        const devuelto = Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * factor;
-        stockCamion[item.productoId] = (stockCamion[item.productoId] || 0) + cargado - devuelto;
+        stockCamion[item.productoId] = (stockCamion[item.productoId] || 0) + Number(item.cantidad) - Number(item.cantidad_devuelta || 0);
       }
       for (const v of ventasExistentes) {
         for (const vi of v.VentaItems) {
           if (stockCamion[vi.productoId] !== undefined) {
-            const producto = productosPorId.get(String(vi.productoId));
-            const factor = Number(vi.unidades_por_caja) > 0 ? Number(vi.unidades_por_caja) : getUnidadesPorCaja(producto);
-            stockCamion[vi.productoId] -= Number(vi.cantidad_unidades) > 0 ? Number(vi.cantidad_unidades) : Number(vi.cantidad) * factor;
+            stockCamion[vi.productoId] -= Number(vi.cantidad);
           }
         }
       }
@@ -131,13 +122,10 @@ export const crearVenta = async (req, res) => {
         if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo(producto) && !Number.isInteger(cantidad))) {
           return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
         }
-        const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
-        const factor = getUnidadesPorCaja(producto);
-        const cantidadUnidades = unidadVenta === "caja" ? cantidad * factor : cantidad;
         const disp = stockCamion[item.productoId] || 0;
-        if (disp < cantidadUnidades) {
+        if (disp < cantidad) {
           return res.status(400).json({
-            message: `Stock insuficiente en camion "${salidaCamion.camion}" para "${producto.nombre}": disponible ${disp} unidades, solicitado ${cantidadUnidades}`,
+            message: `Stock insuficiente en camion "${salidaCamion.camion}" para "${producto.nombre}": disponible ${disp}, solicitado ${cantidad}`,
           });
         }
       }
@@ -154,13 +142,9 @@ export const crearVenta = async (req, res) => {
         if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo(producto) && !Number.isInteger(cantidad))) {
           return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
         }
-        const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
-        const factor = getUnidadesPorCaja(producto);
-        const cantidadUnidades = unidadVenta === "caja" ? cantidad * factor : cantidad;
-        const cantidadStock = esCaja(producto) ? cantidadUnidades / factor : cantidadUnidades;
-        if (producto.stock < cantidadStock) {
+        if (producto.stock < cantidad) {
           return res.status(400).json({
-            message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${cantidadStock}`,
+            message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}, solicitado ${cantidad}`,
           });
         }
       }
@@ -174,8 +158,7 @@ export const crearVenta = async (req, res) => {
       if (item.precio_unitario !== undefined && (!Number.isFinite(precioPersonalizado) || precioPersonalizado <= 0)) {
         return res.status(400).json({ message: `El precio de "${producto.nombre}" no es válido` });
       }
-      const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
-      const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : Number(producto.precio);
+      const precioBase = Number(producto.precio);
       const precioUnitario = Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
         ? precioPersonalizado
         : precioBase;
@@ -310,8 +293,7 @@ export const crearVenta = async (req, res) => {
     for (const item of items) {
       const producto = productosPorId.get(String(item.productoId));
        const precioPersonalizado = Number(item.precio_unitario);
-       const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
-       const precioBase = esCaja(producto) && unidadVenta === "unidad" ? Number(producto.precio) / getUnidadesPorCaja(producto) : Number(producto.precio);
+       const precioBase = Number(producto.precio);
        const precioUnitario = Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
          ? precioPersonalizado
          : precioBase;
@@ -320,14 +302,10 @@ export const crearVenta = async (req, res) => {
         productoId: item.productoId,
          cantidad: Number(item.cantidad),
         precio_unitario: precioUnitario,
-        costo_unitario: (parseFloat(producto.costo) || 0) / (esCaja(producto) && unidadVenta === "unidad" ? getUnidadesPorCaja(producto) : 1),
-        unidad_venta: unidadVenta,
-        unidades_por_caja: esCaja(producto) ? getUnidadesPorCaja(producto) : null,
-        cantidad_unidades: Number(item.cantidad) * (unidadVenta === "caja" ? getUnidadesPorCaja(producto) : 1),
+         costo_unitario: parseFloat(producto.costo) || 0,
       });
       if (!esReparto) {
-        const factor = getUnidadesPorCaja(producto);
-        const cantidadStock = esCaja(producto) ? Number(item.cantidad) * (unidadVenta === "caja" ? 1 : 1 / factor) : Number(item.cantidad);
+        const cantidadStock = Number(item.cantidad);
         stockPorProducto.set(producto.id, (stockPorProducto.get(producto.id) || 0) + cantidadStock);
       }
     }
@@ -341,7 +319,7 @@ export const crearVenta = async (req, res) => {
       include: [
         {
            model: VentaItem,
-           include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja"] }],
+            include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad"] }],
         },
         { model: VentaPago },
         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
@@ -404,7 +382,7 @@ export const getVentas = async (req, res) => {
       include: [
         {
          model: VentaItem,
-         include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja"] }],
+          include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad"] }],
         },
         { model: VentaPago },
          { model: User, as: "vendedor", attributes: ["id", "nombre"] },
@@ -671,7 +649,6 @@ export const modificarProductosVenta = async (req, res) => {
       productoId: item.productoId,
       nombre: item.Producto?.nombre || "Producto",
       cantidad: Number(item.cantidad),
-      unidad_venta: item.unidad_venta,
     }));
     const productosNuevos = [];
     for (const item of items) {
@@ -681,49 +658,35 @@ export const modificarProductosVenta = async (req, res) => {
         await transaction.rollback();
         return res.status(400).json({ message: `El producto o cantidad de la factura no es válido` });
       }
-      const unidadVenta = normalizarUnidadVenta(producto, item.unidad_venta);
-      const factor = getUnidadesPorCaja(producto);
-      const cantidadStock = esCaja(producto)
-        ? cantidad * (unidadVenta === "caja" ? 1 : 1 / factor)
-        : cantidad;
+       const cantidadStock = cantidad;
       const originalesProducto = venta.VentaItems.filter((v) => v.productoId === producto.id);
-      const originalMismaUnidad = originalesProducto.find((v) => normalizarUnidadVenta(producto, v.unidad_venta) === unidadVenta);
+       const originalMismaUnidad = originalesProducto[0];
       let precio;
       if (originalMismaUnidad) {
         precio = Number(originalMismaUnidad.precio_unitario);
-      } else if (originalesProducto.length > 0) {
-        precio = normalizarUnidadVenta(producto, originalesProducto[0].unidad_venta) === "caja"
-          ? Number(originalesProducto[0].precio_unitario) / factor
-          : Number(originalesProducto[0].precio_unitario) * factor;
-      } else {
-        precio = unidadVenta === "caja" ? Number(producto.precio) : Number(producto.precio) / factor;
+       } else if (originalesProducto.length > 0) {
+         precio = Number(originalesProducto[0].precio_unitario);
+       } else {
+         precio = Number(producto.precio);
       }
       if (!Number.isFinite(precio) || precio <= 0) {
         await transaction.rollback();
         return res.status(400).json({ message: `No se pudo determinar el precio de "${producto.nombre}"` });
       }
-      productosNuevos.push({ producto, cantidad, unidadVenta, factor, cantidadStock, precio });
+       productosNuevos.push({ producto, cantidad, cantidadStock, precio });
     }
 
     if (!esReparto) {
       for (const item of venta.VentaItems) {
         const producto = await Producto.findByPk(item.productoId, { transaction, lock: transaction.LOCK.UPDATE });
         if (producto) {
-          const factor = getUnidadesPorCaja(producto);
-          const cantidadStock = esCaja(producto)
-            ? Number(item.cantidad) * (item.unidad_venta === "caja" ? 1 : 1 / factor)
-            : Number(item.cantidad);
-          await producto.increment("stock", { by: cantidadStock, transaction });
+           await producto.increment("stock", { by: Number(item.cantidad), transaction });
         }
       }
       const stockDisponible = new Map();
       const stockDevuelto = new Map();
       for (const item of venta.VentaItems) {
-        const productoOriginal = await Producto.findByPk(item.productoId, { transaction });
-        const factor = getUnidadesPorCaja(productoOriginal);
-        const cantidadStock = esCaja(productoOriginal)
-          ? Number(item.cantidad) * (item.unidad_venta === "caja" ? 1 : 1 / factor)
-          : Number(item.cantidad);
+         const cantidadStock = Number(item.cantidad);
         stockDevuelto.set(item.productoId, (stockDevuelto.get(item.productoId) || 0) + cantidadStock);
       }
       for (const item of productosNuevos) {
@@ -767,10 +730,7 @@ export const modificarProductosVenta = async (req, res) => {
       productoId: item.producto.id,
       cantidad: item.cantidad,
       precio_unitario: item.precio,
-      costo_unitario: (Number(item.producto.costo) || 0) / (esCaja(item.producto) && item.unidadVenta === "unidad" ? item.factor : 1),
-      unidad_venta: item.unidadVenta,
-      unidades_por_caja: esCaja(item.producto) ? item.factor : null,
-      cantidad_unidades: item.cantidad * (item.unidadVenta === "caja" ? item.factor : 1),
+       costo_unitario: Number(item.producto.costo) || 0,
     })), { transaction });
 
     await VentaPago.destroy({ where: { ventaId: venta.id }, transaction });
@@ -791,14 +751,13 @@ export const modificarProductosVenta = async (req, res) => {
           productoId: item.producto.id,
           nombre: item.producto.nombre,
           cantidad: item.cantidad,
-          unidad_venta: item.unidadVenta,
         })),
       }),
     }, { transaction });
     await transaction.commit();
     const ventaActualizada = await Venta.findByPk(venta.id, {
       include: [
-         { model: VentaItem, include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "unidades_por_caja"] }] },
+          { model: VentaItem, include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad"] }] },
          { model: VentaPago },
          { model: User, as: "vendedor", attributes: ["id", "nombre"] },
          { model: User, as: "productos_modificado_por", attributes: ["id", "nombre"] },
@@ -855,9 +814,7 @@ export const deleteVenta = async (req, res) => {
       if (!venta.salidaCamionId) {
         const prod = await Producto.findByPk(item.productoId);
          if (prod) {
-           const factor = getUnidadesPorCaja(prod);
-           const unidades = Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * factor;
-           await prod.update({ stock: Number(prod.stock) + unidades / factor });
+            await prod.update({ stock: Number(prod.stock) + Number(item.cantidad) });
         }
       }
     }

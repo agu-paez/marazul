@@ -13,18 +13,7 @@ const formatCant = (n) => {
   return Number.isInteger(num) ? String(num) : String(Number(num.toFixed(2)));
 };
 
-const textoCajaSuelta = (item, cant) => {
-  const factor = Number(item?.factor) || 1;
-  const unid = Number(cant) || 0;
-  if (factor <= 1) return `${formatCant(unid)} unid.`;
-  const cajas = Math.floor(unid / factor + 0.000000001);
-  if (!item?.tieneSueltos) return `${formatCant(cajas)} ${cajas === 1 ? "caja" : "cajas"}`;
-  const sueltas = redondearUnid(unid - cajas * factor);
-  const partes = [];
-  if (cajas > 0) partes.push(`${formatCant(cajas)} ${cajas === 1 ? "caja" : "cajas"}`);
-  if (sueltas > 0) partes.push(`${formatCant(sueltas)} ${sueltas === 1 ? "suelta" : "sueltas"}`);
-  return partes.length > 0 ? partes.join(" + ") : "0";
-};
+const textoCantidad = (cant) => `${formatCant(cant)} unid.`;
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -154,22 +143,14 @@ export default function Dashboard() {
       console.error("Error al obtener stock del camion:", error);
     }
     const items = (salida.SalidaCamionItems || []).map((item) => {
-      const esCajaProd = String(item.Producto?.unidad || "").toLowerCase() === "caja";
-      const factor = esCajaProd && Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) > 0
-        ? Number(item.unidades_por_caja || item.Producto?.unidades_por_caja)
-        : 1;
       const stock = stockMap[item.productoId];
-      const enviadaU = Number(stock?.cargado) > 0 ? Number(stock.cargado) : (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : (Number(item.cantidad) || 0) * factor);
+      const enviadaU = Number(stock?.cargado) > 0 ? Number(stock.cargado) : Number(item.cantidad) || 0;
       const vendidaU = Number(stock?.vendido) || 0;
-      const devueltasUnidades = Number(item.cantidad_devuelta_unidades) > 0
-        ? Number(item.cantidad_devuelta_unidades)
-        : (Number(item.cantidad_devuelta) || 0) * factor;
+      const devueltasUnidades = Number(item.cantidad_devuelta) || 0;
       const maxDevolverU = Math.max(0, Number(stock ? enviadaU - vendidaU : enviadaU));
       return {
         productoId: item.productoId,
         nombre: item.Producto?.nombre,
-        factor,
-        tieneSueltos: Number(stock?.tiene_sueltos ?? item.Producto?.prod_sueltos) > 0,
         cantidad_enviada: redondearUnid(enviadaU),
         cantidad_vendida: redondearUnid(vendidaU),
         max_devolver: redondearUnid(maxDevolverU),
@@ -188,32 +169,6 @@ export default function Dashboard() {
     setItemsRegreso(newItems);
   };
 
-  const setRegresoCajas = (index, valorCajas) => {
-    const newItems = [...itemsRegreso];
-    const item = newItems[index];
-    const factor = Number(item.factor) || 1;
-    const max = Math.max(0, Number(item.max_devolver) || 0);
-    const cajas = Math.max(0, Math.floor(Number(valorCajas) || 0));
-    item.cantidad_regreso = redondearUnid(Math.min(cajas * factor, max));
-    setItemsRegreso(newItems);
-  };
-
-  const setRegresoCajaSuelta = (index, nuevasCajas, nuevasSueltas) => {
-    const newItems = [...itemsRegreso];
-    const item = newItems[index];
-    const factor = Number(item.factor) || 1;
-    const max = Math.max(0, Number(item.max_devolver) || 0);
-    const actual = Number(item.cantidad_regreso) || 0;
-    const cajasActuales = Math.floor(actual / factor + 0.000000001);
-    const sueltasActuales = redondearUnid(actual - cajasActuales * factor);
-    let cajas = nuevasCajas === undefined ? cajasActuales : Math.max(0, Math.floor(Number(nuevasCajas) || 0));
-    if (cajas * factor > max) cajas = Math.floor(max / factor + 0.000000001);
-    let sueltas = nuevasSueltas === undefined ? sueltasActuales : Math.max(0, Math.floor(Number(nuevasSueltas) || 0));
-    sueltas = Math.min(sueltas, Math.floor(max - cajas * factor + 0.000000001));
-    item.cantidad_regreso = redondearUnid(Math.min(max, cajas * factor + sueltas));
-    setItemsRegreso(newItems);
-  };
-
   const confirmarEntregado = () => {
     if (editandoRegreso) {
       ejecutarEntregado();
@@ -229,7 +184,7 @@ export default function Dashboard() {
   const itemsParaEnviar = () =>
     itemsRegreso.map((item) => {
       const unidades = redondearUnid(Number(item.cantidad_regreso) || 0);
-      return { productoId: item.productoId, cantidad: unidades, cantidad_unidades: unidades };
+      return { productoId: item.productoId, cantidad: unidades };
     });
 
   const ejecutarCancelacion = async () => {
@@ -519,53 +474,13 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {itemsRegreso.map((item, index) => {
-                    const factor = Number(item.factor) || 1;
-                    const actual = Number(item.cantidad_regreso) || 0;
-                    const cajasVal = Math.floor(actual / factor + 0.000000001);
-                    const sueltasVal = redondearUnid(actual - cajasVal * factor);
+                   {itemsRegreso.map((item, index) => {
                     return (
                       <tr key={item.productoId}>
                         <td data-label="Producto"><strong>{item.nombre}</strong></td>
-                        <td data-label="Enviada">{textoCajaSuelta(item, item.cantidad_enviada)}</td>
-                        <td data-label="Vendida">{textoCajaSuelta(item, item.cantidad_vendida)}</td>
+                         <td data-label="Enviada">{textoCantidad(item.cantidad_enviada)}</td>
+                         <td data-label="Vendida">{textoCantidad(item.cantidad_vendida)}</td>
                         <td data-label="A devolver">
-                          {factor > 1 && item.tieneSueltos ? (
-                            <div style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={cajasVal || ""}
-                                onChange={(e) => setRegresoCajaSuelta(index, e.target.value, undefined)}
-                                className="input-cantidad"
-                                style={{ width: "4.2rem" }}
-                                title="Cajas"
-                              />
-                              <span style={{ fontSize: "0.8rem" }}>+</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={sueltasVal || ""}
-                                onChange={(e) => setRegresoCajaSuelta(index, undefined, e.target.value)}
-                                className="input-cantidad"
-                                style={{ width: "4.2rem" }}
-                                title="Unidades sueltas"
-                              />
-                            </div>
-                          ) : factor > 1 ? (
-                            <input
-                              type="number"
-                              min="0"
-                              step="1"
-                              max={Math.floor(item.max_devolver / factor + 0.000000001)}
-                              value={Math.round((actual / factor) * 100) / 100 || ""}
-                              onChange={(e) => setRegresoCajas(index, e.target.value)}
-                              className="input-cantidad"
-                              title="Cajas"
-                            />
-                          ) : (
                             <input
                               type="number"
                               min="0"
@@ -575,12 +490,6 @@ export default function Dashboard() {
                               onChange={(e) => setCantidadRegreso(index, e.target.value)}
                               className="input-cantidad"
                             />
-                          )}
-                          {factor > 1 && Number(item.max_devolver) > 0 && (
-                            <small style={{ display: "block", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                              Maximo: {textoCajaSuelta(item, item.max_devolver)}
-                            </small>
-                          )}
                         </td>
                       </tr>
                     );

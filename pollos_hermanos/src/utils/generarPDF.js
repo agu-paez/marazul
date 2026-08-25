@@ -244,10 +244,9 @@ export const generarComprobantePDF = async (venta) => {
   doc.setFontSize(7);
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    const unidadVenta = String(item.unidad_venta || (String(item.Producto?.unidad || "").toLowerCase() === "caja" ? "caja" : "unidad")).toLowerCase();
     const esKg = ["kg", "kilogramo"].includes(String(item.Producto?.unidad || "").toLowerCase());
     const nombreBase = item.Producto?.nombre || "N/A";
-    const nombre = unidadVenta === "unidad" && !esKg ? `${nombreBase} (unid.)` : nombreBase;
+    const nombre = !esKg ? `${nombreBase} (unid.)` : nombreBase;
     const cant = item.cantidad;
     const precio = parseFloat(item.precio_unitario);
     const sub = cant * precio;
@@ -1147,20 +1146,7 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
       .map((item) => {
         const nombre = item.Producto?.nombre || "Producto";
         const valor = Number(item.faltante) || 0;
-        const factor = Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1;
-        let texto = `${valor}`;
-        if (factor > 1 && Number.isInteger(valor)) {
-          const cajas = Math.floor(valor / factor);
-          const sueltas = valor - cajas * factor;
-          if (Number(item.Producto?.prod_sueltos || 0) > 0) {
-            texto = sueltas ? `${cajas} cj. + ${sueltas} u.` : `${cajas} cj.`;
-          } else {
-            texto = sueltas ? `${valor} u.` : `${cajas} cj.`;
-          }
-        } else if (factor > 1) {
-          texto = `${(valor / factor).toFixed(2)} cj.`;
-        }
-        return `${nombre}: ${texto}`;
+        return `${nombre}: ${valor}`;
       })
       .join(" | ");
     const lineas = doc.splitTextToSize(`FALTO DEVOLVER: ${faltantesTexto}`, cw - 10);
@@ -1209,24 +1195,15 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
   // 1. Mercaderia enviada
   drawSectionTitle("Mercaderia Enviada");
   const enviados = salida.SalidaCamionItems || [];
-  const cantidadEnUnidades = (item, tipo) => {
-    const factor = Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1;
-    const valor = tipo === "devuelto"
-      ? (Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * factor)
-      : (Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad || 0) * factor);
-    if (factor <= 1) return Number(valor).toFixed(2);
-    const cajas = Math.floor(valor / factor);
-    const sueltas = valor % factor;
-    return `${cajas} cj. + ${sueltas} u. (${valor.toFixed(2)} total)`;
-  };
+  const cantidadEnUnidades = (item, tipo) => Number(tipo === "devuelto" ? item.cantidad_devuelta : item.cantidad || 0).toFixed(2);
   drawSimpleTable(
     ["Producto", "Cant. / und.", "P.Unit.", "Subtotal"],
     [cw - 54 - 26 - 30, 54, 26, 30],
     [
       (r) => r.Producto?.nombre || "N/A",
       (r) => cantidadEnUnidades(r, "cargado"),
-      (r) => `$${(parseFloat(r.precio_unitario) / (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1)).toFixed(2)}`,
-      (r) => `$${(Number(r.cantidad_unidades || r.cantidad * (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1)) * (parseFloat(r.precio_unitario) / (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1))).toFixed(2)}`,
+      (r) => `$${parseFloat(r.precio_unitario).toFixed(2)}`,
+      (r) => `$${(Number(r.cantidad || 0) * parseFloat(r.precio_unitario)).toFixed(2)}`,
     ],
     enviados
   );
@@ -1240,8 +1217,8 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
     [
       (r) => r.Producto?.nombre || "N/A",
       (r) => cantidadEnUnidades(r, "devuelto"),
-      (r) => `$${(parseFloat(r.precio_unitario) / (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1)).toFixed(2)}`,
-      (r) => `$${(Number(r.cantidad_devuelta_unidades || r.cantidad_devuelta * (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1)) * (parseFloat(r.precio_unitario) / (Number(r.unidades_por_caja || r.Producto?.unidades_por_caja) || 1))).toFixed(2)}`,
+      (r) => `$${parseFloat(r.precio_unitario).toFixed(2)}`,
+      (r) => `$${(Number(r.cantidad_devuelta || 0) * parseFloat(r.precio_unitario)).toFixed(2)}`,
     ],
     devueltos
   );
@@ -1291,7 +1268,7 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
         cliente: v.cliente?.nombre || v.cliente_nombre || "-",
          producto: vi.Producto?.nombre || "N/A",
          cantidad: vi.cantidad,
-         modalidad: String(vi.unidad_venta || (String(vi.Producto?.unidad || "").toLowerCase() === "caja" ? "caja" : "unidad")).toLowerCase() === "caja" ? "Caja" : "Unidad",
+          modalidad: "Unidad",
          precio: parseFloat(vi.precio_unitario),
         subtotal: vi.cantidad * parseFloat(vi.precio_unitario),
       });

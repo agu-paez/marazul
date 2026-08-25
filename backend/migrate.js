@@ -67,7 +67,6 @@ try {
 
 const nuevasColumnasProductos = [
   ['kg_por_caja', 'DECIMAL(10,2)'],
-  ['unidades_por_caja', 'INTEGER'],
   ['excluir_de_lista_pdf', 'BOOLEAN NOT NULL DEFAULT 0'],
   ['descuento_mayorista', 'DECIMAL(5,2) NOT NULL DEFAULT 0'],
   ['descuento_nuevo', 'DECIMAL(5,2) NOT NULL DEFAULT 0'],
@@ -93,11 +92,7 @@ try {
   if (!e.message.includes('duplicate column') && !e.message.toLowerCase().includes('duplicate column name')) console.error('Error:', e.message);
 }
 
-const nuevasColumnasVentaItems = [
-  ['unidad_venta', 'VARCHAR(20) NOT NULL DEFAULT \'unidad\''],
-  ['unidades_por_caja', 'INTEGER'],
-  ['cantidad_unidades', 'DECIMAL(10,2) NOT NULL DEFAULT 0'],
-];
+const nuevasColumnasVentaItems = [];
 for (const [columna, tipo] of nuevasColumnasVentaItems) {
   try {
     await sequelize.query(`ALTER TABLE VentaItems ADD COLUMN ${columna} ${tipo}`);
@@ -126,9 +121,6 @@ for (const [columna, tipo] of nuevasColumnasVentas) {
 }
 
 const nuevasColumnasSalidaItems = [
-  ['unidades_por_caja', 'INTEGER'],
-  ['cantidad_unidades', 'DECIMAL(10,2) NOT NULL DEFAULT 0'],
-  ['cantidad_devuelta_unidades', 'DECIMAL(10,2) NOT NULL DEFAULT 0'],
 ];
 for (const [columna, tipo] of nuevasColumnasSalidaItems) {
   try {
@@ -139,11 +131,22 @@ for (const [columna, tipo] of nuevasColumnasSalidaItems) {
   }
 }
 
-const columnasAEliminar = ['precio_por_kg', 'precio_caja'];
-for (const columna of columnasAEliminar) {
+const columnasAEliminar = [
+  ['Productos', 'precio_por_kg'],
+  ['Productos', 'precio_caja'],
+  ['Productos', 'unidades_por_caja'],
+  ['Productos', 'prod_sueltos'],
+  ['VentaItems', 'unidad_venta'],
+  ['VentaItems', 'unidades_por_caja'],
+  ['VentaItems', 'cantidad_unidades'],
+  ['SalidaCamionItems', 'unidades_por_caja'],
+  ['SalidaCamionItems', 'cantidad_unidades'],
+  ['SalidaCamionItems', 'cantidad_devuelta_unidades'],
+];
+for (const [tabla, columna] of columnasAEliminar) {
   try {
-    await sequelize.query(`ALTER TABLE Productos DROP COLUMN ${columna}`);
-    console.log(`Columna ${columna} eliminada de Productos correctamente`);
+    await sequelize.query(`ALTER TABLE ${tabla} DROP COLUMN ${columna}`);
+    console.log(`Columna ${columna} eliminada de ${tabla} correctamente`);
   } catch (e) {
     if (e.message.includes('no such column') || e.message.toLowerCase().includes('unknown column')) {
       console.log(`La columna ${columna} no existe o ya fue eliminada`);

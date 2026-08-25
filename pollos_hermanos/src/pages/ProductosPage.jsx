@@ -30,8 +30,6 @@ export default function ProductosPage() {
     marcaId: "",
     codigo_barras: "",
     kg_por_caja: "",
-    unidades_por_caja: "",
-    prod_sueltos: "",
     excluir_de_lista_pdf: false,
     descuento: "",
     descuento_mayorista: "",
@@ -70,8 +68,6 @@ export default function ProductosPage() {
         marcaId: form.marcaId ? parseInt(form.marcaId) : null,
         codigo_barras: form.codigo_barras.trim() || null,
         kg_por_caja: form.kg_por_caja === "" ? null : parseFloat(form.kg_por_caja),
-        unidades_por_caja: form.unidades_por_caja === "" ? null : parseInt(form.unidades_por_caja),
-        prod_sueltos: form.prod_sueltos === "" ? null : parseInt(form.prod_sueltos),
         excluir_de_lista_pdf: form.excluir_de_lista_pdf,
       };
       if (editing) {
@@ -81,7 +77,7 @@ export default function ProductosPage() {
       }
       setShowForm(false);
       setEditing(null);
-       setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", unidades_por_caja: "", prod_sueltos: "", excluir_de_lista_pdf: false, descuento: "", descuento_mayorista: "", descuento_nuevo: "", permitir_modificar_precio: false });
+       setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false, descuento: "", descuento_mayorista: "", descuento_nuevo: "", permitir_modificar_precio: false });
       loadData();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -99,8 +95,6 @@ export default function ProductosPage() {
       marcaId: producto.Marca?.id || "",
       codigo_barras: producto.codigo_barras || "",
       kg_por_caja: producto.kg_por_caja ?? "",
-      unidades_por_caja: producto.unidades_por_caja ?? "",
-      prod_sueltos: producto.prod_sueltos ?? "",
       excluir_de_lista_pdf: Boolean(producto.excluir_de_lista_pdf),
       descuento: producto.descuento ?? "",
       descuento_mayorista: producto.descuento_mayorista ?? "",
@@ -204,7 +198,7 @@ export default function ProductosPage() {
             onClick={() => {
               setShowForm(!showForm);
               setEditing(null);
-                 setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", unidades_por_caja: "", prod_sueltos: "", excluir_de_lista_pdf: false, descuento: "", descuento_mayorista: "", descuento_nuevo: "", permitir_modificar_precio: false });
+                 setForm({ nombre: "", precio: "", costo: "", stock: "", unidad: "pieza", marcaId: "", codigo_barras: "", kg_por_caja: "", excluir_de_lista_pdf: false, descuento: "", descuento_mayorista: "", descuento_nuevo: "", permitir_modificar_precio: false });
             }}
           >
             {showForm ? "Cancelar" : "+ Nuevo Producto"}
@@ -477,7 +471,6 @@ export default function ProductosPage() {
                 <option value="pieza">Pieza</option>
                 <option value="kilogramo">Kilogramo</option>
                 <option value="litro">Litro</option>
-                <option value="caja">Caja (permite vender por unidad)</option>
               </select>
             </div>
           </div>
@@ -491,28 +484,6 @@ export default function ProductosPage() {
                 value={Number(form.kg_por_caja) ? form.kg_por_caja : ""}
                 onChange={(e) => setForm({ ...form, kg_por_caja: e.target.value })}
                 placeholder="Ej: 15"
-              />
-            </div>
-            <div className="form-group">
-              <label>Unidades por Caja</label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={Number(form.unidades_por_caja) ? form.unidades_por_caja : ""}
-                onChange={(e) => setForm({ ...form, unidades_por_caja: e.target.value })}
-                placeholder="Ej: 10"
-              />
-            </div>
-            <div className="form-group">
-              <label>Prod. sueltos</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={Number(form.prod_sueltos) ? form.prod_sueltos : ""}
-                onChange={(e) => setForm({ ...form, prod_sueltos: e.target.value })}
-                placeholder="Vacio = solo cajas"
               />
             </div>
           </div>

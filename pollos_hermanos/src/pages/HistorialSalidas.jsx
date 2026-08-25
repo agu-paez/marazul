@@ -4,22 +4,7 @@ import { generarResumenEntregaPDF } from "../utils/generarPDF";
 
 const DENOMINACIONES = [20000, 10000, 2000, 1000, 500, 200, 100];
 
-const formatoCajas = (item, unidades) => {
-  const cant = Math.round((Number(unidades) || 0) * 100) / 100;
-  if (!cant) return "0";
-  const factor = Number(item.unidadesPorCaja) > 0 ? Number(item.unidadesPorCaja) : 1;
-  if (factor <= 1) return `${cant}`;
-  if (!Number.isInteger(cant)) return `${cant} unid.`;
-  const cajas = Math.floor(cant / factor);
-  const sueltas = cant - cajas * factor;
-  const palabraCaja = cajas === 1 ? "caja" : "cajas";
-  if (item.tieneSueltos) {
-    if (!sueltas) return `${cajas} ${palabraCaja}`;
-    if (!cajas) return `${sueltas} ${sueltas === 1 ? "suelta" : "sueltas"}`;
-    return `${cajas} ${palabraCaja} + ${sueltas} ${sueltas === 1 ? "suelta" : "sueltas"}`;
-  }
-  return sueltas ? `${cant} unid.` : `${cajas} ${palabraCaja}`;
-};
+const formatoCantidad = (unidades) => String(Math.round((Number(unidades) || 0) * 100) / 100);
 
 export default function HistorialSalidas() {
   const [salidas, setSalidas] = useState([]);
@@ -65,20 +50,16 @@ export default function HistorialSalidas() {
       const vendidos = {};
       for (const venta of ventasRes.data) {
         for (const item of venta.VentaItems || []) {
-          const esCajaVenta = String(item.unidad_venta || "").toLowerCase() === "caja";
-          const factor = esCajaVenta && Number(item.unidades_por_caja) > 0 ? Number(item.unidades_por_caja) : 1;
-          const unidades = Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * factor;
+          const unidades = Number(item.cantidad) || 0;
           vendidos[item.productoId] = Math.round(((vendidos[item.productoId] || 0) + unidades) * 100) / 100;
         }
       }
       const items = (salidaRes.data.SalidaCamionItems || []).map((item) => ({
         ...item,
-        tieneSueltos: Number(item.Producto?.prod_sueltos || 0) > 0,
         vendido: vendidos[item.productoId] || 0,
-        unidadesPorCaja: Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1,
-        cargadoUnidades: Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
-        devueltoUnidades: Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1),
-        faltante: Math.max(0, Math.round(((Number(item.cantidad_unidades) > 0 ? Number(item.cantidad_unidades) : Number(item.cantidad) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) - (Number(item.cantidad_devuelta_unidades) > 0 ? Number(item.cantidad_devuelta_unidades) : Number(item.cantidad_devuelta || 0) * (Number(item.unidades_por_caja || item.Producto?.unidades_por_caja) || 1)) - (vendidos[item.productoId] || 0)) * 100) / 100),
+        cargadoUnidades: Number(item.cantidad) || 0,
+        devueltoUnidades: Number(item.cantidad_devuelta) || 0,
+        faltante: Math.max(0, (Number(item.cantidad) || 0) - (Number(item.cantidad_devuelta) || 0) - (vendidos[item.productoId] || 0)),
       }));
       return { salida: salidaRes.data, ventas: ventasRes.data, items, sobrantes: items.filter((item) => item.faltante > 0) };
     } catch (error) {
@@ -155,7 +136,7 @@ export default function HistorialSalidas() {
               <div className="sobrante-alert">
                 <strong>Faltó devolver mercadería</strong>
                 <span>Productos pendientes:</span>
-                {detalle.sobrantes.map((item) => <span key={item.id}>• {item.Producto?.nombre || "Producto"}: {formatoCajas(item, item.faltante)}</span>)}
+                {detalle.sobrantes.map((item) => <span key={item.id}>• {item.Producto?.nombre || "Producto"}: {formatoCantidad(item.faltante)}</span>)}
               </div>
             )}
             <div className="table-container">
@@ -163,10 +144,10 @@ export default function HistorialSalidas() {
                 <thead><tr><th>Producto</th><th>Llevó</th><th>Vendió</th><th>Devolvió</th><th>Faltó devolver</th></tr></thead>
                 <tbody>{detalle.items.map((item) => <tr key={item.id}>
                   <td>{item.Producto?.nombre || "-"}</td>
-                  <td>{formatoCajas(item, item.cargadoUnidades)}</td>
-                  <td>{formatoCajas(item, item.vendido)}</td>
-                  <td>{formatoCajas(item, item.devueltoUnidades)}</td>
-                  <td className={item.faltante > 0 ? "monto-regreso" : ""}><strong>{formatoCajas(item, item.faltante)}</strong></td>
+                  <td>{formatoCantidad(item.cargadoUnidades)}</td>
+                  <td>{formatoCantidad(item.vendido)}</td>
+                  <td>{formatoCantidad(item.devueltoUnidades)}</td>
+                  <td className={item.faltante > 0 ? "monto-regreso" : ""}><strong>{formatoCantidad(item.faltante)}</strong></td>
                 </tr>)}</tbody>
               </table>
             </div>
