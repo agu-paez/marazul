@@ -52,7 +52,7 @@ export default function Dashboard() {
   const [empleados, setEmpleados] = useState([]);
   const [pagosForm, setPagosForm] = useState({});
   const [guardandoPagos, setGuardandoPagos] = useState(false);
-  const [fechaConsulta, setFechaConsulta] = useState(getFechaLocal());
+  const [fechaConsulta, setFechaConsulta] = useState(() => localStorage.getItem("dashboardFecha") || getFechaLocal());
   const [ultimaFechaCierre, setUltimaFechaCierre] = useState(null);
 
   useEffect(() => {
@@ -71,7 +71,9 @@ export default function Dashboard() {
 
       const promises = [
         salidasAPI.getStats(),
-        salidasAPI.getAll(ultimoCierre ? { desde: ultimoCierre } : {}),
+        salidasAPI.getAll(localStorage.getItem("dashboardFecha")
+          ? { fecha: localStorage.getItem("dashboardFecha") }
+          : ultimoCierre ? { desde: ultimoCierre } : {}),
         cierreCajaAPI.getResumenHoy(fecha),
         productosAPI.getLowStock(),
         gastosAPI.getHoy(),
@@ -287,6 +289,7 @@ export default function Dashboard() {
     try {
       await gastosAPI.guardar(gastos);
       await cierreCajaAPI.cerrar(fechaConsulta);
+      localStorage.removeItem("dashboardFecha");
       setCierreExitoso(true);
       setSalidas([]);
       setStats(null);
