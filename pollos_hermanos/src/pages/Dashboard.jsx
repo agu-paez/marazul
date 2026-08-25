@@ -52,17 +52,18 @@ export default function Dashboard() {
   const [empleados, setEmpleados] = useState([]);
   const [pagosForm, setPagosForm] = useState({});
   const [guardandoPagos, setGuardandoPagos] = useState(false);
+  const [fechaConsulta, setFechaConsulta] = useState(getFechaLocal());
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (fecha = fechaConsulta) => {
     try {
       const promises = [
         salidasAPI.getStats(),
-        salidasAPI.getAll({ fecha: getFechaLocal() }),
-        cierreCajaAPI.getResumenHoy(),
+        salidasAPI.getAll({ fecha }),
+        cierreCajaAPI.getResumenHoy(fecha),
         productosAPI.getLowStock(),
         gastosAPI.getHoy(),
       ];
@@ -272,11 +273,11 @@ export default function Dashboard() {
       return;
     }
 
-    if (!confirm("¿Cerrar la caja del dia? No se podran hacer mas modificaciones.")) return;
+     if (!confirm(`¿Cerrar la caja del ${fechaConsulta}? No se podran hacer mas modificaciones.`)) return;
     setCerrando(true);
     try {
       await gastosAPI.guardar(gastos);
-      await cierreCajaAPI.cerrar();
+      await cierreCajaAPI.cerrar(fechaConsulta);
       setCierreExitoso(true);
       setSalidas([]);
       setStats(null);
@@ -320,8 +321,20 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <h2 style={{ margin: 0 }}>Dashboard</h2>
+       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", gap: "1rem", flexWrap: "wrap" }}>
+         <h2 style={{ margin: 0 }}>Dashboard</h2>
+         <label className="form-group" style={{ margin: 0 }}>
+           <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Fecha a consultar</span>
+           <input
+             type="date"
+             value={fechaConsulta}
+             onChange={(event) => {
+               setFechaConsulta(event.target.value);
+               setCierreExitoso(false);
+               loadData(event.target.value).catch(console.error);
+             }}
+           />
+         </label>
         {stockBajo.length > 0 && (
           <button
             className="btn btn-sm btn-cancel"
@@ -925,7 +938,7 @@ export default function Dashboard() {
       {!cierreExitoso && (
         <>
           <div className="section">
-            <h3>Repartos de Hoy ({salidas.length})</h3>
+            <h3>Repartos del {fechaConsulta} ({salidas.length})</h3>
             {salidas.length === 0 ? (
               <p className="empty">No hay salidas registradas hoy</p>
             ) : (

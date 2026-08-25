@@ -15,9 +15,13 @@ const checkDayClosed = async (fecha) => {
 export const getResumenDelDia = async (req, res) => {
   try {
     const today = getFechaLocal();
+    const fecha = req.query.fecha || today;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      return res.status(400).json({ message: "Fecha inválida" });
+    }
 
     const salidasHoy = await SalidaCamion.findAll({
-      where: { fecha: today },
+      where: { fecha },
       include: [
         {
           model: SalidaCamionItem,
@@ -63,7 +67,7 @@ export const getResumenDelDia = async (req, res) => {
     }
 
     const ventasHoy = await Venta.findAll({
-      where: { fecha: today, estado: "completada" },
+      where: { fecha, estado: "completada" },
       include: [
         {
           model: VentaItem,
@@ -91,10 +95,10 @@ export const getResumenDelDia = async (req, res) => {
     const totalGeneral = localMonto + repartoMonto;
     const ventas_netas = mercaderia_enviada - mercaderia_devuelta;
 
-    const cierreExistente = await CierreCaja.findOne({ where: { fecha: today } });
+    const cierreExistente = await CierreCaja.findOne({ where: { fecha } });
 
     res.json({
-      fecha: today,
+      fecha,
       salidas_count: salidasHoy.length,
       mercaderia_enviada: mercaderia_enviada.toFixed(2),
       mercaderia_devuelta: mercaderia_devuelta.toFixed(2),
