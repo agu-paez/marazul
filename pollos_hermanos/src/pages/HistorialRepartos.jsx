@@ -13,7 +13,7 @@ export default function HistorialRepartos() {
     try {
       const res = await repartosAPI.getAll();
       setRepartos(res.data);
-    } catch {
+    } catch (error) {
       console.error("Error:", error);
     } finally {
       setLoading(false);
@@ -73,7 +73,7 @@ export default function HistorialRepartos() {
                       </span>
                     ))}
                   </td>
-                  <td><strong>${r.precio_total}</strong></td>
+                  <td><strong>${Number(r.precio_total || 0).toFixed(2)}</strong></td>
                   <td>
                     <span
                       className="estado-badge"

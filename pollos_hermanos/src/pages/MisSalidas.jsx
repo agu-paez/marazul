@@ -709,7 +709,7 @@ export default function MisSalidas() {
                       ))}
                     </div>
                   </td>
-                  <td className="hide-col"><strong>${s.precio_total}</strong></td>
+                  <td className="hide-col"><strong>${Number(s.precio_total || 0).toFixed(2)}</strong></td>
                   <td className="hide-col">{s.monto_salida ? <strong className="monto-salida">${s.monto_salida}</strong> : "-"}</td>
                   <td className="hide-col">{s.monto_regreso ? <strong className="monto-regreso">${s.monto_regreso}</strong> : "-"}</td>
                 </tr>

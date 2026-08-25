@@ -827,8 +827,8 @@ export default function Dashboard() {
                                         <tr key={i}>
                                           <td>{item.producto}</td>
                                           <td>{item.cantidad}</td>
-                                          <td>${item.precio_unitario.toFixed(2)}</td>
-                                          <td><strong className="monto-salida">${item.subtotal.toFixed(2)}</strong></td>
+                                          <td>${Number(item.precio_unitario || 0).toFixed(2)}</td>
+                                          <td><strong className="monto-salida">${Number(item.subtotal || 0).toFixed(2)}</strong></td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -864,8 +864,8 @@ export default function Dashboard() {
                                         <tr key={i}>
                                           <td>{item.producto}</td>
                                           <td>{item.cantidad}</td>
-                                          <td>${item.precio_unitario.toFixed(2)}</td>
-                                          <td><strong className="monto-regreso">${item.subtotal.toFixed(2)}</strong></td>
+                                          <td>${Number(item.precio_unitario || 0).toFixed(2)}</td>
+                                          <td><strong className="monto-regreso">${Number(item.subtotal || 0).toFixed(2)}</strong></td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -925,7 +925,7 @@ export default function Dashboard() {
       {!cierreExitoso && (
         <>
           <div className="section">
-            <h3>Salidas de Hoy ({salidas.length})</h3>
+            <h3>Repartos de Hoy ({salidas.length})</h3>
             {salidas.length === 0 ? (
               <p className="empty">No hay salidas registradas hoy</p>
             ) : (
@@ -933,6 +933,7 @@ export default function Dashboard() {
                 <table>
                   <thead>
                     <tr>
+                      <th>Camión</th>
                       <th>Zona</th>
                       <th>Estado</th>
                       <th>Acciones</th>
@@ -946,6 +947,7 @@ export default function Dashboard() {
                   <tbody>
                     {salidas.map((s) => (
                       <tr key={s.id}>
+                        <td><strong>{s.camion || "-"}</strong></td>
                         <td><strong>{s.destino || "-"}</strong></td>
                         <td><span className="estado-badge" style={{ backgroundColor: estadoColors[s.estado] }}>{s.estado.replace("_", " ")}</span></td>
                         <td>

@@ -134,7 +134,7 @@ export default function HistorialCierres() {
     if (!confirmado) return;
 
     try {
-      await cierreCajaAPI.eliminar(cierre.id);
+      await cierreCajaAPI.eliminar(cierre.fecha);
       setCierres((actuales) => actuales.filter((item) => item.id !== cierre.id));
       if (cierreExpandido === cierre.id) {
         setCierreExpandido(null);

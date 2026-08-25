@@ -2,6 +2,11 @@ import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem,
 import { getFechaLocal } from "../utils/fecha.js";
 import { Op } from "sequelize";
 
+const normalizarMonto = (valor) => {
+  const monto = Number(valor);
+  return Number.isFinite(monto) && monto !== 9999999 ? monto : 0;
+};
+
 const checkDayClosed = async (fecha) => {
   const cierre = await CierreCaja.findOne({ where: { fecha } });
   return !!cierre;
@@ -30,24 +35,24 @@ export const getResumenDelDia = async (req, res) => {
 
     for (const salida of salidasHoy) {
       for (const item of salida.SalidaCamionItems || []) {
-        const valor = parseFloat(item.precio_unitario) * item.cantidad;
+        const valor = normalizarMonto(item.precio_unitario) * normalizarMonto(item.cantidad);
         mercaderia_enviada += valor;
         detalle_enviadas.push({
           producto: item.Producto?.nombre || "Desconocido",
           cantidad: item.cantidad,
-          precio_unitario: parseFloat(item.precio_unitario),
+          precio_unitario: normalizarMonto(item.precio_unitario),
           subtotal: valor,
           camion: salida.camion,
           salida_id: salida.id,
           repartidor: salida.repartidor_asignado?.nombre || "Sin asignar",
         });
         if (item.cantidad_devuelta && item.cantidad_devuelta > 0) {
-          const valorDevuelto = parseFloat(item.precio_unitario) * item.cantidad_devuelta;
+          const valorDevuelto = normalizarMonto(item.precio_unitario) * normalizarMonto(item.cantidad_devuelta);
           mercaderia_devuelta += valorDevuelto;
           detalle_devueltas.push({
             producto: item.Producto?.nombre || "Desconocido",
             cantidad: item.cantidad_devuelta,
-            precio_unitario: parseFloat(item.precio_unitario),
+            precio_unitario: normalizarMonto(item.precio_unitario),
             subtotal: valorDevuelto,
             camion: salida.camion,
             salida_id: salida.id,
@@ -73,7 +78,7 @@ export const getResumenDelDia = async (req, res) => {
     let repartoCount = 0;
 
     for (const venta of ventasHoy) {
-      const monto = parseFloat(venta.total) || 0;
+      const monto = normalizarMonto(venta.total);
       if (venta.tipo_venta === "local") {
         localMonto += monto;
         localCount++;
@@ -151,10 +156,10 @@ export const cerrarCaja = async (req, res) => {
 
     for (const salida of salidasHoy) {
       for (const item of salida.SalidaCamionItems || []) {
-        const valor = parseFloat(item.precio_unitario) * item.cantidad;
+        const valor = normalizarMonto(item.precio_unitario) * normalizarMonto(item.cantidad);
         mercaderia_enviada += valor;
         if (item.cantidad_devuelta && item.cantidad_devuelta > 0) {
-          mercaderia_devuelta += parseFloat(item.precio_unitario) * item.cantidad_devuelta;
+          mercaderia_devuelta += normalizarMonto(item.precio_unitario) * normalizarMonto(item.cantidad_devuelta);
         }
       }
     }
@@ -167,7 +172,7 @@ export const cerrarCaja = async (req, res) => {
     let repartoMonto = 0;
 
     for (const venta of ventasHoy) {
-      const monto = parseFloat(venta.total) || 0;
+      const monto = normalizarMonto(venta.total);
       if (venta.tipo_venta === "local") {
         localMonto += monto;
       } else {
@@ -224,7 +229,13 @@ export const getHistorialCierres = async (req, res) => {
     const cierres = await CierreCaja.findAll({
       order: [["fecha", "DESC"], ["createdAt", "DESC"]],
     });
-    res.json(cierres);
+    res.json(cierres.map((cierre) => ({
+      ...cierre.toJSON(),
+      total_ventas: normalizarMonto(cierre.total_ventas).toFixed(2),
+      mercaderia_enviada: normalizarMonto(cierre.mercaderia_enviada).toFixed(2),
+      mercaderia_devuelta: normalizarMonto(cierre.mercaderia_devuelta).toFixed(2),
+      ventas_netas: normalizarMonto(cierre.ventas_netas).toFixed(2),
+    })));
   } catch (error) {
     res.status(500).json({ message: "Error al obtener historial", error: error.message });
   }
@@ -505,7 +516,7 @@ export const getDetalleCierre = async (req, res) => {
     let repartoCount = 0;
 
     for (const venta of ventasHoy) {
-      const monto = parseFloat(venta.total) || 0;
+      const monto = normalizarMonto(venta.total);
       if (venta.tipo_venta === "local") {
         localMonto += monto;
         localCount++;
@@ -605,10 +616,10 @@ export const getDetalleCierre = async (req, res) => {
       hora: cierre.hora,
       usuario_cierre: cierre.usuario_cierre,
       salidas_count: cierre.salidas_count,
-      mercaderia_enviada: cierre.mercaderia_enviada,
-      mercaderia_devuelta: cierre.mercaderia_devuelta,
-      ventas_netas: cierre.ventas_netas,
-      total_ventas: cierre.total_ventas,
+      mercaderia_enviada: normalizarMonto(cierre.mercaderia_enviada).toFixed(2),
+      mercaderia_devuelta: normalizarMonto(cierre.mercaderia_devuelta).toFixed(2),
+      ventas_netas: normalizarMonto(cierre.ventas_netas).toFixed(2),
+      total_ventas: normalizarMonto(cierre.total_ventas).toFixed(2),
       gastos_combustible: cierre.gastos_combustible,
       gastos_otros: cierre.gastos_otros,
       descripcion_otros_gastos: cierre.descripcion_otros_gastos,
