@@ -6,6 +6,11 @@ import { dinero } from "../utils/numero";
 const getFechaLocal = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
 
+const getFechaDashboard = () => {
+  const guardada = localStorage.getItem("dashboardFecha");
+  return /^\d{4}-\d{2}-\d{2}$/.test(guardada || "") ? guardada : getFechaLocal();
+};
+
 const redondearUnid = (n) => Math.round(n * 1000) / 1000;
 
 const formatCant = (n) => {
@@ -52,7 +57,7 @@ export default function Dashboard() {
   const [empleados, setEmpleados] = useState([]);
   const [pagosForm, setPagosForm] = useState({});
   const [guardandoPagos, setGuardandoPagos] = useState(false);
-  const [fechaConsulta, setFechaConsulta] = useState(getFechaLocal());
+  const [fechaConsulta, setFechaConsulta] = useState(getFechaDashboard);
 
   useEffect(() => {
     loadData();
@@ -330,6 +335,7 @@ export default function Dashboard() {
              value={fechaConsulta}
              onChange={(event) => {
                setFechaConsulta(event.target.value);
+               localStorage.setItem("dashboardFecha", event.target.value);
                setCierreExitoso(false);
                loadData(event.target.value).catch(console.error);
              }}

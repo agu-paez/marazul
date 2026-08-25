@@ -49,6 +49,7 @@ export default function HistorialCierres() {
     if (!window.confirm(`¿Abrir la caja del día ${c.fecha}?\nEsto eliminará el cierre y permitirá modificar el día y volver a cerrarlo.`)) return;
     try {
       await cierreCajaAPI.abrir(c.fecha);
+      localStorage.setItem("dashboardFecha", String(c.fecha).slice(0, 10));
       alert("Caja abierta correctamente");
       loadCierres();
     } catch (error) {
