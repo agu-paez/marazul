@@ -470,6 +470,7 @@ export default function ProductosPage() {
               <select value={form.unidad} onChange={(e) => setForm({ ...form, unidad: e.target.value })}>
                  <option value="pieza">Pieza</option>
                  <option value="cajon">Cajón</option>
+                 <option value="caja">Caja</option>
                  <option value="kilogramo">Kilogramo</option>
                 <option value="litro">Litro</option>
               </select>
