@@ -17,6 +17,7 @@ const textoCantidad = (cant) => `${formatCant(cant)} unid.`;
 
 export default function MisSalidas() {
   const { user } = useAuth();
+  const isRepartidor = user?.role === "repartidor";
   const isOperador = user?.role === "operador";
   const [salidas, setSalidas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -501,7 +502,7 @@ export default function MisSalidas() {
                   <tr>
                     <th>Producto</th>
                     <th>Enviada</th>
-                    <th>Vendida</th>
+                    {!isRepartidor && <th>Vendida</th>}
                     <th>A Devolver</th>
                   </tr>
                 </thead>
@@ -510,8 +511,8 @@ export default function MisSalidas() {
                     return (
                       <tr key={item.productoId}>
                         <td><strong>{item.nombre}</strong></td>
-                         <td>{textoCantidad(item.cantidad_enviada)}</td>
-                         <td>{textoCantidad(item.cantidad_vendida)}</td>
+                          <td>{textoCantidad(item.cantidad_enviada)}</td>
+                          {!isRepartidor && <td>{textoCantidad(item.cantidad_vendida)}</td>}
                         <td>
                             <input
                               type="number"
