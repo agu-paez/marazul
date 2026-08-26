@@ -10,6 +10,39 @@ const createPdf = (...args) => {
   return doc;
 };
 
+const esIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent)
+  || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+export const descargarPDF = (doc, nombreArchivo) => {
+  if (!esIOS()) {
+    doc.save(nombreArchivo);
+    return;
+  }
+
+  const url = URL.createObjectURL(doc.output("blob"));
+  const ventana = window.open(url, "_blank");
+  if (!ventana) window.location.href = url;
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+};
+
+export const descargarPDFBlob = (blob, nombreArchivo) => {
+  const url = URL.createObjectURL(blob);
+  if (esIOS()) {
+    const ventana = window.open(url, "_blank");
+    if (!ventana) window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nombreArchivo;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
 const cargarLogo = () => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -353,7 +386,7 @@ export const generarComprobantePDF = async (venta) => {
   doc.setTextColor(170, 170, 180);
   doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, ph - 10, { align: "center" });
 
-  doc.save(`comprobante-${venta.numero_comprobante}.pdf`);
+  descargarPDF(doc, `comprobante-${venta.numero_comprobante}.pdf`);
 };
 
 export const generarResumenPagosPDF = async (pagos, fecha) => {
@@ -499,7 +532,7 @@ export const generarResumenPagosPDF = async (pagos, fecha) => {
   doc.setFont("helvetica", "normal");
   doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pageWidth / 2, pageHeight - 12, { align: "center" });
 
-  doc.save(`resumen-pagos-${fecha}.pdf`);
+  descargarPDF(doc, `resumen-pagos-${fecha}.pdf`);
 };
 
 export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
@@ -676,7 +709,7 @@ export const generarResumenPagosPorProveedorPDF = async (pagos, fecha) => {
     doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pageWidth / 2, pageHeight - 12, { align: "center" });
 
     const nombreArchivo = `transferencias-${grupo.proveedor.nombre.replace(/\s+/g, "-").toLowerCase()}-${fecha}.pdf`;
-    doc.save(nombreArchivo);
+    descargarPDF(doc, nombreArchivo);
   }
 
 };
@@ -875,7 +908,7 @@ export const generarCierreCajaPDF = async (datos) => {
   doc.setTextColor(170, 170, 180);
   doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, ph - 10, { align: "center" });
 
-  doc.save(`cierre-caja-${datos.fecha}.pdf`);
+  descargarPDF(doc, `cierre-caja-${datos.fecha}.pdf`);
 };
 
 export const generarTransferenciaIndividualPDF = async (pago, fecha) => {
@@ -987,7 +1020,7 @@ export const generarTransferenciaIndividualPDF = async (pago, fecha) => {
   const nombreProv = pago.proveedor ? pago.proveedor.nombre.replace(/\s+/g, "-").toLowerCase() : "sin-proveedor";
   const aliasPart = pago.proveedor?.alias ? `-${pago.proveedor.alias.replace(/\s+/g, "-").toLowerCase()}` : "";
   const titular = (pago.nombre_cuenta || "sintitular").replace(/\s+/g, "-").toLowerCase();
-  doc.save(`transferencia-${nombreProv}${aliasPart}-${titular}-${fecha}.pdf`);
+  descargarPDF(doc, `transferencia-${nombreProv}${aliasPart}-${titular}-${fecha}.pdf`);
 };
 
 export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
@@ -1377,7 +1410,7 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
   doc.setTextColor(170, 170, 180);
   doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, ph - 8, { align: "center" });
 
-  doc.save(`resumen-entrega-${salida.camion?.replace(/\s+/g, "-") || salida.id}-${salida.fecha}.pdf`);
+  descargarPDF(doc, `resumen-entrega-${salida.camion?.replace(/\s+/g, "-") || salida.id}-${salida.fecha}.pdf`);
 };
 
 export const generarGastosDiaPDF = (gasto) => {
@@ -1411,7 +1444,7 @@ export const generarGastosDiaPDF = (gasto) => {
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
   doc.text("Documento generado por el Sistema de Gestion Mar Azul", pw / 2, 280, { align: "center" });
-  doc.save(`gastos-${gasto.fecha}.pdf`);
+  descargarPDF(doc, `gastos-${gasto.fecha}.pdf`);
 };
 
 export const generarPagosEmpleadosPDF = (registro) => {
@@ -1453,7 +1486,7 @@ export const generarPagosEmpleadosPDF = (registro) => {
   doc.setFont("helvetica", "bold");
   doc.line(15, y + 2, pw - 15, y + 2);
   doc.text(`Total pagado: $${total.toFixed(2)}`, pw - 20, y + 11, { align: "right" });
-  doc.save(`pagos-empleados-${registro.fecha}.pdf`);
+  descargarPDF(doc, `pagos-empleados-${registro.fecha}.pdf`);
 };
 
 export const generarResumenZonasPDF = async (clientes, zonas = []) => {
@@ -1549,7 +1582,7 @@ export const generarResumenZonasPDF = async (clientes, zonas = []) => {
   doc.setFont("helvetica", "normal");
   doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, ph - 12, { align: "center" });
 
-  doc.save(`resumen-por-zonas-${getFechaLocal()}.pdf`);
+  descargarPDF(doc, `resumen-por-zonas-${getFechaLocal()}.pdf`);
 };
 
 const nombreArchivoSeguro = (nombre) => String(nombre || "cliente").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
@@ -1641,7 +1674,7 @@ export const generarHistorialDeudasPDF = async (historial) => {
   }
   if (!movimientos.length) { doc.setFont("helvetica", "italic"); doc.setTextColor(120, 120, 130); doc.text("No hay deudas ni pagos registrados.", ml + 3, y + 8); }
   doc.setFontSize(7); doc.setTextColor(160, 160, 160); doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, ph - 10, { align: "center" });
-  doc.save(`historial-deudas-${nombreArchivoSeguro(historial.cliente?.nombre)}.pdf`);
+  descargarPDF(doc, `historial-deudas-${nombreArchivoSeguro(historial.cliente?.nombre)}.pdf`);
 };
 
 export const generarDeudaVentaPDF = async (venta, historial) => {
@@ -1705,7 +1738,7 @@ export const generarDeudaVentaPDF = async (venta, historial) => {
   doc.setTextColor(70, 70, 75);
   doc.text("El estado refleja los movimientos registrados al momento de generar este documento.", tableX, y);
   doc.setFontSize(7); doc.setTextColor(160, 160, 160); doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, 285, { align: "center" });
-  doc.save(`deuda-venta-${venta.numero_comprobante || venta.id}.pdf`);
+  descargarPDF(doc, `deuda-venta-${venta.numero_comprobante || venta.id}.pdf`);
 };
 
 export const generarPagoClientePDF = async (pago, historial) => {
@@ -1758,5 +1791,5 @@ export const generarPagoClientePDF = async (pago, historial) => {
     y += rowH;
   });
   doc.setFontSize(7); doc.setTextColor(160, 160, 160); doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, 285, { align: "center" });
-  doc.save(`pago-cliente-${nombreArchivoSeguro(cliente?.nombre)}-${pago?.id || pago?.fecha || "registro"}.pdf`);
+  descargarPDF(doc, `pago-cliente-${nombreArchivoSeguro(cliente?.nombre)}-${pago?.id || pago?.fecha || "registro"}.pdf`);
 };

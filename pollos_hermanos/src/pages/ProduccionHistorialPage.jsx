@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { produccionAPI } from "../api";
+import { descargarPDFBlob } from "../utils/generarPDF";
 
 export default function ProduccionHistorialPage() {
   const [semanas, setSemanas] = useState([]);
@@ -17,12 +18,7 @@ export default function ProduccionHistorialPage() {
     setDescargando(semana);
     try {
       const response = await produccionAPI.descargarHistorialPDF(semana);
-      const url = URL.createObjectURL(response.data);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `produccion-${semana}.pdf`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      descargarPDFBlob(response.data, `produccion-${semana}.pdf`);
     } catch (error) {
       alert(error.response?.data?.message || "No se pudo generar el PDF");
     } finally {

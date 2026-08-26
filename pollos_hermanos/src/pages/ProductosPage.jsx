@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { productosAPI, marcasAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { descargarPDFBlob } from "../utils/generarPDF";
 
 export default function ProductosPage() {
   const { user } = useAuth();
@@ -145,14 +146,7 @@ export default function ProductosPage() {
 
     try {
       const response = await marcasAPI.descargarPDF({ descuento: porcentajeDescuento });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", tipoPrecio === "descuento" ? "lista-clientes-nuevos.pdf" : "lista-precios.pdf");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      descargarPDFBlob(new Blob([response.data]), tipoPrecio === "descuento" ? "lista-clientes-nuevos.pdf" : "lista-precios.pdf");
       setShowListaPrecios(false);
       setTipoPrecio("normal");
       setDescuento("");
