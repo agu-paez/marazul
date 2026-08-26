@@ -277,8 +277,6 @@ export default function HistorialVentasPage() {
                  <th>Acciones</th>
                   <th>Modificado por</th>
                   <th>Detalle</th>
-                 <th>Saldo nuestro</th>
-                 <th>Saldo cliente</th>
                  <th>Mercaderías</th>
               </tr>
             </thead>
@@ -338,9 +336,7 @@ export default function HistorialVentasPage() {
                        Detalle
                      </button>
                    </td>
-                   <td className="monto-regreso">${Number(v.cliente?.saldo_pendiente || 0).toFixed(2)}</td>
-                   <td style={{ color: "#2563eb" }}>${Number(v.cliente?.saldo_favor || 0).toFixed(2)}</td>
-                   <td>
+                    <td>
                     <div className="badge-grid">
                       {v.VentaItems?.map((item) => (
                         <span key={item.id} className="badge">

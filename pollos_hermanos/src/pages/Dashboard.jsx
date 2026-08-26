@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { salidasAPI, cierreCajaAPI, productosAPI, gastosAPI, pagosEmpleadosAPI, usuariosAPI } from "../api";
+import { salidasAPI, cierreCajaAPI, productosAPI, gastosAPI, pagosEmpleadosAPI, usuariosAPI, ventasAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { dinero } from "../utils/numero";
 
@@ -22,6 +22,7 @@ export default function Dashboard() {
   const formatVentas = dinero;
   const [editandoRegreso, setEditandoRegreso] = useState(false);
   const [stats, setStats] = useState(null);
+  const [ventasStats, setVentasStats] = useState(null);
   const [salidas, setSalidas] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [stockBajo, setStockBajo] = useState([]);
@@ -60,14 +61,16 @@ export default function Dashboard() {
 
       const promises = [
         salidasAPI.getStats(),
+        ventasAPI.getStats(fecha),
         salidasAPI.getAll(ultimoCierre ? { desde: ultimoCierre } : {}),
         cierreCajaAPI.getResumenHoy(fecha),
         productosAPI.getLowStock(),
         gastosAPI.getHoy(),
       ];
       const resultados = await Promise.allSettled(promises);
-      const [statsRes, salidasRes, resumenRes, stockRes, gastosRes] = resultados;
-      if (statsRes.status === "fulfilled") setStats(statsRes.value.data);
+       const [statsRes, ventasStatsRes, salidasRes, resumenRes, stockRes, gastosRes] = resultados;
+       if (statsRes.status === "fulfilled") setStats(statsRes.value.data);
+       if (ventasStatsRes.status === "fulfilled") setVentasStats(ventasStatsRes.value.data);
       if (salidasRes.status === "fulfilled") setSalidas(salidasRes.value.data);
       if (resumenRes.status === "fulfilled") setResumen(resumenRes.value.data);
       if (stockRes.status === "fulfilled") setStockBajo(stockRes.value.data);
@@ -593,8 +596,12 @@ export default function Dashboard() {
             <p>Entregados</p>
           </div>
           <div className="stat-card stat-ventas">
-            <h3>{formatVentas(stats.total_ventas)}</h3>
-            <p>Ventas del Dia</p>
+             <h3>{formatVentas(ventasStats?.total_monto || 0)}</h3>
+             <p>Total Ventas del Día</p>
+           </div>
+           <div className="stat-card stat-ventas">
+             <h3>{formatVentas(ventasStats?.reparto_monto || 0)}</h3>
+             <p>Ventas por Reparto</p>
           </div>
         </div>
       )}

@@ -344,6 +344,7 @@ export default function VentasPage() {
   }, [esReparto, clientes, camionSeleccionadoData]);
   const subtotal = calcularSubtotal();
   const deudaAnterior = clienteSeleccionado ? parseFloat(clienteSeleccionado.saldo_pendiente) || 0 : 0;
+  const saldoFavorCliente = clienteSeleccionado ? Math.max(0, parseFloat(clienteSeleccionado.saldo_favor) || 0) : 0;
   const tieneDeuda = deudaAnterior > 0;
   const montoDeuda = pagarDeuda && tieneDeuda ? deudaAnterior : 0;
   const totalConDeuda = subtotal + montoDeuda;
@@ -410,7 +411,7 @@ export default function VentasPage() {
       alert(`La suma de los pagos ($${totalPagosDivididos.toFixed(2)}) es menor al total ($${totalConDeuda.toFixed(2)})`);
       return;
     }
-    if (sobrantePagos > 0.01 && !confirm(`Hay un sobrante de $${sobrantePagos.toFixed(2)}. Se registrara como saldo a favor del cliente. ¿Deseas continuar?`)) {
+    if (sobrantePagos > 0.01 && !confirm(`El sobrante $${sobrantePagos.toFixed(2)} se descontara de la deuda. ¿Deseas continuar?`)) {
       return;
     }
     for (let i = 0; i < transferenciaIndices.length; i++) {
@@ -720,14 +721,14 @@ export default function VentasPage() {
             </div>
           </div>
 
-          {clienteSeleccionado && deudaAnterior < 0 && (
-            <div className="form-card" style={{ marginTop: "0.5rem", borderLeft: "3px solid #10b981" }}>
-              <div className="resumen-row">
-                <span style={{ fontWeight: "bold", color: "#10b981" }}>
-                  Saldo a favor en cuenta corriente:
-                </span>
-                <strong style={{ color: "#10b981", fontWeight: "bold" }}>${Math.abs(deudaAnterior).toFixed(2)}</strong>
-              </div>
+          {clienteSeleccionado && deudaAnterior > 0 && (
+            <div className="form-card" style={{ marginTop: "0.75rem", borderLeft: "4px solid #dc2626", background: "#fff5f5", width: "100%", boxSizing: "border-box" }}>
+              <strong style={{ color: "#b91c1c" }}>Tiene deuda de: ${deudaAnterior.toFixed(2)}</strong>
+            </div>
+          )}
+          {clienteSeleccionado && saldoFavorCliente > 0 && (
+            <div className="form-card" style={{ marginTop: "0.75rem", borderLeft: "4px solid #2563eb", background: "#eff6ff", width: "100%", boxSizing: "border-box" }}>
+              <strong style={{ color: "#1d4ed8" }}>Saldo a favor del cliente: ${saldoFavorCliente.toFixed(2)}</strong>
             </div>
           )}
 
@@ -888,7 +889,7 @@ export default function VentasPage() {
               )}
               {totalPagosDivididos > totalConDeuda && (
                 <div style={{ marginTop: "0.25rem", color: "#e67e22", fontWeight: "bold", fontSize: "0.9rem" }}>
-                  Hay un sobrante de ${(totalPagosDivididos - totalConDeuda).toFixed(2)} — se registrara como saldo a favor del cliente
+                  El sobrante $ {(totalPagosDivididos - totalConDeuda).toFixed(2)} se descontara de la deuda
                 </div>
               )}
               {!sumaPagosValida && totalPagosDivididos < totalConDeuda && (

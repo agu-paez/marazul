@@ -162,7 +162,7 @@ export const ventasAPI = {
   delete: (id) => API.delete(`/ventas/${id}`),
   modificarPago: (id, data) => API.put(`/ventas/${id}/pago`, data),
   modificarProductos: (id, data) => API.put(`/ventas/${id}/productos`, data),
-  getStats: () => API.get("/ventas/stats"),
+  getStats: (fecha) => API.get("/ventas/stats", { params: fecha ? { fecha } : {} }),
 };
 
 export const usuariosAPI = {

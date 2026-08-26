@@ -21,7 +21,7 @@ export const getResumenDelDia = async (req, res) => {
     }
 
     const salidasHoy = await SalidaCamion.findAll({
-      where: { fecha },
+      where: { fecha, estado: { [Op.ne]: "cancelado" } },
       include: [
         {
           model: SalidaCamionItem,
@@ -146,7 +146,7 @@ export const cerrarCaja = async (req, res) => {
     }
 
     const salidasHoy = await SalidaCamion.findAll({
-      where: { fecha: fechaCierre },
+      where: { fecha: fechaCierre, estado: { [Op.ne]: "cancelado" } },
       include: [
         {
           model: SalidaCamionItem,

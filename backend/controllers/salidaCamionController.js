@@ -613,7 +613,7 @@ export const deleteSalida = async (req, res) => {
 export const getSalidasStats = async (req, res) => {
   try {
     const today = getFechaLocal();
-    const where = { fecha: today };
+    const where = { fecha: today, estado: { [Op.ne]: "cancelado" } };
 
     if (req.userRole === "repartidor") {
       where.asignadoRepartidorId = req.user.id;

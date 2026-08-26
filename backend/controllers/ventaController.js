@@ -202,8 +202,12 @@ export const crearVenta = async (req, res) => {
 
       if (sobranteFavor > 0) {
         const clienteActual = await Cliente.findByPk(cliente.id);
+        const deudaActual = Math.max(0, parseFloat(clienteActual.saldo_pendiente) || 0);
+        const favorActual = Math.max(0, parseFloat(clienteActual.saldo_favor) || 0);
+        const descontado = Math.min(deudaActual, sobranteFavor);
         await clienteActual.update({
-          saldo_favor: ((parseFloat(clienteActual.saldo_favor) || 0) + sobranteFavor).toFixed(2),
+          saldo_pendiente: (deudaActual - descontado).toFixed(2),
+          saldo_favor: (favorActual + sobranteFavor - descontado).toFixed(2),
         });
       }
     } else {
@@ -435,7 +439,7 @@ export const getVentasStats = async (req, res) => {
   try {
     const today = getFechaLocal();
 
-    const where = { fecha: today, estado: "completada" };
+    const where = { fecha: req.query.fecha || today, estado: "completada" };
 
     const totalVentas = await Venta.count({ where });
     const localVentas = await Venta.count({ where: { ...where, tipo_venta: "local" } });
