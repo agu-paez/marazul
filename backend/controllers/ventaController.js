@@ -48,6 +48,8 @@ export const crearVenta = async (req, res) => {
       salidaCamionId,
       datos_transferencia,
       datos_tarjeta,
+      datos_cheque,
+      datos_ercheck,
       proveedorId,
       porcentaje_aumento,
     } = req.body;
@@ -167,25 +169,21 @@ export const crearVenta = async (req, res) => {
 
     const esPagoDividido = pagos && pagos.length > 0;
     let sobranteFavor = 0;
-
-    const montoCC = esPagoDividido
-      ? pagos
-          .filter((p) => p.medio_pago === "cuenta_corriente")
-          .reduce((sum, p) => sum + (parseFloat(p.monto) || 0), 0)
-      : medio_pago === "cuenta_corriente"
-        ? subtotalCalc
-        : 0;
+    let montoCC = 0;
 
     if (esPagoDividido) {
       const sumaPagos = pagos.reduce((sum, p) => sum + parseFloat(p.monto), 0);
       const montoDeudaPagar = pagar_deuda && monto_deuda ? parseFloat(monto_deuda) : 0;
       const totalEsperado = subtotalCalc + montoDeudaPagar;
       if (sumaPagos < totalEsperado - 0.01) {
-        return res.status(400).json({
-          message: `La suma de los pagos ($${sumaPagos.toFixed(2)}) es menor al total ($${totalEsperado.toFixed(2)})`,
-        });
+        const faltante = Number((totalEsperado - sumaPagos).toFixed(2));
+        pagos.push({ medio_pago: "cuenta_corriente", monto: faltante });
       }
       sobranteFavor = Math.max(0, sumaPagos - totalEsperado);
+
+      montoCC = pagos
+        .filter((p) => p.medio_pago === "cuenta_corriente")
+        .reduce((sum, p) => sum + (parseFloat(p.monto) || 0), 0);
 
       if (montoCC > 0) {
         const deudaOriginal = parseFloat(cliente.saldo_pendiente) || 0;
@@ -272,6 +270,8 @@ export const crearVenta = async (req, res) => {
       usuarioId: req.user.id,
       datos_transferencia: datos_transferencia || null,
       datos_tarjeta: datos_tarjeta || null,
+      datos_cheque: datos_cheque || null,
+      datos_ercheck: datos_ercheck || null,
       monto_deuda_pagado: pagar_deuda && monto_deuda ? parseFloat(monto_deuda) : null,
       monto_sobrante: sobranteFavor.toFixed(2),
       proveedorId: proveedorId || null,
@@ -511,17 +511,17 @@ export const modificarPagoVenta = async (req, res) => {
       alias: String(pago.alias || "").trim(),
       fecha_hora: pago.fecha_hora || new Date().toISOString(),
     }));
-    if (pagosNuevos.some((pago) => !["efectivo", "transferencia", "tarjeta", "cuenta_corriente", "otro"].includes(pago.medio_pago) || !Number.isFinite(pago.monto) || pago.monto < 0)) {
+    if (pagosNuevos.some((pago) => !["efectivo", "transferencia", "tarjeta", "cheque", "ercheck", "cuenta_corriente", "otro"].includes(pago.medio_pago) || !Number.isFinite(pago.monto) || pago.monto < 0)) {
       await transaction.rollback();
       return res.status(400).json({ message: "Los pagos indicados no son válidos" });
     }
-    if (pagosNuevos.some((pago) => ["transferencia", "tarjeta", "otro"].includes(pago.medio_pago) && (!pago.nombre_cuenta || !pago.banco))) {
+    if (pagosNuevos.some((pago) => ["transferencia", "tarjeta", "cheque", "ercheck", "otro"].includes(pago.medio_pago) && (!pago.nombre_cuenta || !pago.banco))) {
       await transaction.rollback();
-      return res.status(400).json({ message: "Transferencia, débito y otros pagos requieren nombre y banco" });
+      return res.status(400).json({ message: "Transferencia, tarjeta, cheque, ER check y otros pagos requieren nombre y banco" });
     }
-    if (pagosNuevos.some((pago) => ["transferencia", "tarjeta", "otro"].includes(pago.medio_pago) && !pago.proveedorId)) {
+    if (pagosNuevos.some((pago) => ["transferencia", "tarjeta", "cheque", "ercheck", "otro"].includes(pago.medio_pago) && !pago.proveedorId)) {
       await transaction.rollback();
-      return res.status(400).json({ message: "Debe seleccionar el proveedor destino para transferencia, débito u otro pago" });
+      return res.status(400).json({ message: "Debe seleccionar el proveedor destino para transferencia, tarjeta, cheque, ER check u otro pago" });
     }
     const proveedorIds = [...new Set(pagosNuevos.map((pago) => pago.proveedorId).filter(Boolean))];
     const proveedoresValidos = await Proveedor.findAll({ where: { id: { [Op.in]: proveedorIds } }, transaction });
@@ -599,6 +599,8 @@ export const modificarPagoVenta = async (req, res) => {
       pago_dividido: pagosNuevos.length > 1,
       datos_transferencia: pagosNuevos.filter((pago) => pago.medio_pago === "transferencia").map(obtenerDatosPago),
       datos_tarjeta: pagosNuevos.filter((pago) => pago.medio_pago === "tarjeta").map(obtenerDatosPago),
+      datos_cheque: pagosNuevos.filter((pago) => pago.medio_pago === "cheque").map(obtenerDatosPago),
+      datos_ercheck: pagosNuevos.filter((pago) => pago.medio_pago === "ercheck").map(obtenerDatosPago),
       datos_otro: pagosNuevos.filter((pago) => pago.medio_pago === "otro").map(obtenerDatosPago),
       pago_modificado_por_id: req.user.id,
       pago_modificado_en: ahora,

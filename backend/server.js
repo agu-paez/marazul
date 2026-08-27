@@ -179,6 +179,8 @@ const start = async () => {
     await ensureColumn(Venta, "datos_transferencia", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(Venta, "datos_tarjeta", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(Venta, "datos_otro", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(Venta, "datos_cheque", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(Venta, "datos_ercheck", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(Venta, "monto_deuda_pagado", { type: DataTypes.DECIMAL(10, 2), allowNull: true });
     await ensureColumn(Venta, "porcentaje_aumento", { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 });
     await ensureColumn(Venta, "pago_modificado_por_id", { type: DataTypes.INTEGER, allowNull: true });
@@ -221,6 +223,8 @@ const start = async () => {
     await ensureColumn(CierreCaja, "pagos_empleados", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(ClientePago, "datos_transferencia", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(ClientePago, "datos_tarjeta", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(ClientePago, "datos_cheque", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(ClientePago, "datos_ercheck", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(ClientePago, "proveedorId", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(ClientePago, "titular", { type: DataTypes.STRING, allowNull: true });
     await ensureColumn(ClientePago, "banco", { type: DataTypes.STRING, allowNull: true });
@@ -228,7 +232,7 @@ const start = async () => {
 
     const pagosClientes = await ClientePago.findAll({ where: { titular: null } });
     for (const pago of pagosClientes) {
-      const datosTexto = pago.datos_transferencia || pago.datos_tarjeta;
+      const datosTexto = pago.datos_transferencia || pago.datos_tarjeta || pago.datos_cheque || pago.datos_ercheck;
       if (!datosTexto) continue;
       try {
         let datos = typeof datosTexto === "string" ? JSON.parse(datosTexto) : datosTexto;

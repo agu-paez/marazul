@@ -13,18 +13,18 @@ export const getAllProveedores = async (req, res) => {
 
     const ventas = await Venta.findAll({
       where: { estado: "completada" },
-      attributes: ["datos_transferencia", "proveedorId"],
+      attributes: ["datos_transferencia", "datos_cheque", "datos_ercheck", "proveedorId"],
     });
     const pagosClientes = await ClientePago.findAll({
-      attributes: ["datos_transferencia", "datos_tarjeta"],
+      attributes: ["datos_transferencia", "datos_tarjeta", "datos_cheque", "datos_ercheck"],
     });
     const transferenciasPorProveedor = new Map();
     const proveedoresPorAlias = new Map(proveedores
       .filter((proveedor) => proveedor.alias)
       .map((proveedor) => [String(proveedor.alias).trim().toLowerCase(), proveedor.id]));
 
-    for (const venta of ventas) {
-      let transferencias = venta.datos_transferencia || [];
+    const acumularDatos = (datos, proveedorFallback) => {
+      let transferencias = datos || [];
       if (typeof transferencias === "string") {
         try {
           transferencias = JSON.parse(transferencias);
@@ -32,9 +32,11 @@ export const getAllProveedores = async (req, res) => {
           transferencias = [];
         }
       }
-
+      if (!Array.isArray(transferencias) && transferencias && typeof transferencias === "object") {
+        transferencias = [transferencias];
+      }
       for (const transferencia of Array.isArray(transferencias) ? transferencias : []) {
-        const proveedorId = transferencia.proveedorId || venta.proveedorId;
+        const proveedorId = transferencia.proveedorId || proveedorFallback;
         const monto = parseFloat(transferencia.monto) || 0;
         if (proveedorId && monto > 0) {
           transferenciasPorProveedor.set(
@@ -43,10 +45,16 @@ export const getAllProveedores = async (req, res) => {
           );
         }
       }
+    };
+
+    for (const venta of ventas) {
+      acumularDatos(venta.datos_transferencia, venta.proveedorId);
+      acumularDatos(venta.datos_cheque, venta.proveedorId);
+      acumularDatos(venta.datos_ercheck, venta.proveedorId);
     }
 
     for (const pago of pagosClientes) {
-      for (const datos of [pago.datos_transferencia, pago.datos_tarjeta]) {
+      for (const datos of [pago.datos_transferencia, pago.datos_tarjeta, pago.datos_cheque, pago.datos_ercheck]) {
         let transferencias = datos || [];
         if (typeof transferencias === "string") {
           try {

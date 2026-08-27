@@ -111,11 +111,11 @@ export default function MisSalidas() {
       return alert("El monto debe ser mayor a 0");
     }
     const proveedorPago = proveedores.find((proveedor) => String(proveedor.id) === String(pagoCliente.proveedorId));
-    if (["transferencia", "tarjeta"].includes(pagoCliente.medio_pago) && (!proveedorPago || !proveedorPago.alias || !pagoCliente.nombre_cuenta.trim() || !pagoCliente.banco)) {
+    if (["transferencia", "tarjeta", "cheque", "ercheck"].includes(pagoCliente.medio_pago) && (!proveedorPago || !proveedorPago.alias || !pagoCliente.nombre_cuenta.trim() || !pagoCliente.banco)) {
       return alert("Debe seleccionar un alias de proveedor y completar la cuenta y banco");
     }
 
-    const datosBancarios = ["transferencia", "tarjeta"].includes(pagoCliente.medio_pago)
+    const datosBancarios = ["transferencia", "tarjeta", "cheque", "ercheck"].includes(pagoCliente.medio_pago)
       ? {
           nombre_cuenta: pagoCliente.nombre_cuenta.trim(),
           titular: pagoCliente.nombre_cuenta.trim(),
@@ -136,6 +136,8 @@ export default function MisSalidas() {
           fecha_pago: pagoCliente.fecha_pago || null,
           datos_transferencia: pagoCliente.medio_pago === "transferencia" ? datosBancarios : null,
           datos_tarjeta: pagoCliente.medio_pago === "tarjeta" ? datosBancarios : null,
+          datos_cheque: pagoCliente.medio_pago === "cheque" ? datosBancarios : null,
+          datos_ercheck: pagoCliente.medio_pago === "ercheck" ? datosBancarios : null,
         }],
       });
       setShowPagoCliente(false);
@@ -320,10 +322,12 @@ export default function MisSalidas() {
                 <option value="efectivo">Efectivo</option>
                 <option value="transferencia">Transferencia</option>
                 <option value="tarjeta">Tarjeta</option>
+                <option value="cheque">Cheque</option>
+                <option value="ercheck">ER Check</option>
                 <option value="otro">Otro</option>
               </select>
             </div>
-            {["transferencia", "tarjeta"].includes(pagoCliente.medio_pago) && (
+            {["transferencia", "tarjeta", "cheque", "ercheck"].includes(pagoCliente.medio_pago) && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", alignItems: "end" }}>
                 <div className="form-group">
                   <label>Cuenta / titular *</label>

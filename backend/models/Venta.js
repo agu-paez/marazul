@@ -43,7 +43,7 @@ const Venta = sequelize.define("Venta", {
     type: DataTypes.STRING,
     allowNull: false,
     defaultValue: "efectivo",
-    validate: { isIn: [["efectivo", "transferencia", "tarjeta", "otro", "cuenta_corriente", "dividido"]] },
+    validate: { isIn: [["efectivo", "transferencia", "tarjeta", "cheque", "ercheck", "otro", "cuenta_corriente", "dividido"]] },
   },
   pago_dividido: {
     type: DataTypes.BOOLEAN,
@@ -91,6 +91,16 @@ const Venta = sequelize.define("Venta", {
     type: DataTypes.JSON,
     allowNull: true,
     comment: "Datos identificatorios de otros medios de pago",
+  },
+  datos_cheque: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    comment: "Datos de pagos por cheque",
+  },
+  datos_ercheck: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    comment: "Datos de pagos por ER Check",
   },
   monto_deuda_pagado: {
     type: DataTypes.DECIMAL(13, 2),

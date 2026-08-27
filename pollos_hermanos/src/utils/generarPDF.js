@@ -67,7 +67,7 @@ export const generarComprobantePDF = async (venta) => {
   const ml = 15, mr = 15;
   const cw = pw - ml - mr;
 
-  const medioLabel = { efectivo: "Efectivo", transferencia: "Transferencia", tarjeta: "Tarjeta", cuenta_corriente: "Cuenta Corriente", otro: "Otro" };
+  const medioLabel = { efectivo: "Efectivo", transferencia: "Transferencia", tarjeta: "Tarjeta", cheque: "Cheque", ercheck: "ER Check", cuenta_corriente: "Cuenta Corriente", otro: "Otro" };
 
   const parseDatos = (datos) => {
     if (!datos) return [];
@@ -84,13 +84,19 @@ export const generarComprobantePDF = async (venta) => {
     for (const d of parseDatos(venta.datos_tarjeta)) {
       rows.push({ metodo: "Tarjeta", banco: d.banco || "-", titular: d.nombre_cuenta || "-", monto: parseFloat(d.monto || 0) });
     }
+    for (const d of parseDatos(venta.datos_cheque)) {
+      rows.push({ metodo: "Cheque", banco: d.banco || "-", titular: d.nombre_cuenta || "-", monto: parseFloat(d.monto || 0) });
+    }
+    for (const d of parseDatos(venta.datos_ercheck)) {
+      rows.push({ metodo: "ER Check", banco: d.banco || "-", titular: d.nombre_cuenta || "-", monto: parseFloat(d.monto || 0) });
+    }
     if (venta.pago_dividido && venta.VentaPagos) {
       for (const p of venta.VentaPagos) {
-        if (p.medio_pago !== "transferencia" && p.medio_pago !== "tarjeta") {
+        if (!["transferencia", "tarjeta", "cheque", "ercheck"].includes(p.medio_pago)) {
           rows.push({ metodo: medioLabel[p.medio_pago] || p.medio_pago, banco: "-", titular: "-", monto: parseFloat(p.monto || 0) });
         }
       }
-    } else if (venta.medio_pago !== "transferencia" && venta.medio_pago !== "tarjeta") {
+    } else if (!["transferencia", "tarjeta", "cheque", "ercheck"].includes(venta.medio_pago)) {
       rows.push({ metodo: medioLabel[venta.medio_pago] || venta.medio_pago, banco: "-", titular: "-", monto: parseFloat(venta.total || 0) });
     }
     return rows;

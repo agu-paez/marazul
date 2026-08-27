@@ -40,6 +40,8 @@ export default function VentasPage() {
   const [stockLoading, setStockLoading] = useState(false);
   const [datosTransferencia, setDatosTransferencia] = useState([]);
   const [datosTarjeta, setDatosTarjeta] = useState([]);
+  const [datosCheque, setDatosCheque] = useState([]);
+  const [datosErcheck, setDatosErcheck] = useState([]);
   const [bancos, setBancos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [preciosPersonalizados, setPreciosPersonalizados] = useState({});
@@ -124,6 +126,8 @@ export default function VentasPage() {
        const now = fechaHoraLocalInput();
       const newDatosT = [...datosTransferencia];
       const newDatosJ = [...datosTarjeta];
+      const newDatosC = [...datosCheque];
+      const newDatosE = [...datosErcheck];
       if (e.target.value === "transferencia") {
          newDatosT[index] = { nombre_cuenta: "", fecha_hora: now, banco: "", monto: "0", proveedorId: "" };
       } else {
@@ -134,8 +138,20 @@ export default function VentasPage() {
       } else {
         newDatosJ[index] = null;
       }
+      if (e.target.value === "cheque") {
+        newDatosC[index] = { nombre_cuenta: "", fecha_hora: now, banco: "", monto: "0", proveedorId: "" };
+      } else {
+        newDatosC[index] = null;
+      }
+      if (e.target.value === "ercheck") {
+        newDatosE[index] = { nombre_cuenta: "", fecha_hora: now, banco: "", monto: "0", proveedorId: "" };
+      } else {
+        newDatosE[index] = null;
+      }
       setDatosTransferencia(newDatosT);
       setDatosTarjeta(newDatosJ);
+      setDatosCheque(newDatosC);
+      setDatosErcheck(newDatosE);
       setMontosEditando((prev) => {
         const next = { ...prev };
         delete next[index];
@@ -166,6 +182,14 @@ export default function VentasPage() {
       const newDatos = [...datosTarjeta];
       newDatos[index] = { ...newDatos[index], monto: value };
       setDatosTarjeta(newDatos);
+    } else if (newPagos[index].medio_pago === "cheque" && datosCheque[index]) {
+      const newDatos = [...datosCheque];
+      newDatos[index] = { ...newDatos[index], monto: value };
+      setDatosCheque(newDatos);
+    } else if (newPagos[index].medio_pago === "ercheck" && datosErcheck[index]) {
+      const newDatos = [...datosErcheck];
+      newDatos[index] = { ...newDatos[index], monto: value };
+      setDatosErcheck(newDatos);
     }
 
     setMontosEditando((prev) => {
@@ -181,6 +205,8 @@ export default function VentasPage() {
     setPagos([...pagos, { medio_pago: "efectivo", monto: montoRestante.toFixed(2) }]);
     setDatosTransferencia([...datosTransferencia, null]);
     setDatosTarjeta([...datosTarjeta, null]);
+    setDatosCheque([...datosCheque, null]);
+    setDatosErcheck([...datosErcheck, null]);
   };
 
   const removePago = (index) => {
@@ -188,6 +214,8 @@ export default function VentasPage() {
       setPagos(pagos.filter((_, i) => i !== index));
       setDatosTransferencia(datosTransferencia.filter((_, i) => i !== index));
       setDatosTarjeta(datosTarjeta.filter((_, i) => i !== index));
+      setDatosCheque(datosCheque.filter((_, i) => i !== index));
+      setDatosErcheck(datosErcheck.filter((_, i) => i !== index));
       setMontosEditando((prev) => {
         const next = {};
         Object.entries(prev).forEach(([key, value]) => {
@@ -214,17 +242,37 @@ export default function VentasPage() {
 
   const esTarjeta = pagos.some((p) => p.medio_pago === "tarjeta");
 
+  const esCheque = pagos.some((p) => p.medio_pago === "cheque");
+
+  const esErcheck = pagos.some((p) => p.medio_pago === "ercheck");
+
   const transferenciaIndices = pagos.reduce((acc, p, i) => (p.medio_pago === "transferencia" ? [...acc, i] : acc), []);
 
   const tarjetaIndices = pagos.reduce((acc, p, i) => (p.medio_pago === "tarjeta" ? [...acc, i] : acc), []);
+
+  const chequeIndices = pagos.reduce((acc, p, i) => (p.medio_pago === "cheque" ? [...acc, i] : acc), []);
+
+  const ercheckIndices = pagos.reduce((acc, p, i) => (p.medio_pago === "ercheck" ? [...acc, i] : acc), []);
 
   const isDatosBancariosCompleto = (datos) => {
     return datos && datos.nombre_cuenta.trim() && datos.fecha_hora && datos.banco.trim() && datos.monto;
   };
 
   const handleDatoBancarioRapido = (tipo, index, campo, valor) => {
-    const setDatos = tipo === "transferencia" ? setDatosTransferencia : setDatosTarjeta;
-    const datos = tipo === "transferencia" ? datosTransferencia : datosTarjeta;
+    const setDatosPorTipo = {
+      transferencia: setDatosTransferencia,
+      tarjeta: setDatosTarjeta,
+      cheque: setDatosCheque,
+      ercheck: setDatosErcheck,
+    };
+    const datosPorTipo = {
+      transferencia: datosTransferencia,
+      tarjeta: datosTarjeta,
+      cheque: datosCheque,
+      ercheck: datosErcheck,
+    };
+    const setDatos = setDatosPorTipo[tipo] || setDatosTransferencia;
+    const datos = datosPorTipo[tipo] || datosTransferencia;
     const newDatos = [...datos];
     newDatos[index] = { ...newDatos[index], [campo]: valor };
     if (newDatos[index].nombre_cuenta && newDatos[index].banco && !newDatos[index].fecha_hora) {
@@ -242,8 +290,20 @@ export default function VentasPage() {
   };
 
   const handleProveedorChange = (tipo, index, value) => {
-    const setDatos = tipo === "transferencia" ? setDatosTransferencia : setDatosTarjeta;
-    const datos = tipo === "transferencia" ? datosTransferencia : datosTarjeta;
+    const setDatosPorTipo = {
+      transferencia: setDatosTransferencia,
+      tarjeta: setDatosTarjeta,
+      cheque: setDatosCheque,
+      ercheck: setDatosErcheck,
+    };
+    const datosPorTipo = {
+      transferencia: datosTransferencia,
+      tarjeta: datosTarjeta,
+      cheque: datosCheque,
+      ercheck: datosErcheck,
+    };
+    const setDatos = setDatosPorTipo[tipo] || setDatosTransferencia;
+    const datos = datosPorTipo[tipo] || datosTransferencia;
     const newDatos = [...datos];
     newDatos[index] = { ...newDatos[index], proveedorId: value };
     setDatos(newDatos);
@@ -407,9 +467,9 @@ export default function VentasPage() {
       alert("Debe seleccionar un camion para venta por reparto");
       return;
     }
-    if (pagoDividido && !sumaPagosValida) {
-      alert(`La suma de los pagos ($${totalPagosDivididos.toFixed(2)}) es menor al total ($${totalConDeuda.toFixed(2)})`);
-      return;
+    if (pagoDividido && montoRestantePago > 0.01) {
+      const cerrarConFaltante = confirm(`El importe faltante de $${montoRestantePago.toFixed(2)} se agregara a la cuenta corriente del cliente. ¿Desea cerrar la venta?`);
+      if (!cerrarConFaltante) return;
     }
     if (sobrantePagos > 0.01 && !confirm(`El sobrante $${sobrantePagos.toFixed(2)} se descontara de la deuda. ¿Deseas continuar?`)) {
       return;
@@ -426,6 +486,18 @@ export default function VentasPage() {
         return;
       }
     }
+    for (let i = 0; i < chequeIndices.length; i++) {
+      if (!datosCheque[chequeIndices[i]]?.proveedorId) {
+        alert(`Debe seleccionar una cuenta de proveedor para el Cheque ${i + 1}`);
+        return;
+      }
+    }
+    for (let i = 0; i < ercheckIndices.length; i++) {
+      if (!datosErcheck[ercheckIndices[i]]?.proveedorId) {
+        alert(`Debe seleccionar una cuenta de proveedor para el ER Check ${i + 1}`);
+        return;
+      }
+    }
     for (let i = 0; i < transferenciaIndices.length; i++) {
       if (!isDatosBancariosCompleto(datosTransferencia[transferenciaIndices[i]])) {
         alert(`Debe completar todos los campos del formulario de Transferencia ${i + 1}`);
@@ -435,6 +507,18 @@ export default function VentasPage() {
     for (let i = 0; i < tarjetaIndices.length; i++) {
       if (!isDatosBancariosCompleto(datosTarjeta[tarjetaIndices[i]])) {
         alert(`Debe completar todos los campos del formulario de Tarjeta ${i + 1}`);
+        return;
+      }
+    }
+    for (let i = 0; i < chequeIndices.length; i++) {
+      if (!isDatosBancariosCompleto(datosCheque[chequeIndices[i]])) {
+        alert(`Debe completar todos los campos del formulario de Cheque ${i + 1}`);
+        return;
+      }
+    }
+    for (let i = 0; i < ercheckIndices.length; i++) {
+      if (!isDatosBancariosCompleto(datosErcheck[ercheckIndices[i]])) {
+        alert(`Debe completar todos los campos del formulario de ER Check ${i + 1}`);
         return;
       }
     }
@@ -502,6 +586,28 @@ export default function VentasPage() {
              proveedorId: d.proveedorId ? parseInt(d.proveedorId) : null,
           }));
       }
+      if (esCheque) {
+        data.datos_cheque = datosCheque
+          .filter((d) => isDatosBancariosCompleto(d))
+          .map((d) => ({
+            nombre_cuenta: d.nombre_cuenta,
+            fecha_hora: d.fecha_hora,
+             banco: d.banco,
+             monto: parseFloat(d.monto) || 0,
+             proveedorId: d.proveedorId ? parseInt(d.proveedorId) : null,
+          }));
+      }
+      if (esErcheck) {
+        data.datos_ercheck = datosErcheck
+          .filter((d) => isDatosBancariosCompleto(d))
+          .map((d) => ({
+            nombre_cuenta: d.nombre_cuenta,
+            fecha_hora: d.fecha_hora,
+             banco: d.banco,
+             monto: parseFloat(d.monto) || 0,
+             proveedorId: d.proveedorId ? parseInt(d.proveedorId) : null,
+          }));
+      }
       const res = await ventasAPI.create(data);
       const ventaGuardada = res.data.venta;
       setUltimaVenta(ventaGuardada);
@@ -517,6 +623,8 @@ export default function VentasPage() {
       setPagos([{ medio_pago: "efectivo", monto: 0 }]);
       setDatosTransferencia([]);
       setDatosTarjeta([]);
+      setDatosCheque([]);
+      setDatosErcheck([]);
       setPagarDeuda(false);
       setPreciosPersonalizados({});
       setDescuentosAplicados({});
@@ -739,6 +847,8 @@ export default function VentasPage() {
               {pagos.map((pago, index) => {
                 const esTrans = pago.medio_pago === "transferencia";
                 const esTarj = pago.medio_pago === "tarjeta";
+                const esCheq = pago.medio_pago === "cheque";
+                const esErch = pago.medio_pago === "ercheck";
                 return (
                 <div key={index} style={{ marginBottom: "0.75rem" }}>
                   <div className="item-row" style={{ alignItems: "flex-end" }}>
@@ -754,6 +864,8 @@ export default function VentasPage() {
                         <option value="efectivo">Efectivo</option>
                         <option value="transferencia">Transferencia</option>
                         <option value="tarjeta">Tarjeta</option>
+                        <option value="cheque">Cheque</option>
+                        <option value="ercheck">ER Check</option>
                         <option value="cuenta_corriente">Cuenta Corriente</option>
                         <option value="otro">Otro</option>
                       </select>
@@ -862,6 +974,102 @@ export default function VentasPage() {
                       />
                     </div>
                   )}
+                  {esCheq && (
+                    <div className="pago-detalle-row" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.4rem", padding: "0.4rem", background: "#fdf6e3", borderRadius: "6px", borderLeft: "3px solid #f39c12" }}>
+                      <select
+                         value={datosCheque[index]?.proveedorId || ""}
+                         onChange={(e) => handleProveedorChange("cheque", index, e.target.value)}
+                         required
+                        style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
+                      >
+                        <option value="">Seleccionar proveedor destino...</option>
+                        {proveedores.map((p) => (
+                           <option key={p.id} value={p.id}>
+                             {p.nombre} - Alias a transferir: {p.alias || "Sin alias"}
+                           </option>
+                        ))}
+                      </select>
+                      <input
+                        value={datosCheque[index]?.nombre_cuenta || ""}
+                        onChange={(e) => handleDatoBancarioRapido("cheque", index, "nombre_cuenta", e.target.value)}
+                        placeholder="Nombre de la cuenta / titular"
+                        style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
+                      />
+                      <BancoAutocomplete
+                        value={datosCheque[index]?.banco || ""}
+                        onChange={(val) => handleDatoBancarioRapido("cheque", index, "banco", val)}
+                        bancos={bancos}
+                        onAddBanco={(v) => {
+                          if (!bancos.includes(v)) {
+                            bancosAPI.create({ nombre: v }).then(() => {
+                              setBancos(prev => [...prev, v]);
+                            }).catch(console.error);
+                          }
+                        }}
+                        exclude={[
+                          ...datosTransferencia.filter(Boolean).map(d => d.banco).filter(Boolean),
+                          ...datosTarjeta.filter(Boolean).map(d => d.banco).filter(Boolean),
+                          ...datosCheque.filter((_, idx) => idx !== index).filter(Boolean).map(d => d.banco).filter(Boolean),
+                          ...datosErcheck.filter(Boolean).map(d => d.banco).filter(Boolean),
+                        ]}
+                      />
+                      <input
+                        type="datetime-local"
+                        value={datosCheque[index]?.fecha_hora || ""}
+                        onChange={(e) => handleDatoBancarioRapido("cheque", index, "fecha_hora", e.target.value)}
+                        placeholder="Fecha del cheque"
+                        style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
+                      />
+                    </div>
+                  )}
+                  {esErch && (
+                    <div className="pago-detalle-row" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.4rem", padding: "0.4rem", background: "#eefaf0", borderRadius: "6px", borderLeft: "3px solid #27ae60" }}>
+                      <select
+                         value={datosErcheck[index]?.proveedorId || ""}
+                         onChange={(e) => handleProveedorChange("ercheck", index, e.target.value)}
+                         required
+                        style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
+                      >
+                        <option value="">Seleccionar proveedor destino...</option>
+                        {proveedores.map((p) => (
+                           <option key={p.id} value={p.id}>
+                             {p.nombre} - Alias a transferir: {p.alias || "Sin alias"}
+                           </option>
+                        ))}
+                      </select>
+                      <input
+                        value={datosErcheck[index]?.nombre_cuenta || ""}
+                        onChange={(e) => handleDatoBancarioRapido("ercheck", index, "nombre_cuenta", e.target.value)}
+                        placeholder="Nombre de la cuenta / titular"
+                        style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
+                      />
+                      <BancoAutocomplete
+                        value={datosErcheck[index]?.banco || ""}
+                        onChange={(val) => handleDatoBancarioRapido("ercheck", index, "banco", val)}
+                        bancos={bancos}
+                        onAddBanco={(v) => {
+                          if (!bancos.includes(v)) {
+                            bancosAPI.create({ nombre: v }).then(() => {
+                              setBancos(prev => [...prev, v]);
+                            }).catch(console.error);
+                          }
+                        }}
+                        exclude={[
+                          ...datosTransferencia.filter(Boolean).map(d => d.banco).filter(Boolean),
+                          ...datosTarjeta.filter(Boolean).map(d => d.banco).filter(Boolean),
+                          ...datosCheque.filter(Boolean).map(d => d.banco).filter(Boolean),
+                          ...datosErcheck.filter((_, idx) => idx !== index).filter(Boolean).map(d => d.banco).filter(Boolean),
+                        ]}
+                      />
+                      <input
+                        type="datetime-local"
+                        value={datosErcheck[index]?.fecha_hora || ""}
+                        onChange={(e) => handleDatoBancarioRapido("ercheck", index, "fecha_hora", e.target.value)}
+                        placeholder="Fecha del ER Check"
+                        style={{ width: "100%", padding: "4px 8px", fontSize: "0.85rem" }}
+                      />
+                    </div>
+                  )}
                 </div>
                 );
               })}
@@ -893,8 +1101,8 @@ export default function VentasPage() {
                 </div>
               )}
               {!sumaPagosValida && totalPagosDivididos < totalConDeuda && (
-                <div className="error-msg" style={{ marginTop: "0.25rem" }}>
-                  Falta agregar ${Math.abs(totalConDeuda - totalPagosDivididos).toFixed(2)}
+                <div style={{ marginTop: "0.25rem", color: "#e67e22", fontWeight: "bold", fontSize: "0.9rem" }}>
+                  El faltante de ${(totalConDeuda - totalPagosDivididos).toFixed(2)} se agregara a la cuenta corriente del cliente al cerrar la venta
                 </div>
               )}
             </div>
@@ -1035,7 +1243,7 @@ export default function VentasPage() {
         <button
           type="submit"
           className="btn btn-primary btn-full"
-          disabled={loading || (pagoDividido && !sumaPagosValida) || productosSeleccionados.length === 0}
+          disabled={loading || productosSeleccionados.length === 0}
         >
           {loading ? "Procesando..." : "Finalizar Venta"}
         </button>

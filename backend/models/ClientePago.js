@@ -14,7 +14,7 @@ const ClientePago = sequelize.define("ClientePago", {
   medio_pago: {
     type: DataTypes.STRING,
     allowNull: false,
-    validate: { isIn: [["efectivo", "transferencia", "tarjeta", "otro"]] },
+    validate: { isIn: [["efectivo", "transferencia", "tarjeta", "cheque", "ercheck", "otro"]] },
   },
   fecha: {
     type: DataTypes.DATEONLY,
@@ -38,6 +38,14 @@ const ClientePago = sequelize.define("ClientePago", {
     allowNull: true,
   },
   datos_tarjeta: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  datos_cheque: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  datos_ercheck: {
     type: DataTypes.TEXT,
     allowNull: true,
   },

@@ -151,42 +151,37 @@ export default function ClientesPage() {
       return;
     }
     const pagoBancarioInvalido = pagosCC.some((pago) => {
-      if (!["transferencia", "tarjeta"].includes(pago.medio_pago)) return false;
+      if (!["transferencia", "tarjeta", "cheque", "ercheck"].includes(pago.medio_pago)) return false;
       const proveedor = proveedores.find((item) => String(item.id) === String(pago.proveedorId));
       return !proveedor?.alias || !pago.nombre_cuenta?.trim() || !pago.banco;
     });
     if (pagoBancarioInvalido) {
-      alert("Para transferencias o tarjetas debe seleccionar proveedor, cuenta/titular y banco");
+      alert("Para transferencias, tarjetas, cheques o ER checks debe seleccionar proveedor, cuenta/titular y banco");
       return;
     }
     try {
       const res = await clientesAPI.registrarPagoCC(clientePago.id, {
         pagos: pagosCC.map((p) => {
           const proveedor = proveedores.find((item) => String(item.id) === String(p.proveedorId));
-          const esBancario = ["transferencia", "tarjeta"].includes(p.medio_pago);
+          const esBancario = ["transferencia", "tarjeta", "cheque", "ercheck"].includes(p.medio_pago);
+          const datosBancarios = esBancario ? {
+            nombre_cuenta: p.nombre_cuenta.trim(),
+            titular: p.nombre_cuenta.trim(),
+            alias: proveedor?.alias || "",
+            proveedorId: proveedor?.id || null,
+            banco: p.banco,
+            fecha_hora: new Date().toISOString(),
+            monto: parseNumero(p.monto),
+          } : null;
           return {
             medio_pago: p.medio_pago,
             monto: parseNumero(p.monto),
             fecha_pago: fechaPagoCC || null,
             ...(esBancario ? {
-              datos_transferencia: p.medio_pago === "transferencia" ? {
-                nombre_cuenta: p.nombre_cuenta.trim(),
-                titular: p.nombre_cuenta.trim(),
-                alias: proveedor?.alias || "",
-                proveedorId: proveedor?.id || null,
-                banco: p.banco,
-                fecha_hora: new Date().toISOString(),
-                monto: parseNumero(p.monto),
-              } : null,
-              datos_tarjeta: p.medio_pago === "tarjeta" ? {
-                nombre_cuenta: p.nombre_cuenta.trim(),
-                titular: p.nombre_cuenta.trim(),
-                alias: proveedor?.alias || "",
-                proveedorId: proveedor?.id || null,
-                banco: p.banco,
-                fecha_hora: new Date().toISOString(),
-                monto: parseNumero(p.monto),
-              } : null,
+              datos_transferencia: p.medio_pago === "transferencia" ? datosBancarios : null,
+              datos_tarjeta: p.medio_pago === "tarjeta" ? datosBancarios : null,
+              datos_cheque: p.medio_pago === "cheque" ? datosBancarios : null,
+              datos_ercheck: p.medio_pago === "ercheck" ? datosBancarios : null,
             } : {}),
           };
         }),
@@ -457,6 +452,8 @@ export default function ClientesPage() {
                     <option value="efectivo">Efectivo</option>
                     <option value="transferencia">Transferencia</option>
                     <option value="tarjeta">Tarjeta</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="ercheck">ER Check</option>
                     <option value="otro">Otro</option>
                   </select>
                   <input
@@ -470,7 +467,7 @@ export default function ClientesPage() {
                     placeholder="Monto"
                     required
                   />
-                  {["transferencia", "tarjeta"].includes(pago.medio_pago) && (
+                  {["transferencia", "tarjeta", "cheque", "ercheck"].includes(pago.medio_pago) && (
                     <>
                       <select
                         name="proveedorId"

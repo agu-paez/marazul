@@ -261,9 +261,9 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
     const saldoPendienteActual = Math.max(0, deudaOriginal - favorOriginal);
     const saldoFavorActual = Math.max(0, favorOriginal - deudaOriginal);
     for (const pago of pagos) {
-      const datosBancarios = pago.datos_transferencia || pago.datos_tarjeta;
+      const datosBancarios = pago.datos_transferencia || pago.datos_tarjeta || pago.datos_cheque || pago.datos_ercheck;
       const proveedorId = datosBancarios?.proveedorId || null;
-      if (["transferencia", "tarjeta"].includes(pago.medio_pago)) {
+      if (["transferencia", "tarjeta", "cheque", "ercheck"].includes(pago.medio_pago)) {
         const proveedor = proveedorId ? await Proveedor.findOne({ where: { id: proveedorId, activo: true } }) : null;
         if (!proveedor) {
           return res.status(400).json({ message: "Debe seleccionar un alias de proveedor válido" });
@@ -283,7 +283,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
     const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
 
     for (const pago of pagos) {
-      const datosBancarios = pago.datos_transferencia || pago.datos_tarjeta;
+      const datosBancarios = pago.datos_transferencia || pago.datos_tarjeta || pago.datos_cheque || pago.datos_ercheck;
       const proveedorId = datosBancarios?.proveedorId || null;
       await ClientePago.create({
         clienteId: cliente.id,
@@ -295,6 +295,8 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
         notas: pago.notas || null,
         datos_transferencia: pago.datos_transferencia ? JSON.stringify(pago.datos_transferencia) : null,
         datos_tarjeta: pago.datos_tarjeta ? JSON.stringify(pago.datos_tarjeta) : null,
+        datos_cheque: pago.datos_cheque ? JSON.stringify(pago.datos_cheque) : null,
+        datos_ercheck: pago.datos_ercheck ? JSON.stringify(pago.datos_ercheck) : null,
         proveedorId,
         titular: datosBancarios?.titular || datosBancarios?.nombre_cuenta || datosBancarios?.cuenta || null,
         banco: datosBancarios?.banco || datosBancarios?.nombre_banco || null,

@@ -136,9 +136,11 @@ export default function HistorialVentasPage() {
     const datosPorMedio = {
       transferencia: parseDatos(venta.datos_transferencia),
       tarjeta: parseDatos(venta.datos_tarjeta),
+      cheque: parseDatos(venta.datos_cheque),
+      ercheck: parseDatos(venta.datos_ercheck),
       otro: parseDatos(venta.datos_otro),
     };
-    const indices = { transferencia: 0, tarjeta: 0, otro: 0 };
+    const indices = { transferencia: 0, tarjeta: 0, cheque: 0, ercheck: 0, otro: 0 };
     const pagos = venta.VentaPagos?.length
       ? venta.VentaPagos.map((pago) => {
         const detalle = datosPorMedio[pago.medio_pago]?.[indices[pago.medio_pago]++] || {};
@@ -467,6 +469,8 @@ export default function HistorialVentasPage() {
                     <option value="efectivo">Efectivo</option>
                     <option value="transferencia">Transferencia</option>
                     <option value="tarjeta">Débito</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="ercheck">ER Check</option>
                     <option value="cuenta_corriente">Cuenta Corriente</option>
                     <option value="otro">Otro</option>
                   </select>
@@ -486,6 +490,8 @@ export default function HistorialVentasPage() {
                 {[
                   "transferencia",
                   "tarjeta",
+                  "cheque",
+                  "ercheck",
                   "otro",
                 ].includes(pago.medio_pago) && (
                   <div className="item-row" style={{ marginTop: "0.35rem" }}>
@@ -499,7 +505,7 @@ export default function HistorialVentasPage() {
                     <input placeholder="Nombre de la cuenta" value={pago.nombre_cuenta || ""} onChange={(e) => setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, nombre_cuenta: e.target.value } : item))} required />
                   </div>
                 )}
-                {["transferencia", "tarjeta", "otro"].includes(pago.medio_pago) && (
+                {["transferencia", "tarjeta", "cheque", "ercheck", "otro"].includes(pago.medio_pago) && (
                   <BancoAutocomplete
                     value={pago.banco || ""}
                     onChange={(valor) => setPagosEditados((prev) => prev.map((item, i) => i === index ? { ...item, banco: valor } : item))}

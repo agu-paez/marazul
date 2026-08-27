@@ -104,6 +104,8 @@ for (const [columna, tipo] of nuevasColumnasVentaItems) {
 
 const nuevasColumnasVentas = [
   ['datos_otro', 'TEXT'],
+  ['datos_cheque', 'TEXT'],
+  ['datos_ercheck', 'TEXT'],
   ['pago_modificado_por_id', 'INTEGER'],
   ['pago_modificado_en', 'DATETIME'],
   ['pago_modificacion_detalle', 'TEXT'],

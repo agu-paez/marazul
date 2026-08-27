@@ -457,7 +457,7 @@ export const getDetalleCierre = async (req, res) => {
 
     const ventasHoy = await Venta.findAll({
       where: { fecha, estado: "completada" },
-      attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "medio_pago", "total", "tipo_venta", "proveedorId"],
+      attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "datos_cheque", "datos_ercheck", "medio_pago", "total", "tipo_venta", "proveedorId"],
       include: [
         { model: VentaPago, attributes: ["medio_pago", "monto"] },
         { model: Proveedor, attributes: ["id", "nombre", "alias"] },
@@ -556,6 +556,32 @@ export const getDetalleCierre = async (req, res) => {
         });
       }
 
+      for (const t of parseDatos(venta.datos_cheque)) {
+        const proveedorPago = t.proveedorId ? proveedoresPorId.get(Number(t.proveedorId)) : proveedorInfo;
+        pagos.push({
+          tipo: "Cheque",
+          fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
+          nombre_cuenta: t.nombre_cuenta || t.titular || t.cuenta || "-",
+          titular: t.nombre_cuenta || "-",
+          monto: parseFloat(t.monto || 0),
+          banco: t.banco || t.nombre_banco || "-",
+          proveedor: proveedorPago || null,
+        });
+      }
+
+      for (const t of parseDatos(venta.datos_ercheck)) {
+        const proveedorPago = t.proveedorId ? proveedoresPorId.get(Number(t.proveedorId)) : proveedorInfo;
+        pagos.push({
+          tipo: "ER Check",
+          fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
+          nombre_cuenta: t.nombre_cuenta || t.titular || t.cuenta || "-",
+          titular: t.nombre_cuenta || "-",
+          monto: parseFloat(t.monto || 0),
+          banco: t.banco || t.nombre_banco || "-",
+          proveedor: proveedorPago || null,
+        });
+      }
+
       // Ventas con pago dividido: la porcion en efectivo vive en VentaPago
       // (Venta.medio_pago queda como "dividido"). Ventas viejas sin VentaPagos
       // conservan la clasificacion historica por medio_pago.
@@ -591,7 +617,9 @@ export const getDetalleCierre = async (req, res) => {
     for (const pago of pagosClientesHoy) {
       const transferencia = parseDatos(pago.datos_transferencia)[0];
       const tarjeta = parseDatos(pago.datos_tarjeta)[0];
-      const datos = transferencia || tarjeta;
+      const cheque = parseDatos(pago.datos_cheque)[0];
+      const ercheck = parseDatos(pago.datos_ercheck)[0];
+      const datos = transferencia || tarjeta || cheque || ercheck;
       const medioPago = String(pago.medio_pago || "otro").toLowerCase();
       const proveedorPago = pago.Proveedor
         ? { id: pago.Proveedor.id, nombre: pago.Proveedor.nombre, alias: pago.Proveedor.alias }
@@ -599,7 +627,7 @@ export const getDetalleCierre = async (req, res) => {
           ? proveedoresPorId.get(Number(datos.proveedorId))
           : datos?.alias ? proveedoresPorAlias.get(String(datos.alias).trim().toLowerCase()) : null;
       pagos.push({
-        tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
+        tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : cheque || medioPago === "cheque" ? "Cheque" : ercheck || medioPago === "ercheck" ? "ER Check" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
         nombre_cuenta: pago.titular || datos?.nombre_cuenta || datos?.titular || datos?.cuenta || "-",
         titular: pago.titular || datos?.titular || datos?.nombre_cuenta || datos?.cuenta || "-",
@@ -643,7 +671,7 @@ export const getPagosHoy = async (req, res) => {
 
     const ventasHoy = await Venta.findAll({
       where: { fecha, estado: "completada" },
-      attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "medio_pago", "total", "proveedorId"],
+      attributes: ["id", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "datos_cheque", "datos_ercheck", "medio_pago", "total", "proveedorId"],
       include: [{ model: Proveedor, attributes: ["id", "nombre", "alias"] }],
     });
     const pagosClientesHoy = await ClientePago.findAll({
@@ -703,12 +731,40 @@ export const getPagosHoy = async (req, res) => {
         });
       }
 
+      for (const t of parseDatos(venta.datos_cheque)) {
+        const proveedorPago = t.proveedorId ? proveedoresPorId.get(Number(t.proveedorId)) : proveedorInfo;
+        pagos.push({
+          tipo: "Cheque",
+          fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
+          nombre_cuenta: t.nombre_cuenta || t.titular || t.cuenta || "-",
+          titular: t.nombre_cuenta || "-",
+          monto: parseFloat(t.monto || 0),
+          banco: t.banco || t.nombre_banco || "-",
+          proveedor: proveedorPago || null,
+        });
+      }
+
+      for (const t of parseDatos(venta.datos_ercheck)) {
+        const proveedorPago = t.proveedorId ? proveedoresPorId.get(Number(t.proveedorId)) : proveedorInfo;
+        pagos.push({
+          tipo: "ER Check",
+          fecha_hora: t.fecha_hora || `${venta.fecha} ${venta.hora}`,
+          nombre_cuenta: t.nombre_cuenta || t.titular || t.cuenta || "-",
+          titular: t.nombre_cuenta || "-",
+          monto: parseFloat(t.monto || 0),
+          banco: t.banco || t.nombre_banco || "-",
+          proveedor: proveedorPago || null,
+        });
+      }
+
     }
 
     for (const pago of pagosClientesHoy) {
       const transferencia = parseDatos(pago.datos_transferencia)[0];
       const tarjeta = parseDatos(pago.datos_tarjeta)[0];
-      const datos = transferencia || tarjeta;
+      const cheque = parseDatos(pago.datos_cheque)[0];
+      const ercheck = parseDatos(pago.datos_ercheck)[0];
+      const datos = transferencia || tarjeta || cheque || ercheck;
       const medioPago = String(pago.medio_pago || "otro").toLowerCase();
       const proveedorPago = pago.Proveedor
         ? { id: pago.Proveedor.id, nombre: pago.Proveedor.nombre, alias: pago.Proveedor.alias }
@@ -716,7 +772,7 @@ export const getPagosHoy = async (req, res) => {
           ? proveedoresPorId.get(Number(datos.proveedorId))
           : datos?.alias ? proveedoresPorAlias.get(String(datos.alias).trim().toLowerCase()) : null;
       pagos.push({
-        tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : medioPago === "efectivo" ? "Efectivo" : "Otro",
+        tipo: transferencia || medioPago === "transferencia" ? "Transferencia" : tarjeta || medioPago === "tarjeta" ? "Tarjeta" : cheque || medioPago === "cheque" ? "Cheque" : ercheck || medioPago === "ercheck" ? "ER Check" : medioPago === "efectivo" ? "Efectivo" : "Otro",
         fecha_hora: datos?.fecha_hora || `${pago.fecha} ${pago.hora}`,
         nombre_cuenta: pago.titular || datos?.nombre_cuenta || datos?.titular || datos?.cuenta || "-",
         titular: pago.titular || datos?.titular || datos?.nombre_cuenta || datos?.cuenta || "-",
@@ -731,7 +787,7 @@ export const getPagosHoy = async (req, res) => {
     // Este endpoint alimenta las tablas de proveedores, no el detalle contable
     // del cierre. Solo deben aparecer pagos bancarios vinculados a un proveedor.
     res.json(pagos.filter((pago) =>
-      pago.proveedor?.id && ["Transferencia", "Tarjeta"].includes(pago.tipo)
+      pago.proveedor?.id && ["Transferencia", "Tarjeta", "Cheque", "ER Check"].includes(pago.tipo)
     ));
   } catch (error) {
     res.status(500).json({ message: "Error al obtener pagos del dia", error: error.message });
