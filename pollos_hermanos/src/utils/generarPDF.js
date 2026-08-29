@@ -111,6 +111,7 @@ export const generarComprobantePDF = async (venta) => {
   const saldoSumadoVenta = (venta.VentaPagos || [])
     .filter((p) => p.medio_pago === "cuenta_corriente")
     .reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
+  const saldoAnterior = saldoPendiente - saldoSumadoVenta;
 
   const rowH = 7;
   const tableHeaderH = 8;
@@ -360,11 +361,14 @@ export const generarComprobantePDF = async (venta) => {
   doc.setTextColor(80, 80, 90);
   doc.text("SALDOS DE CUENTA", ml + 8, y + 6);
   doc.setFontSize(7.5);
-  doc.setTextColor(210, 38, 38);
-   doc.text(`Saldo pendiente: $${montoEntero(saldoPendiente)}`, ml + 8, y + 14);
   if (saldoSumadoVenta > 0) {
-    doc.setTextColor(180, 120, 20);
-     doc.text(`Saldo sumado en esta venta: $${montoEntero(saldoSumadoVenta)}`, ml + 8, y + 21);
+    doc.setTextColor(80, 80, 85);
+     doc.text(`Saldo anterior: $${montoEntero(saldoAnterior)}`, ml + 8, y + 14);
+    doc.setTextColor(210, 38, 38);
+     doc.text(`Saldo actualizado: $${montoEntero(saldoPendiente)}`, ml + 8, y + 21);
+  } else {
+    doc.setTextColor(210, 38, 38);
+     doc.text(`Saldo pendiente: $${montoEntero(saldoPendiente)}`, ml + 8, y + 14);
   }
   doc.setTextColor(37, 99, 235);
    doc.text(`Saldo a favor del cliente: $${montoEntero(saldoFavor)}`, pw - mr - 8, y + 14, { align: "right" });
