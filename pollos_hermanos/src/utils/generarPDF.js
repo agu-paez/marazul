@@ -108,6 +108,9 @@ export const generarComprobantePDF = async (venta) => {
   const saldoRestante = hasDeuda ? (venta.cliente?.saldo_pendiente ? parseFloat(venta.cliente.saldo_pendiente) : 0) : 0;
   const saldoPendiente = parseFloat(venta.cliente?.saldo_pendiente || 0) || 0;
   const saldoFavor = parseFloat(venta.cliente?.saldo_favor || 0) || 0;
+  const saldoSumadoVenta = (venta.VentaPagos || [])
+    .filter((p) => p.medio_pago === "cuenta_corriente")
+    .reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
 
   const rowH = 7;
   const tableHeaderH = 8;
@@ -346,7 +349,7 @@ export const generarComprobantePDF = async (venta) => {
   }
 
   // ---- SALDOS DE CUENTA ----
-  const saldoBoxH = 24;
+  const saldoBoxH = 28;
   doc.setFillColor(248, 249, 252);
   doc.rect(ml, y, cw, saldoBoxH, "F");
   doc.setDrawColor(210, 212, 220);
@@ -359,6 +362,10 @@ export const generarComprobantePDF = async (venta) => {
   doc.setFontSize(7.5);
   doc.setTextColor(210, 38, 38);
    doc.text(`Saldo pendiente: $${montoEntero(saldoPendiente)}`, ml + 8, y + 14);
+  if (saldoSumadoVenta > 0) {
+    doc.setTextColor(180, 120, 20);
+     doc.text(`Saldo sumado en esta venta: $${montoEntero(saldoSumadoVenta)}`, ml + 8, y + 21);
+  }
   doc.setTextColor(37, 99, 235);
    doc.text(`Saldo a favor del cliente: $${montoEntero(saldoFavor)}`, pw - mr - 8, y + 14, { align: "right" });
   y += saldoBoxH + 3;

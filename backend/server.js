@@ -143,7 +143,11 @@ if (isProduction) {
 
 app.use(errorHandler);
 
-const start = async () => {
+// Inicialización de la base de datos que se ejecuta en segundo plano tras
+// iniciar el servidor. Hostinger exige que server.listen() se llame de forma
+// inmediata (antes de ~3 segundos), por lo que NO bloqueamos el arranque con
+// sync / migraciones / seeds: estas tareas corren después, de forma asíncrona.
+const initializeDatabase = async () => {
   try {
     await sequelize.authenticate();
     console.log("Base de datos conectada");
@@ -281,15 +285,19 @@ const start = async () => {
       }
     }
     console.log("Usuarios por defecto verificados");
-
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Servidor corriendo en puerto ${PORT}`);
-      console.log(`API: http://localhost:${PORT}/api`);
-    });
   } catch (error) {
-    logger.error("Error al iniciar servidor", { error: error.stack || error.message });
-    process.exit(1);
+    logger.error("Error al inicializar la base de datos", { error: error.stack || error.message });
   }
+};
+
+const start = () => {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`);
+    console.log(`API: http://localhost:${PORT}/api`);
+  });
+  // La inicialización de la base de datos corre en segundo plano, sin bloquear
+  // el arranque del servidor.
+  initializeDatabase();
 };
 
 start();
