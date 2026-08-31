@@ -105,6 +105,7 @@ export const generarComprobantePDF = async (venta) => {
   const pagos = buildPagos();
   const items = venta.VentaItems || [];
   const montoDeudaPagado = parseFloat(venta.monto_deuda_pagado || 0) || 0;
+  const montoSaldoDescontado = parseFloat(venta.monto_sobrante || 0) || 0;
   const hasDeuda = montoDeudaPagado > 0;
   const saldoRestante = hasDeuda ? (venta.cliente?.saldo_pendiente ? parseFloat(venta.cliente.saldo_pendiente) : 0) : 0;
   const saldoPendiente = parseFloat(venta.cliente?.saldo_pendiente || 0) || 0;
@@ -112,8 +113,8 @@ export const generarComprobantePDF = async (venta) => {
   const saldoSumadoVenta = (venta.VentaPagos || [])
     .filter((p) => p.medio_pago === "cuenta_corriente")
     .reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
-  const saldoAnterior = Math.max(0, saldoPendiente - saldoSumadoVenta + montoDeudaPagado);
-  const muestraCambioSaldo = saldoSumadoVenta > 0 || hasDeuda;
+  const saldoAnterior = Math.max(0, saldoPendiente - saldoSumadoVenta + montoDeudaPagado + montoSaldoDescontado);
+  const muestraCambioSaldo = saldoSumadoVenta > 0 || hasDeuda || montoSaldoDescontado > 0;
 
   const rowH = 7;
   const tableHeaderH = 8;
