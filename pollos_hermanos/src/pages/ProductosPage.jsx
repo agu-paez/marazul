@@ -455,7 +455,9 @@ export default function ProductosPage() {
               <label>Stock</label>
               <input
                 type="number"
-                value={Number(form.stock) ? form.stock : ""}
+                min="0"
+                step="1"
+                value={form.stock === "" ? "" : form.stock}
                 onChange={(e) => setForm({ ...form, stock: e.target.value })}
               />
             </div>

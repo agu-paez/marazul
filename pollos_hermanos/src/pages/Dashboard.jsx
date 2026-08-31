@@ -35,7 +35,6 @@ export default function Dashboard() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelandoId, setCancelandoId] = useState(null);
   const [cancelMotivo, setCancelMotivo] = useState("");
-  const [cancelarConRegreso, setCancelarConRegreso] = useState(false);
   const [showStockBajo, setShowStockBajo] = useState(false);
   const [gastos, setGastos] = useState({ combustible: "0.00", otros: "0.00", descripcion_otros: "" });
   const [showPagosEmpleados, setShowPagosEmpleados] = useState(false);
@@ -175,10 +174,6 @@ export default function Dashboard() {
       ejecutarEntregado();
       return;
     }
-    if (cancelarConRegreso) {
-      ejecutarCancelacion();
-      return;
-    }
     setShowConfirm(true);
   };
 
@@ -187,24 +182,6 @@ export default function Dashboard() {
       const unidades = redondearUnid(Number(item.cantidad_regreso) || 0);
       return { productoId: item.productoId, cantidad: unidades };
     });
-
-  const ejecutarCancelacion = async () => {
-    if (!regresando) return;
-    try {
-      await salidasAPI.registrarRegreso(regresando.id, {
-        items_regreso: itemsParaEnviar(),
-        cancelar: true,
-        motivo: cancelMotivo,
-      });
-      setRegresando(null);
-      setCancelarConRegreso(false);
-       setCancelandoId(null);
-       setCancelMotivo("");
-       loadData().catch(console.error);
-    } catch (error) {
-      alert("Error: " + (error.response?.data?.message || error.message));
-    }
-  };
 
   const ejecutarEntregado = async () => {
     setShowConfirm(false);
@@ -354,16 +331,10 @@ export default function Dashboard() {
                 className="btn btn-cancel"
                 disabled={!cancelMotivo.trim()}
                 onClick={() => {
-                  const salidaCancelar = salidas.find((s) => s.id === cancelandoId);
-                  setShowCancelConfirm(false);
-                  if (salidaCancelar?.estado === "en_camino") {
-                    setCancelarConRegreso(true);
-                    openRegresoForm(salidaCancelar);
-                  } else {
-                    updateEstado(cancelandoId, "cancelado", cancelMotivo);
-                    setCancelandoId(null);
-                    setCancelMotivo("");
-                  }
+                   setShowCancelConfirm(false);
+                   updateEstado(cancelandoId, "cancelado", cancelMotivo);
+                   setCancelandoId(null);
+                   setCancelMotivo("");
                 }}
               >
                 Confirmar Cancelacion
@@ -453,15 +424,13 @@ export default function Dashboard() {
       )}
 
       {regresando && (
-        <div className="modal-overlay" onClick={() => { setRegresando(null); setEditandoRegreso(false); setCancelarConRegreso(false); }}>
-          <div className="modal-card modal-wide regreso-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{editandoRegreso ? `Editar Regreso - ${regresando.camion}` : cancelarConRegreso ? `Cancelar Envio - ${regresando.camion}` : `Registrar Entrega - ${regresando.camion}`}</h3>
+         <div className="modal-overlay" onClick={() => { setRegresando(null); setEditandoRegreso(false); }}>
+           <div className="modal-card modal-wide regreso-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>{editandoRegreso ? `Editar Regreso - ${regresando.camion}` : `Registrar Entrega - ${regresando.camion}`}</h3>
             <p className="subtitle">
               {editandoRegreso
                 ? "Modifica las cantidades de mercaderia devuelta registradas"
-                : cancelarConRegreso
-                  ? "Marca la mercaderia que volvio al cancelar el envio"
-                  : "Selecciona los productos que regresaron y sus cantidades"}
+                : "Selecciona los productos que regresaron y sus cantidades"}
             </p>
 
             <div className="table-container regreso-table-container" style={{ maxHeight: "200px", overflowY: "auto" }}>
@@ -500,11 +469,11 @@ export default function Dashboard() {
             </div>
 
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => { setRegresando(null); setEditandoRegreso(false); setCancelarConRegreso(false); }}>
+              <button className="btn btn-secondary" onClick={() => { setRegresando(null); setEditandoRegreso(false); }}>
                 Cancelar
               </button>
               <button className="btn btn-entregado" onClick={confirmarEntregado}>
-                {editandoRegreso ? "Guardar Cambios" : cancelarConRegreso ? "Confirmar Cancelacion" : "Confirmar Entrega"}
+                {editandoRegreso ? "Guardar Cambios" : "Confirmar Entrega"}
               </button>
             </div>
           </div>

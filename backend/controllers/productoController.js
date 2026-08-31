@@ -55,7 +55,7 @@ export const createProducto = async (req, res) => {
   try {
     const { nombre, descripcion, precio, descuento, descuento_mayorista, descuento_nuevo, costo, stock, unidad, marcaId, codigo_barras, kg_por_caja, excluir_de_lista_pdf, permitir_modificar_precio } = req.body;
 
-    if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio)) || !Number.isFinite(Number(costo)) || Number(costo) < 0) {
+    if (!nombre || nombre.trim() === "" || !Number.isFinite(Number(precio)) || !Number.isFinite(Number(costo)) || Number(costo) < 0 || (stock !== undefined && (!Number.isFinite(Number(stock)) || Number(stock) < 0))) {
       return res.status(400).json({ message: "Nombre, precio y costo valido son requeridos" });
     }
 
@@ -95,6 +95,9 @@ export const updateProducto = async (req, res) => {
     }
 
     const data = { ...req.body };
+    if (data.stock !== undefined && (!Number.isFinite(Number(data.stock)) || Number(data.stock) < 0)) {
+      return res.status(400).json({ message: "El stock debe ser un número mayor o igual a cero" });
+    }
     if (data.costo !== undefined && (!Number.isFinite(Number(data.costo)) || Number(data.costo) < 0)) {
       return res.status(400).json({ message: "El costo no es valido" });
     }
