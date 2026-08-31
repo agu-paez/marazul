@@ -38,15 +38,19 @@ const PORT = process.env.PORT || 4000;
 const isProduction = process.env.NODE_ENV === "production";
 // Hostinger places the Node process behind a reverse proxy.
 app.set("trust proxy", 1);
-const trustedOrigins = (process.env.CORS_ORIGINS || [
+const defaultTrustedOrigins = [
+  "https://marazulapp.com",
+  "https://www.marazulapp.com",
+  "https://mistyrose-giraffe-527430.hostingersite.com",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "http://localhost:4173",
   "http://127.0.0.1:4173",
-].join(","))
-  .split(",")
+];
+const trustedOrigins = [...defaultTrustedOrigins, ...(process.env.CORS_ORIGINS || "")
+  .split(",")]
   .map((origin) => origin.trim())
   .filter(Boolean);
 
@@ -152,25 +156,36 @@ const initializeDatabase = async () => {
     await sequelize.authenticate();
     console.log("Base de datos conectada");
 
-    await sequelize.sync({ alter: true });
+    // Las migraciones de columnas se controlan debajo; alter=true hace muchas
+    // consultas y bloqueos en cada reinicio cuando la base está en otro servidor.
+    await sequelize.sync();
     console.log("Modelos sincronizados");
     await Cliente.update({ zona: "Mayorista" }, { where: { zona: "Zona 7" } });
     await SalidaCamion.update({ destino: "Mayorista" }, { where: { destino: "Zona 7" } });
 
     const queryInterface = sequelize.getQueryInterface();
+    const tableColumns = new Map();
+    const getTableColumns = async (table) => {
+      if (!tableColumns.has(table)) {
+        tableColumns.set(table, await queryInterface.describeTable(table));
+      }
+      return tableColumns.get(table);
+    };
     const ensureColumn = async (model, column, definition) => {
       const table = model.getTableName();
-      const columns = await queryInterface.describeTable(table);
+      const columns = await getTableColumns(table);
       if (!columns[column]) {
         await queryInterface.addColumn(table, column, definition);
+        columns[column] = definition;
         console.log(`Columna ${column} agregada a ${table}`);
       }
     };
     const ensureDecimalColumn = async (model, column, definition) => {
       const table = model.getTableName();
-      const columns = await queryInterface.describeTable(table);
+      const columns = await getTableColumns(table);
       if (columns[column] && /int/i.test(columns[column].type)) {
         await queryInterface.changeColumn(table, column, definition);
+        columns[column] = definition;
         console.log(`Columna ${column} convertida a decimal en ${table}`);
       }
     };
