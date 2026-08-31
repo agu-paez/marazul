@@ -1,5 +1,6 @@
 import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor, SalidaCamion } from "../models/index.js";
 import { Op } from "sequelize";
+import sequelize from "../config/database.js";
 import { getFechaLocal } from "../utils/fecha.js";
 
 const parseMonto = (valor) => {
@@ -311,6 +312,48 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Error al registrar pago", error: error.message });
+  }
+};
+
+export const deletePagoCuentaCorriente = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const cliente = await Cliente.findByPk(req.params.id, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!cliente) {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Cliente no encontrado" });
+    }
+
+    const pago = await ClientePago.findOne({
+      where: { id: req.params.pagoId, clienteId: cliente.id },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!pago) {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Pago no encontrado" });
+    }
+    if (String(pago.notas || "").toLowerCase().includes("incluido en venta")) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "No se puede eliminar un pago incluido en una venta" });
+    }
+
+    const saldoNetoAnterior = (parseFloat(cliente.saldo_pendiente) || 0) - (parseFloat(cliente.saldo_favor) || 0);
+    const saldoNetoRestaurado = saldoNetoAnterior + (parseFloat(pago.monto) || 0);
+    await cliente.update({
+      saldo_pendiente: Math.max(0, saldoNetoRestaurado).toFixed(2),
+      saldo_favor: Math.max(0, -saldoNetoRestaurado).toFixed(2),
+    }, { transaction });
+    await pago.destroy({ transaction });
+    await transaction.commit();
+
+    res.json({ message: "Pago eliminado correctamente" });
+  } catch (error) {
+    await transaction.rollback();
+    res.status(500).json({ message: "Error al eliminar pago", error: error.message });
   }
 };
 

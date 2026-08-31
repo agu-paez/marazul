@@ -36,6 +36,16 @@ export default function HistorialDeudasPage() {
     return !termino || nombre.includes(termino) || zona.toLowerCase().includes(termino);
   });
 
+  const eliminarPago = async (historial, pago) => {
+    if (!window.confirm(`¿Eliminar el pago de ${dinero(pago.monto)} de ${historial.cliente.nombre}? Esta acción restaurará el saldo del cliente.`)) return;
+    try {
+      await clientesAPI.eliminarPagoCC(historial.cliente.id, pago.id);
+      await cargarHistorial();
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "No se pudo eliminar el pago");
+    }
+  };
+
   if (loading) return <div className="loading">Cargando historial de deudas...</div>;
 
   return (
@@ -108,7 +118,7 @@ export default function HistorialDeudasPage() {
                         ) : (
                           <div className="table-container cliente-deudas-operaciones">
                             <table>
-                              <thead><tr><th>Fecha</th><th>Medio</th><th>Monto</th><th>Observaciones</th><th>PDF</th></tr></thead>
+                              <thead><tr><th>Fecha</th><th>Medio</th><th>Monto</th><th>Observaciones</th><th>Operaciones</th></tr></thead>
                               <tbody>
                                 {operacionesPago.map((pago) => (
                                   <tr key={pago.id}>
@@ -116,7 +126,10 @@ export default function HistorialDeudasPage() {
                                     <td>{pago.medio_pago}</td>
                                      <td className="monto-regreso">-{dinero(pago.monto)}</td>
                                     <td>{pago.notas || "-"}</td>
-                                    <td><button className="btn btn-sm btn-cierre-pdf" onClick={() => generarPagoClientePDF(pago, historial)}>PDF</button></td>
+                                    <td>
+                                      <button className="btn btn-sm btn-cierre-pdf" onClick={() => generarPagoClientePDF(pago, historial)}>PDF</button>{" "}
+                                      <button className="btn btn-sm btn-cancel" onClick={() => eliminarPago(historial, pago)}>Eliminar</button>
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>

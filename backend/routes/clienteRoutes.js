@@ -8,6 +8,7 @@ import {
   getHistorialCuentaCorriente,
   getHistorialDeudas,
   registrarPagoCuentaCorriente,
+  deletePagoCuentaCorriente,
   revisarCliente,
   deleteCliente,
 } from "../controllers/clienteController.js";
@@ -23,6 +24,7 @@ router.get("/:id", getClienteById);
 router.get("/:id/historial-cc", getHistorialCuentaCorriente);
 router.post("/", createCliente);
 router.post("/:id/pago-cc", authorize("admin", "operador", "repartidor"), registrarPagoCuentaCorriente);
+router.delete("/:id/pago-cc/:pagoId", authorize("admin", "operador", "repartidor"), deletePagoCuentaCorriente);
 router.put("/:id", updateCliente);
 router.put("/:id/montos", authorize("admin"), updateMontosCliente);
 router.put("/:id/revisar", authorize("admin", "operador"), revisarCliente);
