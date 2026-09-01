@@ -25,6 +25,6 @@ router.post("/", authorize("admin", "operador", "repartidor"), crearVenta);
 router.delete("/:id", authorize("admin"), deleteVenta);
 router.put("/:id/pago", authorize("admin", "operador", "repartidor"), modificarPagoVenta);
 router.put("/:id/productos", authorize("admin", "operador", "repartidor"), modificarProductosVenta);
-router.put("/:id/saldos", authorize("admin", "operador", "repartidor"), modificarSaldosVenta);
+router.put("/:id/saldos", authorize("admin"), modificarSaldosVenta);
 
 export default router;

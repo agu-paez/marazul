@@ -124,10 +124,12 @@ export default function HistorialVentasPage() {
           precio_unitario: Number(precio_unitario),
         })),
       });
-      await ventasAPI.modificarSaldos(ventaProductosEditando.id, {
-        saldo_anterior: Number(saldoAnteriorEditado) || 0,
-        saldo_actualizado: Number(saldoActualizadoEditado) || 0,
-      });
+      if (user?.role === "admin") {
+        await ventasAPI.modificarSaldos(ventaProductosEditando.id, {
+          saldo_anterior: Number(saldoAnteriorEditado) || 0,
+          saldo_actualizado: Number(saldoActualizadoEditado) || 0,
+        });
+      }
       setVentaProductosEditando(null);
       await loadVentas();
     } catch (error) {
@@ -469,16 +471,18 @@ export default function HistorialVentasPage() {
                 </div>
               ))}
               <button type="button" className="btn btn-secondary" onClick={agregarProductoEditado}>+ Agregar producto</button>
-              <div className="form-row" style={{ marginTop: "1rem" }}>
-                <div className="form-group">
-                  <label>Saldo anterior</label>
-                  <input type="number" min="0" step="0.01" value={saldoAnteriorEditado} onChange={(e) => setSaldoAnteriorEditado(e.target.value)} required />
+              {user?.role === "admin" && (
+                <div className="form-row" style={{ marginTop: "1rem" }}>
+                  <div className="form-group">
+                    <label>Saldo anterior</label>
+                    <input type="number" min="0" step="0.01" value={saldoAnteriorEditado} onChange={(e) => setSaldoAnteriorEditado(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Saldo actualizado</label>
+                    <input type="number" min="0" step="0.01" value={saldoActualizadoEditado} onChange={(e) => setSaldoActualizadoEditado(e.target.value)} required />
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label>Saldo actualizado</label>
-                  <input type="number" min="0" step="0.01" value={saldoActualizadoEditado} onChange={(e) => setSaldoActualizadoEditado(e.target.value)} required />
-                </div>
-              </div>
+              )}
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => { const venta = ventaProductosEditando; setVentaProductosEditando(null); abrirEditarPago(venta); }}>
                   Modificar pagos
