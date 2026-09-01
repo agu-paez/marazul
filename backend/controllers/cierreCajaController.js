@@ -430,8 +430,11 @@ export const getResumenIngresosEgresos = async (req, res) => {
       const combustible = parseFloat(cierre?.gastos_combustible) || 0;
       const otros = parseFloat(cierre?.gastos_otros) || 0;
       const gastosSalida = Object.values(gastosPorFecha[fecha] || {}).map((gasto) => ({ ...gasto, total: gasto.combustible + gasto.otros }));
-      const combustibleDelDia = cierre ? combustible : gastosSalida.reduce((sum, gasto) => sum + gasto.combustible, 0);
-      const otrosDelDia = cierre ? otros : gastosSalida.reduce((sum, gasto) => sum + gasto.otros, 0);
+      const combustibleSalidas = gastosSalida.reduce((sum, gasto) => sum + gasto.combustible, 0);
+      const otrosSalidas = gastosSalida.reduce((sum, gasto) => sum + gasto.otros, 0);
+      const usaGastosDeSalidas = combustibleSalidas > 0 || otrosSalidas > 0;
+      const combustibleDelDia = usaGastosDeSalidas ? combustibleSalidas : combustible;
+      const otrosDelDia = usaGastosDeSalidas ? otrosSalidas : otros;
       const pagos = parsePagosEmpleados(cierre?.pagos_empleados);
       const pagosTotal = pagos.reduce((sum, pago) => sum + (parseFloat(pago.monto) || 0), 0);
       const ingresos = cierre ? parseFloat(cierre.total_ventas) || 0 : ventasPorFecha[fecha] || 0;
