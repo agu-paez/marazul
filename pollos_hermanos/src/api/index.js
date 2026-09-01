@@ -2,6 +2,7 @@ import axios from "axios";
 
 const API = axios.create({
   baseURL: "/api",
+  timeout: 20000,
 });
 
 const GET_CACHE_TTL = 60_000;

@@ -18,8 +18,9 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   host: DB_HOST,
   port: Number(DB_PORT || 3306),
   logging: false,
+  dialectOptions: { connectTimeout: 10000 },
   define: { timestamps: true },
-  pool: { max: 10, min: 0, acquire: 30000, idle: 10000 },
+  pool: { max: 10, min: 1, acquire: 10000, idle: 10000 },
 });
 
 export default sequelize;
