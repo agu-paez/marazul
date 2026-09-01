@@ -239,6 +239,8 @@ const initializeDatabase = async () => {
     await ensureDecimalColumn(SalidaCamionItem, "cantidad", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 1 });
     await ensureDecimalColumn(SalidaCamionItem, "cantidad_devuelta", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(Venta, "monto_sobrante", { type: DataTypes.DECIMAL(10, 2), allowNull: true, defaultValue: 0 });
+    await ensureColumn(Venta, "saldo_anterior_manual", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
+    await ensureColumn(Venta, "saldo_actualizado_manual", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
     await ensureColumn(CierreCaja, "gastos_combustible", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_otros", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_por_zona", { type: DataTypes.TEXT, allowNull: true });

@@ -114,6 +114,14 @@ const Venta = sequelize.define("Venta", {
     defaultValue: 0,
     comment: "Excedente del pago dividido registrado como saldo a favor del cliente",
   },
+  saldo_anterior_manual: {
+    type: DataTypes.DECIMAL(13, 2),
+    allowNull: true,
+  },
+  saldo_actualizado_manual: {
+    type: DataTypes.DECIMAL(13, 2),
+    allowNull: true,
+  },
   proveedorId: {
     type: DataTypes.INTEGER,
     allowNull: true,

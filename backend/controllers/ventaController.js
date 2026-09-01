@@ -200,8 +200,9 @@ export const crearVenta = async (req, res) => {
 
       if (sobranteFavor > 0) {
         const clienteActual = await Cliente.findByPk(cliente.id);
-        const deudaActual = Math.max(0, parseFloat(clienteActual.saldo_pendiente) || 0);
+        const deudaRegistrada = Math.max(0, parseFloat(clienteActual.saldo_pendiente) || 0);
         const favorActual = Math.max(0, parseFloat(clienteActual.saldo_favor) || 0);
+        const deudaActual = Math.max(0, deudaRegistrada - favorActual);
         const descontado = Math.min(deudaActual, sobranteFavor);
         await clienteActual.update({
           saldo_pendiente: (deudaActual - descontado).toFixed(2),
@@ -620,6 +621,34 @@ export const modificarPagoVenta = async (req, res) => {
   } catch (error) {
     await transaction.rollback();
     res.status(500).json({ message: "Error al modificar el pago", error: error.message });
+  }
+};
+
+export const modificarSaldosVenta = async (req, res) => {
+  const { saldo_anterior, saldo_actualizado } = req.body;
+  const saldoAnterior = Number(saldo_anterior);
+  const saldoActualizado = Number(saldo_actualizado);
+  if (!Number.isFinite(saldoAnterior) || saldoAnterior < 0 || !Number.isFinite(saldoActualizado) || saldoActualizado < 0) {
+    return res.status(400).json({ message: "Los saldos deben ser números mayores o iguales a 0" });
+  }
+
+  try {
+    const venta = await Venta.findByPk(req.params.id);
+    if (!venta || venta.estado !== "completada") return res.status(404).json({ message: "Venta no encontrada" });
+    if (req.userRole !== "admin" && venta.usuarioId !== req.user.id) return res.status(403).json({ message: "Solo puedes modificar tus propias facturas" });
+    if (venta.fecha !== getFechaLocal()) return res.status(400).json({ message: "Solo se pueden modificar facturas del día" });
+    if (await CierreCaja.findOne({ where: { fecha: venta.fecha } })) return res.status(400).json({ message: "No se puede modificar la factura: la caja de ese día ya fue cerrada" });
+
+    await venta.update({
+      saldo_anterior_manual: saldoAnterior.toFixed(2),
+      saldo_actualizado_manual: saldoActualizado.toFixed(2),
+    });
+    if (venta.clienteId) {
+      await Cliente.update({ saldo_pendiente: saldoActualizado.toFixed(2) }, { where: { id: venta.clienteId } });
+    }
+    res.json({ message: "Saldos de factura actualizados", venta });
+  } catch (error) {
+    res.status(500).json({ message: "Error al modificar los saldos", error: error.message });
   }
 };
 

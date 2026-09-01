@@ -24,6 +24,8 @@ export default function HistorialVentasPage() {
   const [productosDisponibles, setProductosDisponibles] = useState([]);
   const [itemsEditados, setItemsEditados] = useState([]);
   const [guardandoProductos, setGuardandoProductos] = useState(false);
+  const [saldoAnteriorEditado, setSaldoAnteriorEditado] = useState("");
+  const [saldoActualizadoEditado, setSaldoActualizadoEditado] = useState("");
   const [bancos, setBancos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [filtros, setFiltros] = useState({
@@ -90,6 +92,13 @@ export default function HistorialVentasPage() {
       precio_unitario: String(item.precio_unitario),
       nombre: item.Producto?.nombre || "Producto",
     })));
+    const saldoActual = Number(venta.cliente?.saldo_pendiente) || 0;
+    const saldoFavor = Number(venta.cliente?.saldo_favor) || 0;
+    const creditoVenta = (venta.VentaPagos || []).filter((pago) => pago.medio_pago === "cuenta_corriente").reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
+    const variacion = creditoVenta - (Number(venta.monto_sobrante) || 0) - (Number(venta.monto_deuda_pagado) || 0);
+    const saldoAnteriorCalculado = Math.max(0, saldoActual - saldoFavor - variacion);
+    setSaldoAnteriorEditado(String(venta.saldo_anterior_manual ?? saldoActual));
+    setSaldoActualizadoEditado(String(venta.saldo_actualizado_manual ?? saldoAnteriorCalculado));
   };
 
   const agregarProductoEditado = () => {
@@ -114,6 +123,10 @@ export default function HistorialVentasPage() {
           cantidad: Number(cantidad),
           precio_unitario: Number(precio_unitario),
         })),
+      });
+      await ventasAPI.modificarSaldos(ventaProductosEditando.id, {
+        saldo_anterior: Number(saldoAnteriorEditado) || 0,
+        saldo_actualizado: Number(saldoActualizadoEditado) || 0,
       });
       setVentaProductosEditando(null);
       await loadVentas();
@@ -456,6 +469,16 @@ export default function HistorialVentasPage() {
                 </div>
               ))}
               <button type="button" className="btn btn-secondary" onClick={agregarProductoEditado}>+ Agregar producto</button>
+              <div className="form-row" style={{ marginTop: "1rem" }}>
+                <div className="form-group">
+                  <label>Saldo anterior</label>
+                  <input type="number" min="0" step="0.01" value={saldoAnteriorEditado} onChange={(e) => setSaldoAnteriorEditado(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                  <label>Saldo actualizado</label>
+                  <input type="number" min="0" step="0.01" value={saldoActualizadoEditado} onChange={(e) => setSaldoActualizadoEditado(e.target.value)} required />
+                </div>
+              </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => { const venta = ventaProductosEditando; setVentaProductosEditando(null); abrirEditarPago(venta); }}>
                   Modificar pagos

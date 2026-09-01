@@ -113,7 +113,14 @@ export const generarComprobantePDF = async (venta) => {
   const saldoSumadoVenta = (venta.VentaPagos || [])
     .filter((p) => p.medio_pago === "cuenta_corriente")
     .reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
-  const saldoAnterior = Math.max(0, saldoPendiente - saldoSumadoVenta + montoDeudaPagado + montoSaldoDescontado);
+  // Reconstruct the balance before this sale from the current net balance.
+  // Account credit increases debt, while an overpayment or debt payment reduces it.
+  const saldoNetoActual = saldoPendiente - saldoFavor;
+  const variacionSaldo = saldoSumadoVenta - montoSaldoDescontado - montoDeudaPagado;
+  const saldoNetoAnterior = saldoNetoActual - variacionSaldo;
+   const saldoAnteriorCalculado = Math.max(0, saldoNetoAnterior);
+   const saldoAnteriorMostrado = Number(venta.saldo_anterior_manual ?? saldoPendiente) || 0;
+   const saldoActualizadoMostrado = Number(venta.saldo_actualizado_manual ?? saldoAnteriorCalculado) || 0;
   const muestraCambioSaldo = saldoSumadoVenta > 0 || hasDeuda || montoSaldoDescontado > 0;
 
   const rowH = 7;
@@ -366,9 +373,9 @@ export const generarComprobantePDF = async (venta) => {
   doc.setFontSize(7.5);
   if (muestraCambioSaldo) {
     doc.setTextColor(80, 80, 85);
-     doc.text(`Saldo anterior: $${montoEntero(saldoAnterior)}`, ml + 8, y + 14);
+      doc.text(`Saldo anterior: $${montoEntero(saldoAnteriorMostrado)}`, ml + 8, y + 14);
     doc.setTextColor(210, 38, 38);
-     doc.text(`Saldo actualizado: $${montoEntero(saldoPendiente)}`, ml + 8, y + 21);
+      doc.text(`Saldo actualizado: $${montoEntero(saldoActualizadoMostrado)}`, ml + 8, y + 21);
   } else {
     doc.setTextColor(210, 38, 38);
      doc.text(`Saldo pendiente: $${montoEntero(saldoPendiente)}`, ml + 8, y + 14);
