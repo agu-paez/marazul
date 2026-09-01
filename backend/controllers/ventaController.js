@@ -492,7 +492,7 @@ export const modificarPagoVenta = async (req, res) => {
       await transaction.rollback();
       return res.status(403).json({ message: "Solo puedes modificar tus propias facturas" });
     }
-    if (venta.fecha !== getFechaLocal()) {
+    if (req.userRole !== "admin" && venta.fecha !== getFechaLocal()) {
       await transaction.rollback();
       return res.status(400).json({ message: "Solo se pueden modificar facturas del día" });
     }
@@ -636,7 +636,7 @@ export const modificarSaldosVenta = async (req, res) => {
     const venta = await Venta.findByPk(req.params.id);
     if (!venta || venta.estado !== "completada") return res.status(404).json({ message: "Venta no encontrada" });
     if (req.userRole !== "admin" && venta.usuarioId !== req.user.id) return res.status(403).json({ message: "Solo puedes modificar tus propias facturas" });
-    if (venta.fecha !== getFechaLocal()) return res.status(400).json({ message: "Solo se pueden modificar facturas del día" });
+    if (req.userRole !== "admin" && venta.fecha !== getFechaLocal()) return res.status(400).json({ message: "Solo se pueden modificar facturas del día" });
     if (await CierreCaja.findOne({ where: { fecha: venta.fecha } })) return res.status(400).json({ message: "No se puede modificar la factura: la caja de ese día ya fue cerrada" });
 
     await venta.update({
@@ -670,7 +670,7 @@ export const modificarProductosVenta = async (req, res) => {
       await transaction.rollback();
       return res.status(403).json({ message: "Solo puedes modificar tus propias facturas" });
     }
-    if (venta.fecha !== getFechaLocal()) {
+    if (req.userRole !== "admin" && venta.fecha !== getFechaLocal()) {
       await transaction.rollback();
       return res.status(400).json({ message: "Solo se pueden modificar facturas del día" });
     }
