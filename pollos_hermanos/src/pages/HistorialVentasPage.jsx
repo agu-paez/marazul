@@ -109,9 +109,10 @@ export default function HistorialVentasPage() {
     setGuardandoProductos(true);
     try {
       await ventasAPI.modificarProductos(ventaProductosEditando.id, {
-        items: itemsEditados.map(({ productoId, cantidad }) => ({
+        items: itemsEditados.map(({ productoId, cantidad, precio_unitario }) => ({
           productoId,
           cantidad: Number(cantidad),
+          precio_unitario: Number(precio_unitario),
         })),
       });
       setVentaProductosEditando(null);
@@ -412,7 +413,7 @@ export default function HistorialVentasPage() {
         <div className="modal-overlay" onClick={() => setVentaProductosEditando(null)}>
           <div className="modal-card modal-wide historial-pago-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Modificar factura {ventaProductosEditando.numero_comprobante}</h3>
-            <p className="subtitle">Solo se pueden modificar productos y cantidades. Los precios se mantienen como fueron vendidos.</p>
+            <p className="subtitle">{user?.role === "admin" ? "Puedes modificar productos, cantidades y precios." : "Solo se pueden modificar productos y cantidades. Los precios se mantienen como fueron vendidos."}</p>
             <form onSubmit={guardarProductos}>
               {itemsEditados.map((item, index) => (
                 <div className="item-row" key={`${item.productoId}-${index}`}>
@@ -435,9 +436,22 @@ export default function HistorialVentasPage() {
                     required
                     aria-label={`Cantidad de ${item.nombre}`}
                   />
-                  <span className="badge" title="Precio de venta original (no modificable)">
-                    ${Number(item.precio_unitario || 0).toFixed(2)}
-                  </span>
+                  {user?.role === "admin" ? (
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={Number(item.precio_unitario) ? item.precio_unitario : ""}
+                      onChange={(e) => setItemsEditados((prev) => prev.map((actual, i) => i === index ? { ...actual, precio_unitario: e.target.value } : actual))}
+                      required
+                      aria-label={`Precio de ${item.nombre}`}
+                      title="Precio de venta (solo admin)"
+                    />
+                  ) : (
+                    <span className="badge" title="Precio de venta original (no modificable)">
+                      ${Number(item.precio_unitario || 0).toFixed(2)}
+                    </span>
+                  )}
                   {itemsEditados.length > 1 && <button type="button" className="btn btn-sm btn-cancel" onClick={() => setItemsEditados((prev) => prev.filter((_, i) => i !== index))}>X</button>}
                 </div>
               ))}

@@ -668,12 +668,14 @@ export const modificarProductosVenta = async (req, res) => {
       const originalesProducto = venta.VentaItems.filter((v) => v.productoId === producto.id);
        const originalMismaUnidad = originalesProducto[0];
       let precio;
-      if (originalMismaUnidad) {
+      if (req.userRole === "admin" && item.precio_unitario && Number(item.precio_unitario) > 0) {
+        precio = Number(item.precio_unitario);
+      } else if (originalMismaUnidad) {
         precio = Number(originalMismaUnidad.precio_unitario);
-       } else if (originalesProducto.length > 0) {
-         precio = Number(originalesProducto[0].precio_unitario);
-       } else {
-         precio = Number(producto.precio);
+      } else if (originalesProducto.length > 0) {
+        precio = Number(originalesProducto[0].precio_unitario);
+      } else {
+        precio = Number(producto.precio);
       }
       if (!Number.isFinite(precio) || precio <= 0) {
         await transaction.rollback();
@@ -757,6 +759,7 @@ export const modificarProductosVenta = async (req, res) => {
           productoId: item.producto.id,
           nombre: item.producto.nombre,
           cantidad: item.cantidad,
+          precio_unitario: item.precio,
         })),
       }),
     }, { transaction });
