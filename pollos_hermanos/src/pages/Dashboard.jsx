@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { salidasAPI, cierreCajaAPI, productosAPI, gastosAPI, pagosEmpleadosAPI, usuariosAPI, ventasAPI } from "../api";
+import { salidasAPI, cierreCajaAPI, productosAPI, pagosEmpleadosAPI, usuariosAPI, ventasAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { dinero } from "../utils/numero";
 
@@ -36,7 +36,6 @@ export default function Dashboard() {
   const [cancelandoId, setCancelandoId] = useState(null);
   const [cancelMotivo, setCancelMotivo] = useState("");
   const [showStockBajo, setShowStockBajo] = useState(false);
-  const [gastos, setGastos] = useState({ combustible: "0.00", otros: "0.00", descripcion_otros: "" });
   const [showPagosEmpleados, setShowPagosEmpleados] = useState(false);
   const [empleados, setEmpleados] = useState([]);
   const [pagosForm, setPagosForm] = useState({});
@@ -64,16 +63,14 @@ export default function Dashboard() {
         salidasAPI.getAll(ultimoCierre ? { desde: ultimoCierre } : {}),
         cierreCajaAPI.getResumenHoy(fecha),
         productosAPI.getLowStock(),
-        gastosAPI.getHoy(),
       ];
       const resultados = await Promise.allSettled(promises);
-       const [statsRes, ventasStatsRes, salidasRes, resumenRes, stockRes, gastosRes] = resultados;
+       const [statsRes, ventasStatsRes, salidasRes, resumenRes, stockRes] = resultados;
        if (statsRes.status === "fulfilled") setStats(statsRes.value.data);
        if (ventasStatsRes.status === "fulfilled") setVentasStats(ventasStatsRes.value.data);
       if (salidasRes.status === "fulfilled") setSalidas(salidasRes.value.data);
       if (resumenRes.status === "fulfilled") setResumen(resumenRes.value.data);
       if (stockRes.status === "fulfilled") setStockBajo(stockRes.value.data);
-      if (gastosRes.status === "fulfilled") setGastos(gastosRes.value.data);
       resultados.filter((resultado) => resultado.status === "rejected").forEach((resultado) => console.error("Error al cargar dashboard:", resultado.reason));
     } catch (error) {
       console.error("Error:", error);
@@ -220,7 +217,6 @@ export default function Dashboard() {
      if (!confirm(`¿Cerrar la caja del ${fechaConsulta}? No se podran hacer mas modificaciones.`)) return;
     setCerrando(true);
     try {
-      await gastosAPI.guardar(gastos);
       await cierreCajaAPI.cerrar(fechaConsulta);
       localStorage.removeItem("dashboardFecha");
       setCierreExitoso(true);
@@ -625,41 +621,11 @@ export default function Dashboard() {
       )}
 
       {!cierreExitoso && (
-        <>
-          <div className="dashboard-actions">
-            <button className="btn btn-primary employee-payment-button" onClick={abrirPagosEmpleados} disabled={resumen?.cerrado}>
-              Pago a empleados
-            </button>
-          </div>
-
-            <div className="section daily-expenses-section">
-            <div className="daily-expenses-header">
-              <h3>Gastos del Dia</h3>
-              {resumen?.cerrado && <span className="cierre-cerrado-badge">CERRADO</span>}
-            </div>
-            <p className="subtitle" style={{ marginTop: "0.35rem" }}>Se guardan automáticamente al realizar el cierre de caja.</p>
-            <div className="form-card" style={{ marginTop: "1rem" }}>
-              <div className="cierre-2col">
-                <div className="form-group">
-                  <label htmlFor="gasto-combustible">Gastos de combustible</label>
-                  <input id="gasto-combustible" type="number" min="0" step="0.01" value={gastos.combustible || ""} onChange={(event) => setGastos({ ...gastos, combustible: event.target.value })} disabled={resumen?.cerrado} />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="gasto-otros">Otros gastos</label>
-                  <input id="gasto-otros" type="number" min="0" step="0.01" value={Number(gastos.otros) ? gastos.otros : ""} onChange={(event) => setGastos({ ...gastos, otros: event.target.value })} disabled={resumen?.cerrado} />
-                </div>
-              </div>
-              <div className="form-group">
-                <label htmlFor="descripcion-otros">Descripción de otros gastos</label>
-                <textarea id="descripcion-otros" rows="2" value={gastos.descripcion_otros || ""} onChange={(event) => setGastos({ ...gastos, descripcion_otros: event.target.value })} placeholder="Detalle de los otros gastos..." disabled={resumen?.cerrado} />
-              </div>
-              <div className="cierre-item cierre-total">
-                <span>Total gastos:</span>
-                <strong>${(Number(gastos.combustible || 0) + Number(gastos.otros || 0)).toFixed(2)}</strong>
-              </div>
-            </div>
-          </div>
-        </>
+        <div className="dashboard-actions">
+          <button className="btn btn-primary employee-payment-button" onClick={abrirPagosEmpleados} disabled={resumen?.cerrado}>
+            Pago a empleados
+          </button>
+        </div>
       )}
 
       {resumen && (

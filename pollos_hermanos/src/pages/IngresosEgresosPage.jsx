@@ -93,6 +93,20 @@ export default function IngresosEgresosPage() {
           </div>
 
           <div className="form-card">
+            <h3>Gastos por zona</h3>
+            {data.detalle.flatMap((dia) => (dia.gastos_por_zona || []).map((gasto) => ({ ...gasto, fecha: dia.fecha }))).length === 0 ? <p className="empty">No hay gastos registrados por salida.</p> : (
+              <div className="table-container">
+                <table>
+                  <thead><tr><th>Fecha</th><th>Zona</th><th>Combustible</th><th>Otros gastos</th><th>Total</th></tr></thead>
+                  <tbody>{data.detalle.flatMap((dia) => (dia.gastos_por_zona || []).map((gasto) => ({ ...gasto, fecha: dia.fecha }))).map((gasto, index) => <tr key={`${gasto.fecha}-${gasto.zona}-${index}`}>
+                    <td>{gasto.fecha}</td><td>{gasto.zona}</td><td>{dinero(gasto.combustible)}</td><td>{dinero(gasto.otros)}</td><td><strong>{dinero(gasto.total)}</strong></td>
+                  </tr>)}</tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="form-card">
             <h3>Pagos a empleados incluidos</h3>
             {data.detalle.flatMap((dia) => dia.pagos_empleados.map((pago) => ({ ...pago, fecha: dia.fecha }))).length === 0 ? <p className="empty">No hay pagos a empleados en este período.</p> : (
               <div className="table-container">

@@ -241,6 +241,7 @@ const initializeDatabase = async () => {
     await ensureColumn(Venta, "monto_sobrante", { type: DataTypes.DECIMAL(10, 2), allowNull: true, defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_combustible", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_otros", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
+    await ensureColumn(CierreCaja, "gastos_por_zona", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(CierreCaja, "descripcion_otros_gastos", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(CierreCaja, "pagos_empleados", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(ClientePago, "datos_transferencia", { type: DataTypes.TEXT, allowNull: true });

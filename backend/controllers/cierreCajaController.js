@@ -12,6 +12,17 @@ const checkDayClosed = async (fecha) => {
   return !!cierre;
 };
 
+const agruparGastosPorZona = (salidas) => {
+  const gastos = {};
+  for (const salida of salidas) {
+    const zona = String(salida.destino || "Sin zona").trim() || "Sin zona";
+    if (!gastos[zona]) gastos[zona] = { zona, combustible: 0, otros: 0 };
+    gastos[zona].combustible += parseFloat(salida.gastos_combustible) || 0;
+    gastos[zona].otros += parseFloat(salida.gastos_otros) || 0;
+  }
+  return Object.values(gastos).map((gasto) => ({ ...gasto, total: gasto.combustible + gasto.otros }));
+};
+
 export const getResumenDelDia = async (req, res) => {
   try {
     const today = getFechaLocal();
@@ -94,6 +105,7 @@ export const getResumenDelDia = async (req, res) => {
 
     const totalGeneral = localMonto + repartoMonto;
     const ventas_netas = mercaderia_enviada - mercaderia_devuelta;
+    const gastosPorZona = agruparGastosPorZona(salidasHoy);
 
     const cierreExistente = await CierreCaja.findOne({ where: { fecha } });
 
@@ -108,6 +120,9 @@ export const getResumenDelDia = async (req, res) => {
       reparto_monto: repartoMonto.toFixed(2),
       reparto_count: repartoCount,
       total_general: totalGeneral.toFixed(2),
+      gastos_combustible: gastosPorZona.reduce((sum, gasto) => sum + gasto.combustible, 0).toFixed(2),
+      gastos_otros: gastosPorZona.reduce((sum, gasto) => sum + gasto.otros, 0).toFixed(2),
+      gastos_por_zona: gastosPorZona,
       cerrado: !!cierreExistente,
       cierre: cierreExistente || null,
       detalle_enviadas,
@@ -186,7 +201,9 @@ export const cerrarCaja = async (req, res) => {
 
     const totalGeneral = localMonto + repartoMonto;
     const ventas_netas = mercaderia_enviada - mercaderia_devuelta;
-    const gastoDia = await GastoDia.findOne({ where: { fecha: fechaCierre } });
+    const gastosPorZona = agruparGastosPorZona(salidasHoy);
+    const gastosCombustible = gastosPorZona.reduce((sum, gasto) => sum + gasto.combustible, 0);
+    const gastosOtros = gastosPorZona.reduce((sum, gasto) => sum + gasto.otros, 0);
     const pagosEmpleados = await PagoEmpleado.findAll({
       where: { fecha: fechaCierre },
       include: [{ model: User, as: "empleado", attributes: ["id", "nombre"], include: [{ model: Role, attributes: ["nombre"] }] }],
@@ -209,9 +226,10 @@ export const cerrarCaja = async (req, res) => {
       mercaderia_devuelta: mercaderia_devuelta.toFixed(2),
       ventas_netas: ventas_netas.toFixed(2),
       usuario_cierre: req.user.nombre,
-      gastos_combustible: gastoDia?.combustible || 0,
-      gastos_otros: gastoDia?.otros || 0,
-      descripcion_otros_gastos: gastoDia?.descripcion_otros || "",
+      gastos_combustible: gastosCombustible.toFixed(2),
+      gastos_otros: gastosOtros.toFixed(2),
+      gastos_por_zona: JSON.stringify(gastosPorZona),
+      descripcion_otros_gastos: "",
       pagos_empleados: JSON.stringify(pagosEmpleadosSnapshot),
     });
 
@@ -377,6 +395,10 @@ export const getResumenIngresosEgresos = async (req, res) => {
       attributes: ["fecha", "total"],
       include: [{ model: VentaItem, attributes: ["cantidad", "costo_unitario"], include: [{ model: Producto, attributes: ["costo"] }] }],
     });
+    const salidas = await SalidaCamion.findAll({
+      where: { fecha: { [Op.between]: [desde, hasta] }, estado: { [Op.ne]: "cancelado" } },
+      attributes: ["fecha", "destino", "gastos_combustible", "gastos_otros"],
+    });
     const costosPorFecha = {};
     const ventasPorFecha = {};
     for (const venta of ventas) {
@@ -391,13 +413,25 @@ export const getResumenIngresosEgresos = async (req, res) => {
     for (const movimiento of movimientos) {
       comprasPorFecha[movimiento.fecha] = (comprasPorFecha[movimiento.fecha] || 0) + (parseFloat(movimiento.mercaderias_compradas) || 0);
     }
+    const gastosPorFecha = {};
+    for (const salida of salidas) {
+      const fecha = String(salida.fecha).slice(0, 10);
+      const zona = String(salida.destino || "Sin zona").trim() || "Sin zona";
+      if (!gastosPorFecha[fecha]) gastosPorFecha[fecha] = {};
+      if (!gastosPorFecha[fecha][zona]) gastosPorFecha[fecha][zona] = { zona, combustible: 0, otros: 0 };
+      gastosPorFecha[fecha][zona].combustible += parseFloat(salida.gastos_combustible) || 0;
+      gastosPorFecha[fecha][zona].otros += parseFloat(salida.gastos_otros) || 0;
+    }
     const cierresPorFecha = new Map(cierres.map((cierre) => [cierre.fecha, cierre]));
-    const fechas = new Set([...cierres.map((cierre) => cierre.fecha), ...Object.keys(ventasPorFecha), ...Object.keys(comprasPorFecha)]);
+    const fechas = new Set([...cierres.map((cierre) => cierre.fecha), ...Object.keys(ventasPorFecha), ...Object.keys(comprasPorFecha), ...Object.keys(gastosPorFecha)]);
 
     const detalle = [...fechas].sort().map((fecha) => {
       const cierre = cierresPorFecha.get(fecha);
       const combustible = parseFloat(cierre?.gastos_combustible) || 0;
       const otros = parseFloat(cierre?.gastos_otros) || 0;
+      const gastosSalida = Object.values(gastosPorFecha[fecha] || {}).map((gasto) => ({ ...gasto, total: gasto.combustible + gasto.otros }));
+      const combustibleDelDia = cierre ? combustible : gastosSalida.reduce((sum, gasto) => sum + gasto.combustible, 0);
+      const otrosDelDia = cierre ? otros : gastosSalida.reduce((sum, gasto) => sum + gasto.otros, 0);
       const pagos = parsePagosEmpleados(cierre?.pagos_empleados);
       const pagosTotal = pagos.reduce((sum, pago) => sum + (parseFloat(pago.monto) || 0), 0);
       const ingresos = cierre ? parseFloat(cierre.total_ventas) || 0 : ventasPorFecha[fecha] || 0;
@@ -407,15 +441,16 @@ export const getResumenIngresosEgresos = async (req, res) => {
         fecha,
         usuario_cierre: cierre?.usuario_cierre || "-",
         ingresos,
-        combustible,
-        otros,
+        combustible: combustibleDelDia,
+        otros: otrosDelDia,
+        gastos_por_zona: gastosSalida,
         costo_mercaderia: costoMercaderia,
         compras_proveedores: comprasProveedores,
         descripcion_otros: cierre?.descripcion_otros_gastos || "",
         pagos_empleados: pagos,
         pagos_empleados_total: pagosTotal,
-        egresos: combustible + otros + pagosTotal + costoMercaderia + comprasProveedores,
-        resultado: ingresos - combustible - otros - pagosTotal - costoMercaderia - comprasProveedores,
+        egresos: combustibleDelDia + otrosDelDia + pagosTotal + costoMercaderia + comprasProveedores,
+        resultado: ingresos - combustibleDelDia - otrosDelDia - pagosTotal - costoMercaderia - comprasProveedores,
       };
     });
 

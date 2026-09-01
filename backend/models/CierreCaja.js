@@ -47,6 +47,10 @@ const CierreCaja = sequelize.define("CierreCaja", {
     type: DataTypes.DECIMAL(13, 2),
     defaultValue: 0,
   },
+  gastos_por_zona: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   descripcion_otros_gastos: {
     type: DataTypes.TEXT,
     allowNull: true,
