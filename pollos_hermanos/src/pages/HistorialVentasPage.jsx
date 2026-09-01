@@ -97,8 +97,8 @@ export default function HistorialVentasPage() {
     const creditoVenta = (venta.VentaPagos || []).filter((pago) => pago.medio_pago === "cuenta_corriente").reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
     const variacion = creditoVenta - (Number(venta.monto_sobrante) || 0) - (Number(venta.monto_deuda_pagado) || 0);
     const saldoAnteriorCalculado = Math.max(0, saldoActual - saldoFavor - variacion);
-    setSaldoAnteriorEditado(String(venta.saldo_anterior_manual ?? saldoActual));
-    setSaldoActualizadoEditado(String(venta.saldo_actualizado_manual ?? saldoAnteriorCalculado));
+    setSaldoAnteriorEditado(String(venta.saldo_anterior_manual ?? saldoAnteriorCalculado));
+    setSaldoActualizadoEditado(String(venta.saldo_actualizado_manual ?? saldoActual));
   };
 
   const agregarProductoEditado = () => {
