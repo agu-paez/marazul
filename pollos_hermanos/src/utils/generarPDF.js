@@ -1279,6 +1279,7 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
   // 3. Medios de pago
   drawSectionTitle("Medios de Pago");
   const pagosResumen = { efectivo: 0, transferencia: 0, debito: 0, credito: 0, tarjeta_sin_tipo: 0, cuenta_corriente: 0, otro: 0 };
+  let cantidadTransferencias = 0;
   for (const venta of ventas) {
     const pagosVenta = venta.VentaPagos?.length
       ? venta.VentaPagos
@@ -1287,7 +1288,10 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
       const monto = parseFloat(pago.monto) || 0;
       const medio = String(pago.medio_pago || "otro").toLowerCase();
       if (medio === "efectivo") pagosResumen.efectivo += monto;
-      else if (medio === "transferencia") pagosResumen.transferencia += monto;
+      else if (medio === "transferencia") {
+        pagosResumen.transferencia += monto;
+        cantidadTransferencias++;
+      }
       else if (medio === "debito" || medio === "débito") pagosResumen.debito += monto;
       else if (medio === "credito" || medio === "crédito") pagosResumen.credito += monto;
       else if (medio === "tarjeta") pagosResumen.tarjeta_sin_tipo += monto;
@@ -1310,6 +1314,53 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
     [(r) => r.medio, (r) => `$${r.monto.toFixed(2)}`],
     pagosFilas
   );
+
+  // 6. Control de conteo de billetes contra efectivo registrado
+  if (conteo && typeof conteo === "object") {
+    const totalConteo = Object.entries(conteo.billetes || {}).reduce(
+      (s, [valor, cant]) => s + Number(valor) * (Number(cant) || 0),
+      0
+    );
+    const gastosCombustible = Number(conteo.gastos_combustible) || 0;
+    const gastosOtros = Number(conteo.gastos_otros) || 0;
+    const efectivoFinal = Math.round((totalConteo - gastosCombustible - gastosOtros) * 100) / 100;
+    const dif = Math.round((efectivoFinal - pagosResumen.efectivo) * 100) / 100;
+    const ok = Math.abs(dif) < 0.01;
+    const sobra = !ok && dif > 0;
+    const enVerde = ok || sobra;
+    const lineasConteo = doc.splitTextToSize(
+      ok
+        ? `Billetes contados: $${totalConteo.toFixed(2)} - Gastos: $${(gastosCombustible + gastosOtros).toFixed(2)} = Efectivo final: $${efectivoFinal.toFixed(2)} | Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)}`
+        : `Efectivo final: $${efectivoFinal.toFixed(2)} - Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)} = DIFERENCIA ${sobra ? "SOBRANTE" : "FALTANTE"}: $${Math.abs(dif).toFixed(2)} (Billetes: $${totalConteo.toFixed(2)} | Gastos: $${(gastosCombustible + gastosOtros).toFixed(2)})`,
+      cw - 10
+    );
+    addPageIfNeeded(20 + lineasConteo.length * 4);
+    doc.setFillColor(enVerde ? 236 : 254, enVerde ? 253 : 226, enVerde ? 245 : 226);
+    doc.setDrawColor(enVerde ? 16 : 220, enVerde ? 185 : 38, enVerde ? 129 : 38);
+    doc.rect(ml, y - 3, cw, 16 + lineasConteo.length * 4, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(enVerde ? 21 : 153, enVerde ? 128 : 27, enVerde ? 61 : 27);
+    doc.text(ok ? "CONTEO CORROBORADO" : "DIFERENCIA EN CONTEO DE EFECTIVO", ml + 4, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(60, 60, 70);
+    doc.text(lineasConteo, ml + 4, y + 11);
+    y += 16 + lineasConteo.length * 4 + 6;
+
+    addPageIfNeeded(22);
+    doc.setFillColor(236, 248, 253);
+    doc.setDrawColor(14, 116, 144);
+    doc.rect(ml, y - 3, cw, 18, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(15, 78, 100);
+    doc.text("TRANSFERENCIAS REALIZADAS", ml + 4, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(`Cantidad de transferencias: ${cantidadTransferencias}`, ml + 4, y + 11);
+    y += 24;
+  }
 
   // 4. Ventas realizadas
   drawSectionTitle("Ventas Realizadas");
@@ -1373,40 +1424,6 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
     doc.setTextColor(150, 150, 150);
     doc.text("Sin observaciones", ml + 3, y + 4);
     y += 9;
-  }
-
-  // 6. Control de conteo de billetes contra efectivo registrado
-  if (conteo && typeof conteo === "object") {
-    const totalConteo = Object.entries(conteo.billetes || {}).reduce(
-      (s, [valor, cant]) => s + Number(valor) * (Number(cant) || 0),
-      0
-    );
-    const gastosCombustible = Number(conteo.gastos_combustible) || 0;
-    const gastosOtros = Number(conteo.gastos_otros) || 0;
-    const efectivoFinal = Math.round((totalConteo - gastosCombustible - gastosOtros) * 100) / 100;
-    const dif = Math.round((efectivoFinal - pagosResumen.efectivo) * 100) / 100;
-    const ok = Math.abs(dif) < 0.01;
-    const sobra = !ok && dif > 0;
-    const enVerde = ok || sobra;
-    const lineasConteo = doc.splitTextToSize(
-      ok
-         ? `Billetes contados: $${totalConteo.toFixed(2)} - Gastos: $${(gastosCombustible + gastosOtros).toFixed(2)} = Efectivo final: $${efectivoFinal.toFixed(2)} | Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)}`
-         : `Efectivo final: $${efectivoFinal.toFixed(2)} - Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)} = DIFERENCIA ${sobra ? "SOBRANTE" : "FALTANTE"}: $${Math.abs(dif).toFixed(2)} (Billetes: $${totalConteo.toFixed(2)} | Gastos: $${(gastosCombustible + gastosOtros).toFixed(2)})`,
-      cw - 10
-    );
-    addPageIfNeeded(20 + lineasConteo.length * 4);
-    doc.setFillColor(enVerde ? 236 : 254, enVerde ? 253 : 226, enVerde ? 245 : 226);
-    doc.setDrawColor(enVerde ? 16 : 220, enVerde ? 185 : 38, enVerde ? 129 : 38);
-    doc.rect(ml, y - 3, cw, 16 + lineasConteo.length * 4, "FD");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(enVerde ? 21 : 153, enVerde ? 128 : 27, enVerde ? 61 : 27);
-    doc.text(ok ? "CONTEO CORROBORADO" : "DIFERENCIA EN CONTEO DE EFECTIVO", ml + 4, y + 4);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(60, 60, 70);
-    doc.text(lineasConteo, ml + 4, y + 11);
-    y += 16 + lineasConteo.length * 4 + 6;
   }
 
   // Summary box
