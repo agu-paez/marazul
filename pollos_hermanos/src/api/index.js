@@ -140,6 +140,7 @@ export const salidasAPI = {
   getCamionesActivos: () => API.get("/salidas-camion/activos"),
   getStockCamion: (id) => API.get(`/salidas-camion/${id}/stock`),
   getVentas: (id) => API.get(`/salidas-camion/${id}/ventas`),
+  guardarConteo: (id, data) => API.put(`/salidas-camion/${id}/conteo`, data),
 };
 
 export const cierreCajaAPI = {

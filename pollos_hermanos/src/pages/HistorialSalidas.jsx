@@ -15,6 +15,8 @@ export default function HistorialSalidas() {
   const [conteos, setConteos] = useState({});
   const [conteoModalId, setConteoModalId] = useState(null);
   const [conteoBilletes, setConteoBilletes] = useState({});
+  const [gastosConteo, setGastosConteo] = useState({ combustible: "", otros: "" });
+  const [guardandoConteo, setGuardandoConteo] = useState(false);
 
   useEffect(() => {
     loadSalidas();
@@ -24,6 +26,21 @@ export default function HistorialSalidas() {
     try {
       const res = await salidasAPI.getAll();
       setSalidas(res.data);
+      const conteosGuardados = {};
+      res.data.forEach((salida) => {
+        if (salida.conteo_billetes) {
+          try {
+            conteosGuardados[salida.id] = {
+              billetes: typeof salida.conteo_billetes === "string" ? JSON.parse(salida.conteo_billetes) : salida.conteo_billetes,
+              gastos_combustible: Number(salida.gastos_combustible) || 0,
+              gastos_otros: Number(salida.gastos_otros) || 0,
+            };
+          } catch {
+            console.error("No se pudo leer el conteo de la salida", salida.id);
+          }
+        }
+      });
+      setConteos(conteosGuardados);
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -81,12 +98,34 @@ export default function HistorialSalidas() {
 
   const abrirConteo = (id) => {
     setConteoBilletes(conteos[id]?.billetes || {});
+    setGastosConteo({
+      combustible: conteos[id]?.gastos_combustible ?? "",
+      otros: conteos[id]?.gastos_otros ?? "",
+    });
     setConteoModalId(id);
   };
 
-  const guardarConteo = () => {
-    setConteos({ ...conteos, [conteoModalId]: { billetes: conteoBilletes } });
-    setConteoModalId(null);
+  const guardarConteo = async () => {
+    const combustible = Number(gastosConteo.combustible || 0);
+    const otros = Number(gastosConteo.otros || 0);
+    if (!Number.isFinite(combustible) || combustible < 0 || !Number.isFinite(otros) || otros < 0) {
+      alert("Los gastos deben ser números mayores o iguales a cero");
+      return;
+    }
+    setGuardandoConteo(true);
+    try {
+      await salidasAPI.guardarConteo(conteoModalId, {
+        billetes: conteoBilletes,
+        gastos_combustible: combustible,
+        gastos_otros: otros,
+      });
+      setConteos({ ...conteos, [conteoModalId]: { billetes: conteoBilletes, gastos_combustible: combustible, gastos_otros: otros } });
+      setConteoModalId(null);
+    } catch (error) {
+      alert("Error al guardar conteo: " + (error.response?.data?.message || error.message));
+    } finally {
+      setGuardandoConteo(false);
+    }
   };
 
   const totalConteo = useMemo(
@@ -209,10 +248,20 @@ export default function HistorialSalidas() {
               <span>Total contado</span>
               <strong>$ {totalConteo.toLocaleString("es-UY")}</strong>
             </div>
+            <div className="form-row conteo-gastos">
+              <div className="form-group">
+                <label>Gastos de combustible</label>
+                <input type="number" min="0" step="0.01" value={gastosConteo.combustible} onChange={(e) => setGastosConteo({ ...gastosConteo, combustible: e.target.value })} placeholder="0.00" />
+              </div>
+              <div className="form-group">
+                <label>Otros gastos</label>
+                <input type="number" min="0" step="0.01" value={gastosConteo.otros} onChange={(e) => setGastosConteo({ ...gastosConteo, otros: e.target.value })} placeholder="0.00" />
+              </div>
+            </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setConteoBilletes({})}>Limpiar</button>
               <button className="btn btn-cancel" onClick={() => setConteoModalId(null)}>Cerrar</button>
-              <button className="btn btn-primary" onClick={guardarConteo}>Guardar</button>
+              <button className="btn btn-primary" onClick={guardarConteo} disabled={guardandoConteo}>{guardandoConteo ? "Guardando..." : "Guardar"}</button>
             </div>
           </div>
         </div>

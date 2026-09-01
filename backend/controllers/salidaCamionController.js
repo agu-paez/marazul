@@ -484,6 +484,33 @@ export const updateSalidaStatus = async (req, res) => {
   }
 };
 
+export const guardarConteoSalida = async (req, res) => {
+  try {
+    const salida = await SalidaCamion.findByPk(req.params.id);
+    if (!salida) {
+      return res.status(404).json({ message: "Salida no encontrada" });
+    }
+    if (!req.body.billetes || typeof req.body.billetes !== "object" || Array.isArray(req.body.billetes)) {
+      return res.status(400).json({ message: "El conteo de billetes no es válido" });
+    }
+
+    const combustible = Number(req.body.gastos_combustible || 0);
+    const otros = Number(req.body.gastos_otros || 0);
+    if (!Number.isFinite(combustible) || combustible < 0 || !Number.isFinite(otros) || otros < 0) {
+      return res.status(400).json({ message: "Los gastos deben ser números mayores o iguales a cero" });
+    }
+
+    await salida.update({
+      conteo_billetes: JSON.stringify(req.body.billetes),
+      gastos_combustible: combustible.toFixed(2),
+      gastos_otros: otros.toFixed(2),
+    });
+    res.json({ message: "Conteo guardado", salida });
+  } catch (error) {
+    res.status(500).json({ message: "Error al guardar conteo", error: error.message });
+  }
+};
+
 export const updateSalidaCompleta = async (req, res) => {
   try {
     if (req.userRole === "repartidor") {

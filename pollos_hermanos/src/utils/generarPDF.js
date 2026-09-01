@@ -1381,14 +1381,17 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
       (s, [valor, cant]) => s + Number(valor) * (Number(cant) || 0),
       0
     );
-    const dif = Math.round((totalConteo - pagosResumen.efectivo) * 100) / 100;
+    const gastosCombustible = Number(conteo.gastos_combustible) || 0;
+    const gastosOtros = Number(conteo.gastos_otros) || 0;
+    const efectivoFinal = Math.round((totalConteo - gastosCombustible - gastosOtros) * 100) / 100;
+    const dif = Math.round((efectivoFinal - pagosResumen.efectivo) * 100) / 100;
     const ok = Math.abs(dif) < 0.01;
     const sobra = !ok && dif > 0;
     const enVerde = ok || sobra;
     const lineasConteo = doc.splitTextToSize(
       ok
-        ? `Billetes contados: $${totalConteo.toFixed(2)} | Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)}`
-        : `Billetes contados: $${totalConteo.toFixed(2)} - Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)} = DIFERENCIA ${sobra ? "SOBRANTE" : "FALTANTE"}: $${Math.abs(dif).toFixed(2)}`,
+         ? `Billetes contados: $${totalConteo.toFixed(2)} - Gastos: $${(gastosCombustible + gastosOtros).toFixed(2)} = Efectivo final: $${efectivoFinal.toFixed(2)} | Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)}`
+         : `Efectivo final: $${efectivoFinal.toFixed(2)} - Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)} = DIFERENCIA ${sobra ? "SOBRANTE" : "FALTANTE"}: $${Math.abs(dif).toFixed(2)} (Billetes: $${totalConteo.toFixed(2)} | Gastos: $${(gastosCombustible + gastosOtros).toFixed(2)})`,
       cw - 10
     );
     addPageIfNeeded(20 + lineasConteo.length * 4);

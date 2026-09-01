@@ -222,6 +222,9 @@ const initializeDatabase = async () => {
       allowNull: true,
       references: { model: "Users", key: "id" },
     });
+    await ensureColumn(SalidaCamion, "conteo_billetes", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(SalidaCamion, "gastos_combustible", { type: DataTypes.DECIMAL(13, 2), allowNull: true, defaultValue: 0 });
+    await ensureColumn(SalidaCamion, "gastos_otros", { type: DataTypes.DECIMAL(13, 2), allowNull: true, defaultValue: 0 });
     await ensureColumn(Proveedor, "mercaderias_compradas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "dinero_ventas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "diferencia_acumulada", { type: DataTypes.FLOAT, defaultValue: 0 });

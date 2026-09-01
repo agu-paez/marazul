@@ -61,6 +61,18 @@ const SalidaCamion = sequelize.define("SalidaCamion", {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  conteo_billetes: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  gastos_combustible: {
+    type: DataTypes.DECIMAL(13, 2),
+    defaultValue: 0,
+  },
+  gastos_otros: {
+    type: DataTypes.DECIMAL(13, 2),
+    defaultValue: 0,
+  },
   clienteId: {
     type: DataTypes.INTEGER,
     allowNull: true,
