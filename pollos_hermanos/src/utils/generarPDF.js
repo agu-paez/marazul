@@ -1328,16 +1328,19 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
     const ok = Math.abs(dif) < 0.01;
     const sobra = !ok && dif > 0;
     const enVerde = ok || sobra;
-    const lineasConteo = doc.splitTextToSize(
-      ok
-        ? `Billetes contados: $${totalConteo.toFixed(2)} - Gastos: $${(gastosCombustible + gastosOtros).toFixed(2)} = Efectivo final: $${efectivoFinal.toFixed(2)} | Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)}`
-        : `Efectivo final: $${efectivoFinal.toFixed(2)} - Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)} = DIFERENCIA ${sobra ? "SOBRANTE" : "FALTANTE"}: $${Math.abs(dif).toFixed(2)} (Billetes: $${totalConteo.toFixed(2)} | Gastos: $${(gastosCombustible + gastosOtros).toFixed(2)})`,
-      cw - 10
-    );
-    addPageIfNeeded(20 + lineasConteo.length * 4);
+    const lineasConteo = [
+      `Billetes contados: $${totalConteo.toFixed(2)}`,
+      `Gastos de combustible: $${gastosCombustible.toFixed(2)}`,
+      `Otros gastos: $${gastosOtros.toFixed(2)}`,
+      `Efectivo final: $${efectivoFinal.toFixed(2)}`,
+      `Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)}`,
+      !ok && `Diferencia ${sobra ? "SOBRANTE" : "FALTANTE"}: $${Math.abs(dif).toFixed(2)}`,
+    ].filter(Boolean);
+    const conteoBoxH = 15 + lineasConteo.length * 5;
+    addPageIfNeeded(conteoBoxH + 5);
     doc.setFillColor(enVerde ? 236 : 254, enVerde ? 253 : 226, enVerde ? 245 : 226);
     doc.setDrawColor(enVerde ? 16 : 220, enVerde ? 185 : 38, enVerde ? 129 : 38);
-    doc.rect(ml, y - 3, cw, 16 + lineasConteo.length * 4, "FD");
+    doc.rect(ml, y - 3, cw, conteoBoxH, "FD");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(enVerde ? 21 : 153, enVerde ? 128 : 27, enVerde ? 61 : 27);
@@ -1345,8 +1348,8 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(60, 60, 70);
-    doc.text(lineasConteo, ml + 4, y + 11);
-    y += 16 + lineasConteo.length * 4 + 6;
+    doc.text(lineasConteo, ml + 4, y + 10, { lineHeightFactor: 1.25 });
+    y += conteoBoxH + 5;
 
     addPageIfNeeded(22);
     doc.setFillColor(236, 248, 253);
