@@ -81,6 +81,8 @@ ClientePago.belongsTo(Cliente, { foreignKey: "clienteId" });
 Cliente.hasMany(ClientePago, { foreignKey: "clienteId" });
 ClientePago.belongsTo(Proveedor, { foreignKey: "proveedorId" });
 Proveedor.hasMany(ClientePago, { foreignKey: "proveedorId" });
+ClientePago.belongsTo(User, { foreignKey: "registradoPorId", as: "registrado_por" });
+User.hasMany(ClientePago, { foreignKey: "registradoPorId", as: "pagos_clientes_registrados" });
 
 Venta.belongsTo(Proveedor, { foreignKey: "proveedorId" });
 Proveedor.hasMany(Venta, { foreignKey: "proveedorId" });

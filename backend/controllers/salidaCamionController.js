@@ -1,4 +1,4 @@
-import { SalidaCamion, SalidaCamionItem, Producto, User, Cliente, CierreCaja, Venta, VentaItem, VentaPago } from "../models/index.js";
+import { SalidaCamion, SalidaCamionItem, Producto, User, Cliente, ClientePago, CierreCaja, Venta, VentaItem, VentaPago } from "../models/index.js";
 import { Op } from "sequelize";
 import { getFechaLocal } from "../utils/fecha.js";
 
@@ -481,6 +481,31 @@ export const updateSalidaStatus = async (req, res) => {
     res.json({ message: "Estado actualizado", salida: salidaActualizada });
   } catch (error) {
     res.status(500).json({ message: "Error al actualizar salida", error: error.message });
+  }
+};
+
+export const getTransferenciasDeSalida = async (req, res) => {
+  try {
+    const salida = await SalidaCamion.findByPk(req.params.id, {
+      attributes: ["id", "fecha", "asignadoRepartidorId", "creadoPorId"],
+    });
+    if (!salida) {
+      return res.status(404).json({ message: "Salida no encontrada" });
+    }
+    if (req.userRole !== "admin" && salida.asignadoRepartidorId !== req.user.id && salida.creadoPorId !== req.user.id) {
+      return res.status(403).json({ message: "No tienes permisos para ver esta salida" });
+    }
+
+    const pagos = await ClientePago.count({
+      where: {
+        registradoPorId: req.user.id,
+        fecha: salida.fecha,
+        medio_pago: "transferencia",
+      },
+    });
+    res.json({ cantidad: pagos });
+  } catch (error) {
+    res.status(500).json({ message: "Error al contar transferencias", error: error.message });
   }
 };
 

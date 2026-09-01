@@ -267,13 +267,16 @@ export default function MisSalidas() {
       if (isRepartidor) {
         let cantidadTransferencias = 0;
         try {
-          const ventasRes = await salidasAPI.getVentas(regresando.id);
+          const [ventasRes, transferenciasRes] = await Promise.all([
+            salidasAPI.getVentas(regresando.id),
+            salidasAPI.getTransferencias(regresando.id),
+          ]);
           cantidadTransferencias = ventasRes.data.reduce((cantidad, venta) => {
             const pagos = venta.VentaPagos?.length
               ? venta.VentaPagos
               : [{ medio_pago: venta.medio_pago }];
             return cantidad + pagos.filter((pago) => String(pago.medio_pago).toLowerCase() === "transferencia").length;
-          }, 0);
+          }, 0) + (Number(transferenciasRes.data.cantidad) || 0);
         } catch (error) {
           console.error("No se pudo contar las transferencias del regreso:", error);
         }

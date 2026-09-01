@@ -251,6 +251,7 @@ const initializeDatabase = async () => {
     await ensureColumn(ClientePago, "titular", { type: DataTypes.STRING, allowNull: true });
     await ensureColumn(ClientePago, "banco", { type: DataTypes.STRING, allowNull: true });
     await ensureColumn(ClientePago, "fecha_pago", { type: DataTypes.DATEONLY, allowNull: true });
+    await ensureColumn(ClientePago, "registradoPorId", { type: DataTypes.INTEGER, allowNull: true });
 
     const pagosClientes = await ClientePago.findAll({ where: { titular: null } });
     for (const pago of pagosClientes) {

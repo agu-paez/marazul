@@ -299,6 +299,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
         datos_cheque: pago.datos_cheque ? JSON.stringify(pago.datos_cheque) : null,
         datos_ercheck: pago.datos_ercheck ? JSON.stringify(pago.datos_ercheck) : null,
         proveedorId,
+        registradoPorId: req.user.id,
         titular: datosBancarios?.titular || datosBancarios?.nombre_cuenta || datosBancarios?.cuenta || null,
         banco: datosBancarios?.banco || datosBancarios?.nombre_banco || null,
       });
