@@ -264,6 +264,21 @@ export default function MisSalidas() {
       await salidasAPI.registrarRegreso(regresando.id, {
         items_regreso: itemsParaEnviar(true),
       });
+      if (isRepartidor) {
+        let cantidadTransferencias = 0;
+        try {
+          const ventasRes = await salidasAPI.getVentas(regresando.id);
+          cantidadTransferencias = ventasRes.data.reduce((cantidad, venta) => {
+            const pagos = venta.VentaPagos?.length
+              ? venta.VentaPagos
+              : [{ medio_pago: venta.medio_pago }];
+            return cantidad + pagos.filter((pago) => String(pago.medio_pago).toLowerCase() === "transferencia").length;
+          }, 0);
+        } catch (error) {
+          console.error("No se pudo contar las transferencias del regreso:", error);
+        }
+        alert(`Regreso finalizado. Transferencias realizadas: ${cantidadTransferencias}`);
+      }
       setRegresando(null);
       loadSalidas();
     } catch (error) {
