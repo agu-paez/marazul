@@ -627,11 +627,11 @@ export const getDetalleCierre = async (req, res) => {
       const efectivoVenta = pagosVenta
         .filter((p) => String(p.medio_pago || "").toLowerCase() === "efectivo")
         .reduce((suma, p) => suma + (parseFloat(p.monto) || 0), 0);
-      const esEfectivoSimple = venta.medio_pago === "efectivo"
+      // VentaPago es la fuente actual luego de modificar una factura. Solo
+      // usamos los campos antiguos de Venta cuando no hay registros de pago.
+      if (pagosVenta.length === 0 && venta.medio_pago === "efectivo"
         && (!venta.datos_transferencia || parseDatos(venta.datos_transferencia).length === 0)
-        && (!venta.datos_tarjeta || parseDatos(venta.datos_tarjeta).length === 0);
-
-      if (esEfectivoSimple) {
+        && (!venta.datos_tarjeta || parseDatos(venta.datos_tarjeta).length === 0)) {
         pagos.push({
           tipo: "Efectivo",
           fecha_hora: `${venta.fecha} ${venta.hora}`,

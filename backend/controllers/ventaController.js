@@ -776,9 +776,15 @@ export const modificarProductosVenta = async (req, res) => {
       ...(creditoNuevo > 0 ? [{ medio_pago: "cuenta_corriente", monto: creditoNuevo }] : []),
     ].map((pago) => ({ ventaId: venta.id, medio_pago: pago.medio_pago, monto: pago.monto.toFixed(2) })), { transaction });
 
+    const pagosFinales = [
+      ...pagosNoCC,
+      ...(creditoNuevo > 0 ? [{ medio_pago: "cuenta_corriente", monto: creditoNuevo }] : []),
+    ];
     await venta.update({
       subtotal: subtotalNuevo.toFixed(2),
       total: subtotalNuevo.toFixed(2),
+      medio_pago: pagosFinales.length > 1 ? "dividido" : pagosFinales[0].medio_pago,
+      pago_dividido: pagosFinales.length > 1,
       monto_sobrante: sobranteNuevo.toFixed(2),
       productos_modificado_por_id: req.user.id,
       productos_modificado_en: new Date(),
