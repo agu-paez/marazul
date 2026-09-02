@@ -1331,9 +1331,8 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
     const gastosCombustible = Number(conteo.gastos_combustible) || 0;
     const gastosOtros = Number(conteo.gastos_otros) || 0;
     const totalGastos = gastosCombustible + gastosOtros;
-    const efectivoFinal = Math.round((totalConteo - totalGastos) * 100) / 100;
     const efectivoVentasNeto = Math.round((pagosResumen.efectivo - totalGastos) * 100) / 100;
-    const dif = Math.round((efectivoFinal - efectivoVentasNeto) * 100) / 100;
+    const dif = Math.round((totalConteo - efectivoVentasNeto) * 100) / 100;
     const ok = Math.abs(dif) < 0.01;
     const sobra = !ok && dif > 0;
     const enVerde = ok || sobra;
@@ -1341,10 +1340,8 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
       `Billetes contados: $${totalConteo.toFixed(2)}`,
       `Gastos de combustible: $${gastosCombustible.toFixed(2)}`,
       `Otros gastos: $${gastosOtros.toFixed(2)}`,
-      totalGastos > 0 && `Efectivo final (contado - gastos): $${efectivoFinal.toFixed(2)}`,
+      `Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)}`,
       totalGastos > 0 && `Efectivo segun ventas (ventas - gastos): $${efectivoVentasNeto.toFixed(2)}`,
-      totalGastos === 0 && `Efectivo final: $${efectivoFinal.toFixed(2)}`,
-      totalGastos === 0 && `Efectivo segun ventas: $${pagosResumen.efectivo.toFixed(2)}`,
       !ok && `Diferencia ${sobra ? "SOBRANTE" : "FALTANTE"}: $${Math.abs(dif).toFixed(2)}`,
     ].filter(Boolean);
     const conteoBoxH = 15 + lineasConteo.length * 5;
