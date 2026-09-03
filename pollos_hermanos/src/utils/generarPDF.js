@@ -1827,11 +1827,11 @@ export const generarPagoClientePDF = async (pago, historial) => {
     ["Fecha de emision del pago", `${pago?.fecha_pago || pago?.fecha || "-"}`],
     ["Medio de pago", pago?.medio_pago || "-"],
     ["Monto pagado", `$${montoPago.toFixed(2)}`],
-    ["Saldo anterior", `$${saldoAnterior.toFixed(2)}`],
-    ["Saldo actual", `$${saldoActual.toFixed(2)}`],
     ["Cuenta / titular", pago?.titular || datos.titular || datos.nombre_cuenta || "-"],
     ["Banco", pago?.banco || datos.banco || datos.nombre_banco || "-"],
     ["Observaciones", pago?.notas || "-"],
+    ["Saldo anterior", `$${saldoAnterior.toFixed(2)}`],
+    ["Saldo actual", `$${saldoActual.toFixed(2)}`],
     ["Saldo a favor actual", `$${Number(historial.saldo_favor || 0).toFixed(2)}`],
   ];
   const tableX = 15;
