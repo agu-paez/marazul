@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI, proveedoresAPI } from "../api";
+import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI, proveedoresAPI, productosAPI } from "../api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 import BancoAutocomplete from "../components/BancoAutocomplete";
 import { generarHistorialDeudasPDF, generarPagoClientePDF } from "../utils/generarPDF";
@@ -37,11 +37,26 @@ export default function MisSalidas() {
   const [clienteDetalle, setClienteDetalle] = useState(null);
   const [clienteDetalleLoading, setClienteDetalleLoading] = useState(false);
   const [clienteDetalleError, setClienteDetalleError] = useState("");
+  const [productos, setProductos] = useState([]);
+  const [reintegros, setReintegros] = useState([]);
+  const [showReintegro, setShowReintegro] = useState(false);
+  const [reintegroForm, setReintegroForm] = useState({ clienteId: "", productoId: "", precio: "" });
+  const [guardandoReintegro, setGuardandoReintegro] = useState(false);
 
   useEffect(() => {
     loadSalidas();
     cargarResumenCaja();
-  }, [isOperador]);
+    if (isRepartidor) cargarReintegros();
+  }, [isOperador, isRepartidor]);
+
+  const cargarReintegros = async () => {
+    try {
+      const res = await clientesAPI.getHistorialReintegros();
+      setReintegros(res.data || []);
+    } catch (error) {
+      console.error("Error al cargar historial de reintegros:", error);
+    }
+  };
 
   const cargarResumenCaja = async () => {
     try {
@@ -100,6 +115,57 @@ export default function MisSalidas() {
     setClientePago("");
     setPagoCliente({ medio_pago: "efectivo", monto: "", nombre_cuenta: "", proveedorId: "", banco: "", notas: "", fecha_pago: getFechaLocal() });
     setShowPagoCliente(true);
+  };
+
+  const abrirReintegro = async () => {
+    let caja = resumenCaja;
+    if (!caja) {
+      try {
+        const res = await cierreCajaAPI.getResumenHoy();
+        caja = res.data;
+        setResumenCaja(caja);
+      } catch {
+        alert("No se pudo verificar el estado de la caja");
+        return;
+      }
+    }
+    if (caja.cerrado) {
+      alert("No se pueden registrar reintegros porque la caja está cerrada");
+      return;
+    }
+    const resultados = await Promise.allSettled([clientesAPI.getHistorialDeudas(), productosAPI.getAll()]);
+    const [clientesRes, productosRes] = resultados;
+    if (clientesRes.status === "fulfilled") setClientes(clientesRes.value.data.clientes?.map((item) => item.cliente) || []);
+    if (productosRes.status === "fulfilled") setProductos(productosRes.value.data.filter((producto) => producto.activo !== false));
+    setReintegroForm({ clienteId: "", productoId: "", precio: "" });
+    setShowReintegro(true);
+  };
+
+  const seleccionarProductoReintegro = (productoId) => {
+    const producto = productos.find((item) => String(item.id) === String(productoId));
+    setReintegroForm({ ...reintegroForm, productoId, precio: producto?.precio || "" });
+  };
+
+  const registrarReintegro = async (event) => {
+    event.preventDefault();
+    const precio = parseFloat(reintegroForm.precio) || 0;
+    if (!reintegroForm.clienteId) return alert("Debe seleccionar un cliente");
+    if (!reintegroForm.productoId) return alert("Debe seleccionar un producto");
+    if (precio <= 0) return alert("El precio debe ser mayor a 0");
+    setGuardandoReintegro(true);
+    try {
+      const res = await clientesAPI.registrarReintegro(reintegroForm.clienteId, {
+        productoId: reintegroForm.productoId,
+        precio,
+      });
+      alert(res.data.message);
+      setShowReintegro(false);
+      await Promise.all([cargarReintegros(), loadDatosPago()]);
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    } finally {
+      setGuardandoReintegro(false);
+    }
   };
 
   const registrarPagoCliente = async (event) => {
@@ -306,12 +372,85 @@ export default function MisSalidas() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
       <h2>{isOperador ? "Salidas de Camion" : "Mis Salidas de Camion"}</h2>
-        <button className="btn btn-primary" onClick={abrirPagoCliente} disabled={resumenCaja?.cerrado}>
-          Registrar pago de cliente
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          {isRepartidor && (
+            <button className="btn btn-secondary" onClick={abrirReintegro} disabled={resumenCaja?.cerrado}>
+              Registrar reintegro
+            </button>
+          )}
+          <button className="btn btn-primary" onClick={abrirPagoCliente} disabled={resumenCaja?.cerrado}>
+            Registrar pago de cliente
+          </button>
+        </div>
       </div>
       {resumenCaja?.cerrado && <p className="subtitle">La caja está cerrada. No se pueden registrar pagos.</p>}
       <p className="subtitle">{isOperador ? "Puedes enviar cualquier salida pendiente" : "Solo puedes cambiar el estado de tus salidas"}</p>
+
+      {isRepartidor && (
+        <div className="section">
+          <div className="page-header" style={{ marginBottom: "0.75rem" }}>
+            <h3>Historial de reintegros</h3>
+            <button className="btn btn-sm btn-secondary" onClick={cargarReintegros}>Actualizar</button>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Precio</th><th>Registrado por</th></tr></thead>
+              <tbody>
+                {reintegros.map((reintegro) => (
+                  <tr key={reintegro.id}>
+                    <td>{reintegro.fecha} {reintegro.hora}</td>
+                    <td><strong>{reintegro.Cliente?.nombre || "-"}</strong></td>
+                    <td>{reintegro.producto_nombre}</td>
+                    <td className="monto-regreso">{dinero(reintegro.monto)}</td>
+                    <td>{reintegro.registrado_por?.nombre || "-"}</td>
+                  </tr>
+                ))}
+                {reintegros.length === 0 && <tr><td colSpan="5" className="empty">No hay reintegros registrados</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {showReintegro && (
+        <div className="modal-overlay" onClick={() => setShowReintegro(false)}>
+          <form className="modal-card modal-responsive" onSubmit={registrarReintegro} onClick={(event) => event.stopPropagation()}>
+            <h3>Registrar reintegro</h3>
+            <p className="subtitle">El importe cancela primero la deuda del cliente. El excedente queda como saldo a favor.</p>
+            <div className="form-group">
+              <label>Cliente *</label>
+              <ClienteAutocomplete
+                value={reintegroForm.clienteId}
+                onChange={(clienteId) => setReintegroForm({ ...reintegroForm, clienteId })}
+                clientes={clientes}
+                onAddCliente={() => {}}
+                placeholder="Buscar cliente"
+              />
+            </div>
+            {reintegroForm.clienteId && (
+              <p className="subtitle">
+                Saldo actual: deuda ${(parseFloat(clientes.find((cliente) => String(cliente.id) === String(reintegroForm.clienteId))?.saldo_pendiente) || 0).toFixed(2)}
+                {" | A favor: $"}{(parseFloat(clientes.find((cliente) => String(cliente.id) === String(reintegroForm.clienteId))?.saldo_favor) || 0).toFixed(2)}
+              </p>
+            )}
+            <div className="form-group">
+              <label>Producto *</label>
+              <select value={reintegroForm.productoId} onChange={(event) => seleccionarProductoReintegro(event.target.value)} required>
+                <option value="">Seleccionar producto...</option>
+                {productos.map((producto) => <option key={producto.id} value={producto.id}>{producto.nombre}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Precio del reintegro *</label>
+              <input type="number" min="0.01" step="0.01" value={reintegroForm.precio} onChange={(event) => setReintegroForm({ ...reintegroForm, precio: event.target.value })} required />
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowReintegro(false)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={guardandoReintegro}>{guardandoReintegro ? "Guardando..." : "Confirmar reintegro"}</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {showPagoCliente && (
         <div className="modal-overlay" onClick={() => setShowPagoCliente(false)}>

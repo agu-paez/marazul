@@ -1615,6 +1615,7 @@ export const generarResumenZonasPDF = async (clientes, zonas = []) => {
     doc.setFontSize(10);
     doc.setTextColor(40, 40, 50);
     doc.text("Cliente", ml + 4, y);
+    doc.text("Saldo actual", pw - mr - 4, y, { align: "right" });
     y += 9;
 
     doc.setFont("helvetica", "normal");
@@ -1633,6 +1634,11 @@ export const generarResumenZonasPDF = async (clientes, zonas = []) => {
       doc.line(ml, y, ml + cw, y);
       doc.setTextColor(50, 50, 60);
       doc.text(c.nombre, ml + 4, y);
+      const saldoActual = (parseFloat(c.saldo_pendiente) || 0) - (parseFloat(c.saldo_favor) || 0);
+      const saldoTexto = saldoActual < 0
+        ? `A favor: $${Math.abs(saldoActual).toFixed(2)}`
+        : `$${saldoActual.toFixed(2)}`;
+      doc.text(saldoTexto, pw - mr - 4, y, { align: "right" });
       y += 9;
     });
     y += 8;

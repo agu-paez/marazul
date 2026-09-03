@@ -1,4 +1,4 @@
-import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor, SalidaCamion } from "../models/index.js";
+import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor, SalidaCamion, Reintegro, User } from "../models/index.js";
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { getFechaLocal } from "../utils/fecha.js";
@@ -321,6 +321,84 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
   }
 };
 
+export const registrarReintegro = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { productoId, precio } = req.body;
+    const monto = parseMonto(precio);
+    if (!Number.isFinite(monto) || monto <= 0) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "El precio debe ser mayor a 0" });
+    }
+
+    const cierre = await CierreCaja.findOne({ where: { fecha: getFechaLocal() }, transaction });
+    if (cierre) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "No se pueden registrar reintegros: la caja del día está cerrada" });
+    }
+
+    const [cliente, producto] = await Promise.all([
+      Cliente.findOne({ where: { id: req.params.id, activo: true }, transaction, lock: transaction.LOCK.UPDATE }),
+      Producto.findOne({ where: { id: productoId, activo: true }, transaction }),
+    ]);
+    if (!cliente) {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Cliente no encontrado" });
+    }
+    if (!producto) {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Producto no encontrado" });
+    }
+
+    const saldoNeto = (parseFloat(cliente.saldo_pendiente) || 0) - (parseFloat(cliente.saldo_favor) || 0);
+    const nuevoSaldoNeto = saldoNeto - monto;
+    const nuevoSaldoPendiente = Math.max(0, nuevoSaldoNeto);
+    const nuevoSaldoFavor = Math.max(0, -nuevoSaldoNeto);
+    await cliente.update({
+      saldo_pendiente: nuevoSaldoPendiente.toFixed(2),
+      saldo_favor: nuevoSaldoFavor.toFixed(2),
+    }, { transaction });
+
+    const now = new Date();
+    await Reintegro.create({
+      monto: monto.toFixed(2),
+      precio: monto.toFixed(2),
+      producto_nombre: producto.nombre,
+      fecha: getFechaLocal(now),
+      hora: now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      clienteId: cliente.id,
+      productoId: producto.id,
+      registradoPorId: req.user.id,
+    }, { transaction });
+    await transaction.commit();
+
+    res.json({
+      message: `Reintegro de $${monto.toFixed(2)} registrado`,
+      cliente: await Cliente.findByPk(cliente.id),
+    });
+  } catch (error) {
+    await transaction.rollback();
+    res.status(500).json({ message: "Error al registrar reintegro", error: error.message });
+  }
+};
+
+export const getHistorialReintegros = async (req, res) => {
+  try {
+    const where = req.userRole === "repartidor" ? { registradoPorId: req.user.id } : {};
+    const reintegros = await Reintegro.findAll({
+      where,
+      include: [
+        { model: Cliente, attributes: ["id", "nombre", "zona"] },
+        { model: User, as: "registrado_por", attributes: ["id", "nombre"] },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+    res.json(reintegros);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener historial de reintegros", error: error.message });
+  }
+};
+
 export const deletePagoCuentaCorriente = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -348,7 +426,8 @@ export const deletePagoCuentaCorriente = async (req, res) => {
     }
 
     const saldoNetoAnterior = (parseFloat(cliente.saldo_pendiente) || 0) - (parseFloat(cliente.saldo_favor) || 0);
-    const saldoNetoRestaurado = saldoNetoAnterior + (parseFloat(pago.monto) || 0);
+    const esReintegro = pago.medio_pago === "reintegro";
+    const saldoNetoRestaurado = saldoNetoAnterior + (esReintegro ? -(parseFloat(pago.monto) || 0) : (parseFloat(pago.monto) || 0));
     await cliente.update({
       saldo_pendiente: Math.max(0, saldoNetoRestaurado).toFixed(2),
       saldo_favor: Math.max(0, -saldoNetoRestaurado).toFixed(2),

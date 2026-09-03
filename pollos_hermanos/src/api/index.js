@@ -204,6 +204,8 @@ export const clientesAPI = {
   getHistorialDeudas: () => API.get("/clientes/historial-deudas"),
   registrarPagoCC: (id, data) => API.post(`/clientes/${id}/pago-cc`, data),
   eliminarPagoCC: (clienteId, pagoId) => API.delete(`/clientes/${clienteId}/pago-cc/${pagoId}`),
+  registrarReintegro: (clienteId, data) => API.post(`/clientes/${clienteId}/reintegros`, data),
+  getHistorialReintegros: () => API.get("/clientes/reintegros"),
 };
 
 export const bancosAPI = {
