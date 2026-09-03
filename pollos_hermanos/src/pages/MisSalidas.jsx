@@ -17,7 +17,7 @@ const textoCantidad = (cant) => `${formatCant(cant)} unid.`;
 
 export default function MisSalidas() {
   const { user } = useAuth();
-  const isRepartidor = user?.role === "repartidor";
+  const isRepartidor = user?.role?.toLowerCase() === "repartidor";
   const isOperador = user?.role === "operador";
   const [salidas, setSalidas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -375,7 +375,7 @@ export default function MisSalidas() {
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           {isRepartidor && (
             <button className="btn btn-secondary" onClick={abrirReintegro} disabled={resumenCaja?.cerrado}>
-              Registrar reintegro
+              Registrar devolución
             </button>
           )}
           <button className="btn btn-primary" onClick={abrirPagoCliente} disabled={resumenCaja?.cerrado}>
