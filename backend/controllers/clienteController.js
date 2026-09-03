@@ -282,6 +282,10 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
     const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const fecha = getFechaLocal(now);
     const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const salida = await SalidaCamion.findOne({
+      where: { fecha, destino: cliente.zona, estado: { [Op.ne]: "cancelado" } },
+      order: [["createdAt", "DESC"]],
+    });
 
     for (const pago of pagos) {
       const datosBancarios = pago.datos_transferencia || pago.datos_tarjeta || pago.datos_cheque || pago.datos_ercheck;
@@ -300,6 +304,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
         datos_ercheck: pago.datos_ercheck ? JSON.stringify(pago.datos_ercheck) : null,
         proveedorId,
         registradoPorId: req.user.id,
+        salidaCamionId: salida?.id || null,
         titular: datosBancarios?.titular || datosBancarios?.nombre_cuenta || datosBancarios?.cuenta || null,
         banco: datosBancarios?.banco || datosBancarios?.nombre_banco || null,
       });

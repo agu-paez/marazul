@@ -97,7 +97,13 @@ export const getVentasDeSalida = async (req, res) => {
       order: [["createdAt", "ASC"]],
     });
 
-    res.json(ventas);
+    const pagosDeuda = await ClientePago.findAll({
+      where: { salidaCamionId: req.params.id },
+      include: [{ model: Cliente, attributes: ["id", "nombre"] }],
+      order: [["createdAt", "ASC"]],
+    });
+
+    res.json({ ventas, pagosDeuda });
   } catch (error) {
     res.status(500).json({ message: "Error al obtener ventas de la salida", error: error.message });
   }

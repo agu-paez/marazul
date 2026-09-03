@@ -1050,7 +1050,7 @@ export const generarTransferenciaIndividualPDF = async (pago, fecha) => {
   descargarPDF(doc, `transferencia-${nombreProv}${aliasPart}-${titular}-${fecha}.pdf`);
 };
 
-export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
+export const generarResumenEntregaPDF = async (salida, ventas, conteo, pagosDeuda = []) => {
   const doc = createPdf();
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
@@ -1305,6 +1305,16 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo) => {
       else if (medio === "cuenta_corriente") pagosResumen.cuenta_corriente += monto;
       else pagosResumen.otro += monto;
     }
+  }
+  for (const pago of pagosDeuda) {
+    const monto = parseFloat(pago.monto) || 0;
+    const medio = String(pago.medio_pago || "otro").toLowerCase();
+    if (medio === "efectivo") pagosResumen.efectivo += monto;
+    else if (medio === "transferencia") {
+      pagosResumen.transferencia += monto;
+      cantidadTransferencias++;
+    } else if (medio === "cuenta_corriente") pagosResumen.cuenta_corriente += monto;
+    else pagosResumen.otro += monto;
   }
   const pagosFilas = [
     { medio: "Efectivo", monto: pagosResumen.efectivo },

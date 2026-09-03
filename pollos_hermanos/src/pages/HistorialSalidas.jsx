@@ -64,8 +64,10 @@ export default function HistorialSalidas() {
         salidasAPI.getById(id),
         salidasAPI.getVentas(id),
       ]);
+      const ventas = Array.isArray(ventasRes.data) ? ventasRes.data : ventasRes.data.ventas;
+      const pagosDeuda = Array.isArray(ventasRes.data) ? [] : (ventasRes.data.pagosDeuda || []);
       const vendidos = {};
-      for (const venta of ventasRes.data) {
+      for (const venta of ventas) {
         for (const item of venta.VentaItems || []) {
           const unidades = Number(item.cantidad) || 0;
           vendidos[item.productoId] = Math.round(((vendidos[item.productoId] || 0) + unidades) * 100) / 100;
@@ -78,7 +80,7 @@ export default function HistorialSalidas() {
         devueltoUnidades: Number(item.cantidad_devuelta) || 0,
         faltante: Math.max(0, (Number(item.cantidad) || 0) - (Number(item.cantidad_devuelta) || 0) - (vendidos[item.productoId] || 0)),
       }));
-      return { salida: salidaRes.data, ventas: ventasRes.data, items, sobrantes: items.filter((item) => item.faltante > 0) };
+      return { salida: salidaRes.data, ventas, pagosDeuda, items, sobrantes: items.filter((item) => item.faltante > 0) };
     } catch (error) {
       alert("Error al obtener detalle: " + (error.response?.data?.message || error.message));
       return null;
@@ -93,7 +95,7 @@ export default function HistorialSalidas() {
 
   const handleDownloadResumen = async (id) => {
     const data = await cargarDetalle(id);
-    if (data) generarResumenEntregaPDF({ ...data.salida, sobrantes: data.sobrantes }, data.ventas, conteos[id]);
+    if (data) generarResumenEntregaPDF({ ...data.salida, sobrantes: data.sobrantes }, data.ventas, conteos[id], data.pagosDeuda);
   };
 
   const abrirConteo = (id) => {
@@ -214,7 +216,7 @@ export default function HistorialSalidas() {
             )}
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setDetalle(null)}>Cerrar</button>
-              <button className="btn btn-primary" onClick={() => generarResumenEntregaPDF({ ...detalle.salida, sobrantes: detalle.sobrantes }, detalle.ventas, conteos[detalle.salida.id])}>Generar PDF</button>
+              <button className="btn btn-primary" onClick={() => generarResumenEntregaPDF({ ...detalle.salida, sobrantes: detalle.sobrantes }, detalle.ventas, conteos[detalle.salida.id], detalle.pagosDeuda)}>Generar PDF</button>
             </div>
           </div>
         </div>

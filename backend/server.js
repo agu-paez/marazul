@@ -5,7 +5,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
-import { DataTypes } from "sequelize";
+import { DataTypes, Op } from "sequelize";
 import { errorHandler, sanitizeErrorResponses } from "./middleware/errorHandler.js";
 import logger from "./utils/logger.js";
 
@@ -255,6 +255,7 @@ const initializeDatabase = async () => {
     await ensureColumn(ClientePago, "banco", { type: DataTypes.STRING, allowNull: true });
     await ensureColumn(ClientePago, "fecha_pago", { type: DataTypes.DATEONLY, allowNull: true });
     await ensureColumn(ClientePago, "registradoPorId", { type: DataTypes.INTEGER, allowNull: true });
+    await ensureColumn(ClientePago, "salidaCamionId", { type: DataTypes.INTEGER, allowNull: true });
 
     const pagosClientes = await ClientePago.findAll({ where: { titular: null } });
     for (const pago of pagosClientes) {
@@ -274,6 +275,25 @@ const initializeDatabase = async () => {
       } catch {
         logger.warn(`No se pudieron migrar los datos bancarios del pago ${pago.id}`);
       }
+    }
+
+    // Vincula pagos de deuda existentes con la salida de su zona para que
+    // también formen parte del cierre histórico del camión.
+    const pagosSinSalida = await ClientePago.findAll({
+      where: { salidaCamionId: null },
+      include: [{ model: Cliente, attributes: ["zona"] }],
+    });
+    for (const pago of pagosSinSalida) {
+      if (!pago.Cliente?.zona) continue;
+      const salida = await SalidaCamion.findOne({
+        where: {
+          fecha: pago.fecha,
+          destino: pago.Cliente.zona,
+          estado: { [Op.ne]: "cancelado" },
+        },
+        order: [["createdAt", "DESC"]],
+      });
+      if (salida) await pago.update({ salidaCamionId: salida.id });
     }
 
     const bancosDefault = ["Banco Nación", "Banco Provincia", "Banco Galicia", "Banco Santander", "Banco BBVA", "Banco Macro", "Banco Ciudad", "Banco Patagonia", "Banco Supervielle", "Banco Hipotecario"];
