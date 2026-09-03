@@ -267,12 +267,13 @@ export default function MisSalidas() {
       if (isRepartidor) {
         let cantidadTransferencias = 0;
         try {
-          const [ventasRes, transferenciasRes] = await Promise.all([
+          const [ventasRes, transferenciasRes, pagosDeudaRes] = await Promise.all([
             salidasAPI.getVentas(regresando.id),
             salidasAPI.getTransferencias(regresando.id),
+            salidasAPI.getPagosDeuda(regresando.id),
           ]);
-          const ventas = Array.isArray(ventasRes.data) ? ventasRes.data : ventasRes.data.ventas;
-          const pagosDeuda = Array.isArray(ventasRes.data) ? [] : (ventasRes.data.pagosDeuda || []);
+          const ventas = ventasRes.data;
+          const pagosDeuda = pagosDeudaRes.data;
           cantidadTransferencias = ventas.reduce((cantidad, venta) => {
             const pagos = venta.VentaPagos?.length
               ? venta.VentaPagos

@@ -60,12 +60,13 @@ export default function HistorialSalidas() {
 
   const cargarDetalle = async (id) => {
     try {
-      const [salidaRes, ventasRes] = await Promise.all([
+      const [salidaRes, ventasRes, pagosDeudaRes] = await Promise.all([
         salidasAPI.getById(id),
         salidasAPI.getVentas(id),
+        salidasAPI.getPagosDeuda(id),
       ]);
-      const ventas = Array.isArray(ventasRes.data) ? ventasRes.data : ventasRes.data.ventas;
-      const pagosDeuda = Array.isArray(ventasRes.data) ? [] : (ventasRes.data.pagosDeuda || []);
+      const ventas = ventasRes.data;
+      const pagosDeuda = pagosDeudaRes.data;
       const vendidos = {};
       for (const venta of ventas) {
         for (const item of venta.VentaItems || []) {

@@ -13,6 +13,7 @@ import {
   getCamionesActivos,
   getStockCamion,
   getVentasDeSalida,
+  getPagosDeudaDeSalida,
   getTransferenciasDeSalida,
   guardarConteoSalida,
 } from "../controllers/salidaCamionController.js";
@@ -27,6 +28,7 @@ router.get("/mis-salidas", getMisSalidas);
 router.get("/activos", getCamionesActivos);
 router.get("/:id/stock", getStockCamion);
 router.get("/:id/ventas", getVentasDeSalida);
+router.get("/:id/pagos-deuda", getPagosDeudaDeSalida);
 router.get("/:id/transferencias", getTransferenciasDeSalida);
 router.put("/:id/conteo", authorize("admin", "operador"), guardarConteoSalida);
 

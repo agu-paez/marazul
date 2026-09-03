@@ -97,13 +97,7 @@ export const getVentasDeSalida = async (req, res) => {
       order: [["createdAt", "ASC"]],
     });
 
-    const pagosDeuda = await ClientePago.findAll({
-      where: { salidaCamionId: req.params.id },
-      include: [{ model: Cliente, attributes: ["id", "nombre"] }],
-      order: [["createdAt", "ASC"]],
-    });
-
-    res.json({ ventas, pagosDeuda });
+    res.json(ventas);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener ventas de la salida", error: error.message });
   }
@@ -487,6 +481,19 @@ export const updateSalidaStatus = async (req, res) => {
     res.json({ message: "Estado actualizado", salida: salidaActualizada });
   } catch (error) {
     res.status(500).json({ message: "Error al actualizar salida", error: error.message });
+  }
+};
+
+export const getPagosDeudaDeSalida = async (req, res) => {
+  try {
+    const pagosDeuda = await ClientePago.findAll({
+      where: { salidaCamionId: req.params.id },
+      include: [{ model: Cliente, attributes: ["id", "nombre"] }],
+      order: [["createdAt", "ASC"]],
+    });
+    res.json(pagosDeuda);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener pagos de deuda de la salida", error: error.message });
   }
 };
 
