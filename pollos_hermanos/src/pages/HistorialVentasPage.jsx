@@ -24,6 +24,8 @@ export default function HistorialVentasPage() {
   const [productosDisponibles, setProductosDisponibles] = useState([]);
   const [itemsEditados, setItemsEditados] = useState([]);
   const [guardandoProductos, setGuardandoProductos] = useState(false);
+  const [saldosEditados, setSaldosEditados] = useState({ saldo_anterior: "", saldo_actualizado: "" });
+  const [guardandoSaldos, setGuardandoSaldos] = useState(false);
   const [bancos, setBancos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [filtros, setFiltros] = useState({
@@ -84,6 +86,10 @@ export default function HistorialVentasPage() {
 
   const abrirEditarProductos = (venta) => {
     setVentaProductosEditando(venta);
+    setSaldosEditados({
+      saldo_anterior: venta.saldo_anterior_manual ?? "",
+      saldo_actualizado: venta.saldo_actualizado_manual ?? "",
+    });
     setItemsEditados((venta.VentaItems || []).map((item) => ({
       productoId: item.productoId,
       cantidad: String(item.cantidad),
@@ -121,6 +127,33 @@ export default function HistorialVentasPage() {
       alert("Error: " + (error.response?.data?.message || error.message));
     } finally {
       setGuardandoProductos(false);
+    }
+  };
+
+  const guardarSaldos = async () => {
+    const saldoAnterior = Number(saldosEditados.saldo_anterior);
+    const saldoActualizado = Number(saldosEditados.saldo_actualizado);
+    if (!Number.isFinite(saldoAnterior) || saldoAnterior < 0 || !Number.isFinite(saldoActualizado) || saldoActualizado < 0) {
+      alert("Los saldos deben ser números mayores o iguales a 0");
+      return;
+    }
+
+    setGuardandoSaldos(true);
+    try {
+      await ventasAPI.modificarSaldos(ventaProductosEditando.id, {
+        saldo_anterior: saldoAnterior,
+        saldo_actualizado: saldoActualizado,
+      });
+      setVentaProductosEditando((prev) => ({
+        ...prev,
+        saldo_anterior_manual: saldoAnterior,
+        saldo_actualizado_manual: saldoActualizado,
+      }));
+      await loadVentas();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    } finally {
+      setGuardandoSaldos(false);
     }
   };
 
@@ -414,6 +447,34 @@ export default function HistorialVentasPage() {
           <div className="modal-card modal-wide historial-pago-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Modificar factura {ventaProductosEditando.numero_comprobante}</h3>
             <p className="subtitle">{user?.role === "admin" ? "Puedes modificar productos, cantidades y precios." : "Solo se pueden modificar productos y cantidades. Los precios se mantienen como fueron vendidos."}</p>
+            <div className="form-card">
+              <h4>Saldos de la factura</h4>
+              <div className="item-row">
+                <label>
+                  Saldo anterior
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={saldosEditados.saldo_anterior}
+                    onChange={(e) => setSaldosEditados((prev) => ({ ...prev, saldo_anterior: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Saldo actualizado
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={saldosEditados.saldo_actualizado}
+                    onChange={(e) => setSaldosEditados((prev) => ({ ...prev, saldo_actualizado: e.target.value }))}
+                  />
+                </label>
+              </div>
+              <button type="button" className="btn btn-secondary" onClick={guardarSaldos} disabled={guardandoSaldos}>
+                {guardandoSaldos ? "Guardando saldos..." : "Guardar saldos"}
+              </button>
+            </div>
             <form onSubmit={guardarProductos}>
               {itemsEditados.map((item, index) => (
                 <div className="item-row" key={`${item.productoId}-${index}`}>
