@@ -643,9 +643,6 @@ export const modificarSaldosVenta = async (req, res) => {
       saldo_anterior_manual: saldoAnterior.toFixed(2),
       saldo_actualizado_manual: saldoActualizado.toFixed(2),
     });
-    if (venta.clienteId) {
-      await Cliente.update({ saldo_pendiente: saldoActualizado.toFixed(2) }, { where: { id: venta.clienteId } });
-    }
     res.json({ message: "Saldos de factura actualizados", venta });
   } catch (error) {
     res.status(500).json({ message: "Error al modificar los saldos", error: error.message });
