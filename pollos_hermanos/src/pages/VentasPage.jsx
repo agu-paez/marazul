@@ -334,11 +334,12 @@ export default function VentasPage() {
   const productosFiltrados = useMemo(() => {
     const termino = busqueda.toLowerCase();
     return productosBase.filter((p) => {
+      const tieneStockDisponible = !esReparto || Number(p.stock) > 0;
       const coincideBusqueda = p.nombre.toLowerCase().includes(termino)
         || (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino));
-       return coincideBusqueda && (!mostrarSoloSeleccionados || (cantidades[p.id] || 0) > 0);
+       return tieneStockDisponible && coincideBusqueda && (!mostrarSoloSeleccionados || (cantidades[p.id] || 0) > 0);
     });
-  }, [productosBase, busqueda, mostrarSoloSeleccionados, cantidades]);
+  }, [productosBase, busqueda, mostrarSoloSeleccionados, cantidades, esReparto]);
 
   const productosSeleccionados = useMemo(
     () => productosBase.filter((p) => (cantidades[p.id] || 0) > 0),
