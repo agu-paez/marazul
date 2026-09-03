@@ -120,7 +120,8 @@ export const generarComprobantePDF = async (venta) => {
   const saldoNetoAnterior = saldoNetoActual - variacionSaldo;
    const saldoAnteriorCalculado = Math.max(0, saldoNetoAnterior);
   const saldoAnteriorMostrado = Number(venta.saldo_anterior_manual ?? saldoAnteriorCalculado) || 0;
-  const saldoActualizadoMostrado = Number(venta.saldo_actualizado_manual ?? saldoPendiente) || 0;
+  const saldoActualizadoMostrado = Math.max(0, saldoNetoActual);
+  const saldoFavorMostrado = Math.max(0, -saldoNetoActual);
   const muestraCambioSaldo = saldoSumadoVenta > 0 || hasDeuda || montoSaldoDescontado > 0;
 
   const rowH = 7;
@@ -381,7 +382,7 @@ export const generarComprobantePDF = async (venta) => {
      doc.text(`Saldo pendiente: $${montoEntero(saldoPendiente)}`, ml + 8, y + 14);
   }
   doc.setTextColor(37, 99, 235);
-   doc.text(`Saldo a favor del cliente: $${montoEntero(saldoFavor)}`, pw - mr - 8, y + 14, { align: "right" });
+    doc.text(`Saldo a favor del cliente: $${montoEntero(saldoFavorMostrado)}`, pw - mr - 8, y + 14, { align: "right" });
   y += saldoBoxH + 3;
 
   // ---- FIRMAS ----
