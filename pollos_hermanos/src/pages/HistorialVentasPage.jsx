@@ -85,10 +85,20 @@ export default function HistorialVentasPage() {
   const precioCatalogoProducto = (producto) => Number(producto.precio);
 
   const abrirEditarProductos = (venta) => {
+    const saldoPendiente = Number(venta.cliente?.saldo_pendiente || 0) || 0;
+    const saldoFavor = Number(venta.cliente?.saldo_favor || 0) || 0;
+    const saldoNetoActual = saldoPendiente - saldoFavor;
+    const montoDeudaPagado = Number(venta.monto_deuda_pagado || 0) || 0;
+    const montoSaldoDescontado = Number(venta.monto_sobrante || 0) || 0;
+    const saldoSumadoVenta = (venta.VentaPagos || [])
+      .filter((pago) => pago.medio_pago === "cuenta_corriente")
+      .reduce((total, pago) => total + (Number(pago.monto) || 0), 0);
+    const variacionSaldo = saldoSumadoVenta - montoSaldoDescontado - montoDeudaPagado;
+    const saldoAnteriorCalculado = Math.max(0, saldoNetoActual - variacionSaldo);
     setVentaProductosEditando(venta);
     setSaldosEditados({
-      saldo_anterior: venta.saldo_anterior_manual ?? "",
-      saldo_actualizado: venta.saldo_actualizado_manual ?? "",
+      saldo_anterior: String(venta.saldo_anterior_manual ?? saldoAnteriorCalculado),
+      saldo_actualizado: String(venta.saldo_actualizado_manual ?? Math.max(0, saldoNetoActual)),
     });
     setItemsEditados((venta.VentaItems || []).map((item) => ({
       productoId: item.productoId,
