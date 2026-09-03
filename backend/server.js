@@ -256,6 +256,8 @@ const initializeDatabase = async () => {
     await ensureColumn(ClientePago, "fecha_pago", { type: DataTypes.DATEONLY, allowNull: true });
     await ensureColumn(ClientePago, "registradoPorId", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(ClientePago, "salidaCamionId", { type: DataTypes.INTEGER, allowNull: true });
+    await ensureColumn(ClientePago, "saldo_anterior", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
+    await ensureColumn(ClientePago, "saldo_actual", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
     await ensureColumn(Reintegro, "cantidad", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 1 });
 
     const pagosClientes = await ClientePago.findAll({ where: { titular: null } });

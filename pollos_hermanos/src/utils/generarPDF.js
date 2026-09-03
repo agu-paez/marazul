@@ -1820,14 +1820,19 @@ export const generarPagoClientePDF = async (pago, historial) => {
     return datos;
   };
   const datos = parseDatos(datosBancarios) || {};
+  const montoPago = Number(pago?.monto || 0);
+  const saldoActual = Number(pago?.saldo_actual ?? historial.saldo_pendiente ?? 0);
+  const saldoAnterior = Number(pago?.saldo_anterior ?? saldoActual + montoPago);
   const rows = [
     ["Fecha de emision del pago", `${pago?.fecha_pago || pago?.fecha || "-"}`],
     ["Medio de pago", pago?.medio_pago || "-"],
-    ["Monto pagado", `$${Number(pago?.monto || 0).toFixed(2)}`],
+    ["Monto pagado", `$${montoPago.toFixed(2)}`],
+    ["Saldo anterior", `$${saldoAnterior.toFixed(2)}`],
+    ["Saldo actual", `$${saldoActual.toFixed(2)}`],
     ["Cuenta / titular", pago?.titular || datos.titular || datos.nombre_cuenta || "-"],
     ["Banco", pago?.banco || datos.banco || datos.nombre_banco || "-"],
     ["Observaciones", pago?.notas || "-"],
-    ["Deuda posterior", `$${Number(historial.saldo_pendiente || 0).toFixed(2)}`],
+    ["Saldo a favor actual", `$${Number(historial.saldo_favor || 0).toFixed(2)}`],
   ];
   const tableX = 15;
   const tableW = pw - 30;

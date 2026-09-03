@@ -305,6 +305,8 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
         proveedorId,
         registradoPorId: req.user.id,
         salidaCamionId: salida?.id || null,
+        saldo_anterior: saldoPendienteActual.toFixed(2),
+        saldo_actual: nuevoSaldo.toFixed(2),
         titular: datosBancarios?.titular || datosBancarios?.nombre_cuenta || datosBancarios?.cuenta || null,
         banco: datosBancarios?.banco || datosBancarios?.nombre_banco || null,
       });

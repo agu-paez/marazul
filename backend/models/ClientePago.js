@@ -69,6 +69,14 @@ const ClientePago = sequelize.define("ClientePago", {
     type: DataTypes.INTEGER,
     allowNull: true,
   },
+  saldo_anterior: {
+    type: DataTypes.DECIMAL(13, 2),
+    allowNull: true,
+  },
+  saldo_actual: {
+    type: DataTypes.DECIMAL(13, 2),
+    allowNull: true,
+  },
 });
 
 export default ClientePago;

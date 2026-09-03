@@ -8,6 +8,7 @@ import ProduccionHistorialPage from "./ProduccionHistorialPage";
 import HistorialGastosPage from "./HistorialGastosPage";
 import HistorialPagosEmpleadosPage from "./HistorialPagosEmpleadosPage";
 import HistorialDeudasPage from "./HistorialDeudasPage";
+import HistorialReintegrosPage from "./HistorialReintegrosPage";
 
 export default function HistorialPage() {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ export default function HistorialPage() {
     tabs.push({ key: "gastos", label: "Historial de Gastos" });
     tabs.push({ key: "pagos-empleados", label: "Historial de Pagos" });
     tabs.push({ key: "promedios", label: "Historial de Promedios" });
+    tabs.push({ key: "reintegros", label: "Historial de Reintegros" });
   }
 
   return (
@@ -54,6 +56,7 @@ export default function HistorialPage() {
         {activeTab === "gastos" && isAdmin && <HistorialGastosPage />}
         {activeTab === "pagos-empleados" && isAdmin && <HistorialPagosEmpleadosPage />}
         {activeTab === "promedios" && isAdmin && <ProduccionHistorialPage />}
+        {activeTab === "reintegros" && isAdmin && <HistorialReintegrosPage />}
       </div>
     </div>
   );
