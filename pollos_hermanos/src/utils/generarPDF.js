@@ -97,7 +97,7 @@ export const generarComprobantePDF = async (venta) => {
         }
       }
     } else if (!["transferencia", "tarjeta", "cheque", "ercheck"].includes(venta.medio_pago)) {
-      rows.push({ metodo: medioLabel[venta.medio_pago] || venta.medio_pago, banco: "-", titular: "-", monto: parseFloat(venta.total || 0) });
+       rows.push({ metodo: medioLabel[venta.medio_pago] || venta.medio_pago, banco: "-", titular: "-", monto: parseFloat(venta.VentaPagos?.[0]?.monto ?? venta.total ?? 0) });
     }
     return rows;
   };
