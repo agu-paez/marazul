@@ -150,8 +150,8 @@ export const cerrarCaja = async (req, res) => {
         return res.status(400).json({ message: "Fecha inválida" });
       }
       const diasAtras = calcularDiasDiferencia(fechaCierre, hoy);
-      if (diasAtras < 0 || diasAtras > 2) {
-        return res.status(400).json({ message: "Solo se puede cerrar la caja del día actual o de los últimos 2 días" });
+      if (diasAtras < 0 || diasAtras > 3) {
+        return res.status(400).json({ message: "Solo se puede cerrar la caja del día actual o de los últimos 3 días" });
       }
     }
 
@@ -282,8 +282,8 @@ export const abrirCaja = async (req, res) => {
       if (diasAtras < 1) {
         return res.status(400).json({ message: "No se puede abrir una caja con fecha futura" });
       }
-      if (diasAtras > 2) {
-        return res.status(400).json({ message: "Solo se pueden abrir las cajas de los últimos 2 días" });
+      if (diasAtras > 3) {
+        return res.status(400).json({ message: "Solo se pueden abrir las cajas de los últimos 3 días" });
       }
     }
 
