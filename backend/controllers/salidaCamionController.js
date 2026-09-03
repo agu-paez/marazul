@@ -511,8 +511,7 @@ export const getTransferenciasDeSalida = async (req, res) => {
 
     const pagos = await ClientePago.count({
       where: {
-        registradoPorId: req.user.id,
-        fecha: salida.fecha,
+        salidaCamionId: salida.id,
         medio_pago: "transferencia",
       },
     });
