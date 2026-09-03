@@ -11,7 +11,7 @@ import logger from "./utils/logger.js";
 
 import sequelize from "./config/database.js";
 import "./models/index.js";
-import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, CierreCaja, SalidaCamion, SalidaCamionItem } from "./models/index.js";
+import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, CierreCaja, SalidaCamion, SalidaCamionItem, Reintegro } from "./models/index.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import proveedorRoutes from "./routes/proveedorRoutes.js";
@@ -256,6 +256,7 @@ const initializeDatabase = async () => {
     await ensureColumn(ClientePago, "fecha_pago", { type: DataTypes.DATEONLY, allowNull: true });
     await ensureColumn(ClientePago, "registradoPorId", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(ClientePago, "salidaCamionId", { type: DataTypes.INTEGER, allowNull: true });
+    await ensureColumn(Reintegro, "cantidad", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 1 });
 
     const pagosClientes = await ClientePago.findAll({ where: { titular: null } });
     for (const pago of pagosClientes) {

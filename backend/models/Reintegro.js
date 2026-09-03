@@ -11,6 +11,11 @@ const Reintegro = sequelize.define("Reintegro", {
     type: DataTypes.DECIMAL(13, 2),
     allowNull: false,
   },
+  cantidad: {
+    type: DataTypes.DECIMAL(13, 2),
+    allowNull: false,
+    defaultValue: 1,
+  },
   precio: {
     type: DataTypes.DECIMAL(13, 2),
     allowNull: false,

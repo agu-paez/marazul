@@ -40,7 +40,7 @@ export default function MisSalidas() {
   const [productos, setProductos] = useState([]);
   const [reintegros, setReintegros] = useState([]);
   const [showReintegro, setShowReintegro] = useState(false);
-  const [reintegroForm, setReintegroForm] = useState({ clienteId: "", productoId: "", precio: "" });
+  const [reintegroForm, setReintegroForm] = useState({ clienteId: "", productoId: "", precio: "", cantidad: "1" });
   const [guardandoReintegro, setGuardandoReintegro] = useState(false);
 
   useEffect(() => {
@@ -137,7 +137,7 @@ export default function MisSalidas() {
     const [clientesRes, productosRes] = resultados;
     if (clientesRes.status === "fulfilled") setClientes(clientesRes.value.data.clientes?.map((item) => item.cliente) || []);
     if (productosRes.status === "fulfilled") setProductos(productosRes.value.data.filter((producto) => producto.activo !== false));
-    setReintegroForm({ clienteId: "", productoId: "", precio: "" });
+    setReintegroForm({ clienteId: "", productoId: "", precio: "", cantidad: "1" });
     setShowReintegro(true);
   };
 
@@ -149,14 +149,17 @@ export default function MisSalidas() {
   const registrarReintegro = async (event) => {
     event.preventDefault();
     const precio = parseFloat(reintegroForm.precio) || 0;
+    const cantidad = parseFloat(reintegroForm.cantidad) || 0;
     if (!reintegroForm.clienteId) return alert("Debe seleccionar un cliente");
     if (!reintegroForm.productoId) return alert("Debe seleccionar un producto");
     if (precio <= 0) return alert("El precio debe ser mayor a 0");
+    if (cantidad <= 0) return alert("La cantidad debe ser mayor a 0");
     setGuardandoReintegro(true);
     try {
       const res = await clientesAPI.registrarReintegro(reintegroForm.clienteId, {
         productoId: reintegroForm.productoId,
         precio,
+        cantidad,
       });
       alert(res.data.message);
       setShowReintegro(false);
@@ -394,18 +397,20 @@ export default function MisSalidas() {
           </div>
           <div className="table-container">
             <table>
-              <thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Precio</th><th>Registrado por</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Producto</th><th>Cantidad</th><th>Precio unitario</th><th>Total</th><th>Registrado por</th></tr></thead>
               <tbody>
                 {reintegros.map((reintegro) => (
                   <tr key={reintegro.id}>
                     <td>{reintegro.fecha} {reintegro.hora}</td>
                     <td><strong>{reintegro.Cliente?.nombre || "-"}</strong></td>
                     <td>{reintegro.producto_nombre}</td>
+                    <td>{reintegro.cantidad}</td>
+                    <td>{dinero(reintegro.precio)}</td>
                     <td className="monto-regreso">{dinero(reintegro.monto)}</td>
                     <td>{reintegro.registrado_por?.nombre || "-"}</td>
                   </tr>
                 ))}
-                {reintegros.length === 0 && <tr><td colSpan="5" className="empty">No hay reintegros registrados</td></tr>}
+                {reintegros.length === 0 && <tr><td colSpan="7" className="empty">No hay reintegros registrados</td></tr>}
               </tbody>
             </table>
           </div>
@@ -416,7 +421,7 @@ export default function MisSalidas() {
         <div className="modal-overlay" onClick={() => setShowReintegro(false)}>
           <form className="modal-card modal-responsive" onSubmit={registrarReintegro} onClick={(event) => event.stopPropagation()}>
             <h3>Registrar reintegro</h3>
-            <p className="subtitle">El importe cancela primero la deuda del cliente. El excedente queda como saldo a favor.</p>
+            <p className="subtitle">La devolución suma el producto al stock. Su importe cancela primero la deuda y el excedente queda como saldo a favor.</p>
             <div className="form-group">
               <label>Cliente *</label>
               <ClienteAutocomplete
@@ -444,6 +449,11 @@ export default function MisSalidas() {
               <label>Precio del reintegro *</label>
               <input type="number" min="0.01" step="0.01" value={reintegroForm.precio} onChange={(event) => setReintegroForm({ ...reintegroForm, precio: event.target.value })} required />
             </div>
+            <div className="form-group">
+              <label>Cantidad devuelta *</label>
+              <input type="number" min="0.01" step="0.01" value={reintegroForm.cantidad} onChange={(event) => setReintegroForm({ ...reintegroForm, cantidad: event.target.value })} required />
+            </div>
+            <p className="subtitle">Total a reintegrar: {dinero((parseFloat(reintegroForm.precio) || 0) * (parseFloat(reintegroForm.cantidad) || 0))}</p>
             <div className="modal-actions">
               <button type="button" className="btn btn-secondary" onClick={() => setShowReintegro(false)}>Cancelar</button>
               <button type="submit" className="btn btn-primary" disabled={guardandoReintegro}>{guardandoReintegro ? "Guardando..." : "Confirmar reintegro"}</button>

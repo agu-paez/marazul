@@ -324,12 +324,18 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
 export const registrarReintegro = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const { productoId, precio } = req.body;
-    const monto = parseMonto(precio);
-    if (!Number.isFinite(monto) || monto <= 0) {
+    const { productoId, precio, cantidad } = req.body;
+    const precioUnitario = parseMonto(precio);
+    const cantidadReintegro = parseMonto(cantidad);
+    if (!Number.isFinite(precioUnitario) || precioUnitario <= 0) {
       await transaction.rollback();
       return res.status(400).json({ message: "El precio debe ser mayor a 0" });
     }
+    if (!Number.isFinite(cantidadReintegro) || cantidadReintegro <= 0) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "La cantidad debe ser mayor a 0" });
+    }
+    const monto = precioUnitario * cantidadReintegro;
 
     const cierre = await CierreCaja.findOne({ where: { fecha: getFechaLocal() }, transaction });
     if (cierre) {
@@ -337,14 +343,12 @@ export const registrarReintegro = async (req, res) => {
       return res.status(400).json({ message: "No se pueden registrar reintegros: la caja del día está cerrada" });
     }
 
-    const [cliente, producto] = await Promise.all([
-      Cliente.findOne({ where: { id: req.params.id, activo: true }, transaction, lock: transaction.LOCK.UPDATE }),
-      Producto.findOne({ where: { id: productoId, activo: true }, transaction }),
-    ]);
+    const cliente = await Cliente.findOne({ where: { id: req.params.id, activo: true }, transaction, lock: transaction.LOCK.UPDATE });
     if (!cliente) {
       await transaction.rollback();
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
+    const producto = await Producto.findOne({ where: { id: productoId, activo: true }, transaction, lock: transaction.LOCK.UPDATE });
     if (!producto) {
       await transaction.rollback();
       return res.status(404).json({ message: "Producto no encontrado" });
@@ -358,11 +362,13 @@ export const registrarReintegro = async (req, res) => {
       saldo_pendiente: nuevoSaldoPendiente.toFixed(2),
       saldo_favor: nuevoSaldoFavor.toFixed(2),
     }, { transaction });
+    await producto.update({ stock: (parseFloat(producto.stock) || 0) + cantidadReintegro }, { transaction });
 
     const now = new Date();
     await Reintegro.create({
       monto: monto.toFixed(2),
-      precio: monto.toFixed(2),
+      precio: precioUnitario.toFixed(2),
+      cantidad: cantidadReintegro,
       producto_nombre: producto.nombre,
       fecha: getFechaLocal(now),
       hora: now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" }),
