@@ -83,7 +83,10 @@ export const getAllProveedores = async (req, res) => {
 
     res.json(proveedores.map((proveedor) => ({
       ...proveedor.toJSON(),
-      transferencias_historial: transferenciasPorProveedor.get(proveedor.id) || 0,
+      transferencias_historial: Math.max(
+        (transferenciasPorProveedor.get(proveedor.id) || 0) - (Number(proveedor.transferencias_liquidadas) || 0),
+        0
+      ),
     })));
   } catch (error) {
     res.status(500).json({ message: "Error al obtener proveedores", error: error.message });
@@ -171,6 +174,7 @@ export const registrarMovimientoProveedor = async (req, res) => {
       mercaderias_compradas: 0,
       dinero_ventas: 0,
       diferencia_acumulada: (Number(proveedor.diferencia_acumulada) || 0) + diferencia,
+      transferencias_liquidadas: (Number(proveedor.transferencias_liquidadas) || 0) + transferencias,
     });
     res.status(201).json({ message: "Movimiento de proveedor registrado", movimiento });
   } catch (error) {

@@ -49,6 +49,12 @@ const Proveedor = sequelize.define("Proveedor", {
     allowNull: true,
     comment: "Diferencia acumulada de movimientos guardados",
   },
+  transferencias_liquidadas: {
+    type: DataTypes.DECIMAL(13, 2),
+    defaultValue: 0,
+    allowNull: false,
+    comment: "Transferencias incluidas en pagos de proveedor",
+  },
   activo: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,

@@ -228,6 +228,7 @@ const initializeDatabase = async () => {
     await ensureColumn(Proveedor, "mercaderias_compradas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "dinero_ventas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "diferencia_acumulada", { type: DataTypes.FLOAT, defaultValue: 0 });
+    await ensureColumn(Proveedor, "transferencias_liquidadas", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(ProveedorMovimiento, "saldo_anterior", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(ProveedorMovimiento, "transferencias", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(ProveedorMovimiento, "saldo_actual", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });
