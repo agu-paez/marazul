@@ -587,6 +587,13 @@ export const modificarPagoVenta = async (req, res) => {
       }
     }
 
+    const clienteActualizado = venta.clienteId
+      ? await Cliente.findByPk(venta.clienteId, { transaction })
+      : null;
+    const saldoActualCliente = clienteActualizado
+      ? Math.max(0, (parseFloat(clienteActualizado.saldo_pendiente) || 0) - (parseFloat(clienteActualizado.saldo_favor) || 0))
+      : null;
+
     await VentaPago.destroy({ where: { ventaId: venta.id }, transaction });
     await VentaPago.bulkCreate(pagosNuevos.map((pago) => ({
       ventaId: venta.id,
@@ -606,6 +613,7 @@ export const modificarPagoVenta = async (req, res) => {
       pago_modificado_por_id: req.user.id,
       pago_modificado_en: ahora,
       monto_sobrante: sobranteNuevo.toFixed(2),
+      ...(saldoActualCliente !== null ? { saldo_actualizado_manual: saldoActualCliente.toFixed(2) } : {}),
       pago_modificacion_detalle: JSON.stringify({ anteriores: pagosAnterioresDetalle, nuevos: pagosNuevosDetalle }),
     }, { transaction });
     await transaction.commit();
@@ -615,6 +623,7 @@ export const modificarPagoVenta = async (req, res) => {
         { model: VentaPago },
         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
         { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
+        { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor", "limite_credito"] },
       ],
     });
     res.json({ message: "Pago de venta actualizado", venta: ventaActualizada });
@@ -632,19 +641,56 @@ export const modificarSaldosVenta = async (req, res) => {
     return res.status(400).json({ message: "Los saldos deben ser números mayores o iguales a 0" });
   }
 
+  const transaction = await sequelize.transaction();
   try {
-    const venta = await Venta.findByPk(req.params.id);
-    if (!venta || venta.estado !== "completada") return res.status(404).json({ message: "Venta no encontrada" });
-    if (req.userRole !== "admin" && venta.usuarioId !== req.user.id) return res.status(403).json({ message: "Solo puedes modificar tus propias facturas" });
-    if (req.userRole !== "admin" && venta.fecha !== getFechaLocal()) return res.status(400).json({ message: "Solo se pueden modificar facturas del día" });
-    if (await CierreCaja.findOne({ where: { fecha: venta.fecha } })) return res.status(400).json({ message: "No se puede modificar la factura: la caja de ese día ya fue cerrada" });
+    const venta = await Venta.findByPk(req.params.id, { transaction });
+    if (!venta || venta.estado !== "completada") {
+      await transaction.rollback();
+      return res.status(404).json({ message: "Venta no encontrada" });
+    }
+    if (req.userRole !== "admin" && venta.usuarioId !== req.user.id) {
+      await transaction.rollback();
+      return res.status(403).json({ message: "Solo puedes modificar tus propias facturas" });
+    }
+    if (req.userRole !== "admin" && venta.fecha !== getFechaLocal()) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Solo se pueden modificar facturas del día" });
+    }
+    if (await CierreCaja.findOne({ where: { fecha: venta.fecha }, transaction })) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "No se puede modificar la factura: la caja de ese día ya fue cerrada" });
+    }
+
+    const cliente = await Cliente.findByPk(venta.clienteId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!cliente) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "La factura no tiene un cliente válido" });
+    }
 
     await venta.update({
       saldo_anterior_manual: saldoAnterior.toFixed(2),
       saldo_actualizado_manual: saldoActualizado.toFixed(2),
+    }, { transaction });
+
+    // El saldo manual de la boleta representa el saldo pendiente real del cliente.
+    await cliente.update({
+      saldo_pendiente: saldoActualizado.toFixed(2),
+      saldo_favor: "0.00",
+    }, { transaction });
+
+    await transaction.commit();
+
+    const ventaActualizada = await Venta.findByPk(venta.id, {
+      include: [
+        { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor", "limite_credito"] },
+      ],
     });
-    res.json({ message: "Saldos de factura actualizados", venta });
+    res.json({ message: "Saldos de factura y cliente actualizados", venta: ventaActualizada });
   } catch (error) {
+    if (!transaction.finished) await transaction.rollback();
     res.status(500).json({ message: "Error al modificar los saldos", error: error.message });
   }
 };
