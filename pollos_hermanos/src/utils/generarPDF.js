@@ -1879,7 +1879,7 @@ export const generarHistorialProveedorPDF = (movimiento) => {
     ["Fecha", movimiento?.fecha || "-"],
     ["Proveedor", proveedor.nombre || "-"],
     ["Mercaderías compradas", dinero(movimiento?.mercaderias_compradas)],
-    ["Dinero por ventas / efectivo", dinero(movimiento?.dinero_ventas)],
+    ["Efectivo enviado", dinero(movimiento?.dinero_ventas)],
     ["Transferencias acumuladas", dinero(movimiento?.transferencias)],
     ["Diferencia del movimiento", dinero(movimiento?.diferencia)],
     ["Deuda / diferencia anterior", dinero(movimiento?.saldo_anterior)],

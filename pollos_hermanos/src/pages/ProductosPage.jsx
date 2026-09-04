@@ -16,7 +16,6 @@ export default function ProductosPage() {
   const [tipoDescuento, setTipoDescuento] = useState("producto");
   const [showListaPrecios, setShowListaPrecios] = useState(false);
   const [tipoPrecio, setTipoPrecio] = useState("normal");
-  const [descuento, setDescuento] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [productoStock, setProductoStock] = useState(null);
   const [cantidadDescontar, setCantidadDescontar] = useState("");
@@ -138,18 +137,17 @@ export default function ProductosPage() {
   };
 
   const descargarPDF = async () => {
-    const porcentajeDescuento = tipoPrecio === "descuento" ? parseFloat(descuento) : 0;
-    if (tipoPrecio === "descuento" && (!Number.isFinite(porcentajeDescuento) || porcentajeDescuento <= 0 || porcentajeDescuento >= 100)) {
-      alert("Ingrese un descuento entre 1% y 99%");
-      return;
-    }
-
+    const nombresArchivo = {
+      normal: "lista-normal.pdf",
+      descuento: "lista-descuento-minimo.pdf",
+      mayorista: "lista-mayorista.pdf",
+      lista2: "lista-2-clientes-nuevos.pdf",
+    };
     try {
-      const response = await marcasAPI.descargarPDF({ descuento: porcentajeDescuento });
-      descargarPDFBlob(new Blob([response.data]), tipoPrecio === "descuento" ? "lista-clientes-nuevos.pdf" : "lista-precios.pdf");
+      const response = await marcasAPI.descargarPDF({ tipo: tipoPrecio });
+      descargarPDFBlob(new Blob([response.data]), nombresArchivo[tipoPrecio]);
       setShowListaPrecios(false);
       setTipoPrecio("normal");
-      setDescuento("");
     } catch (error) {
       alert("Error al descargar PDF: " + (error.response?.data?.message || error.message));
     }
@@ -211,9 +209,9 @@ export default function ProductosPage() {
               <div className="form-group">
                 <label>Tipo de descuento</label>
                 <select value={tipoDescuento} onChange={(e) => setTipoDescuento(e.target.value)}>
-                  <option value="producto">Descuento a productos</option>
-                  <option value="mayorista">Descuento categoría mayorista</option>
-                  <option value="nuevo">Descuento clientes nuevos</option>
+                   <option value="producto">Descuento mínimo (normal)</option>
+                   <option value="mayorista">Descuento mayorista</option>
+                   <option value="nuevo">Descuento lista 2 (clientes nuevos)</option>
                 </select>
               </div>
             )}
@@ -285,36 +283,22 @@ export default function ProductosPage() {
             <div className="form-group">
               <label>Tipo de precio</label>
               <select value={tipoPrecio} onChange={(e) => setTipoPrecio(e.target.value)}>
-                <option value="normal">Precio normal</option>
-                <option value="descuento">Descuento para clientes nuevos</option>
-              </select>
-            </div>
-            {tipoPrecio === "descuento" && (
-              <div className="form-group">
-                <label>Descuento (%)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="99"
-                  step="0.1"
-                  value={descuento}
-                  onChange={(e) => setDescuento(e.target.value)}
-                  placeholder="Ej: 10"
-                  autoFocus
-                />
-              </div>
-            )}
+                 <option value="normal">Lista normal</option>
+                 <option value="descuento">Descuento mínimo (normal)</option>
+                 <option value="mayorista">Descuento mayorista</option>
+                 <option value="lista2">Lista 2 (clientes nuevos)</option>
+               </select>
+             </div>
             <div className="modal-actions">
               <button
                 className="btn btn-secondary"
-                onClick={() => { setShowListaPrecios(false); setTipoPrecio("normal"); setDescuento(""); }}
+                 onClick={() => { setShowListaPrecios(false); setTipoPrecio("normal"); }}
               >
                 Cancelar
               </button>
               <button
                 className="btn btn-primary"
                 onClick={descargarPDF}
-                disabled={tipoPrecio === "descuento" && !descuento}
               >
                 Descargar
               </button>
@@ -440,15 +424,15 @@ export default function ProductosPage() {
               />
             </div>
             <div className="form-group">
-              <label>Descuento producto (%)</label>
+               <label>Descuento mínimo (normal) (%)</label>
                  <input type="number" min="0" max="99" step="0.1" value={form.descuento === "" ? "" : form.descuento} onChange={(e) => setForm({ ...form, descuento: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>Descuento mayorista (%)</label>
+               <label>Descuento mayorista (%)</label>
                  <input type="number" min="0" max="99" step="0.1" value={form.descuento_mayorista === "" ? "" : form.descuento_mayorista} onChange={(e) => setForm({ ...form, descuento_mayorista: e.target.value })} />
              </div>
              <div className="form-group">
-                 <label>Descuento clientes nuevos (%)</label>
+                  <label>Descuento lista 2 (clientes nuevos) (%)</label>
                  <input type="number" min="0" max="99" step="0.1" value={form.descuento_nuevo === "" ? "" : form.descuento_nuevo} onChange={(e) => setForm({ ...form, descuento_nuevo: e.target.value })} />
             </div>
             <div className="form-group">

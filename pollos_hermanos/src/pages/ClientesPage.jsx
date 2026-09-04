@@ -254,9 +254,9 @@ export default function ClientesPage() {
               <div className="form-group">
                 <label>Tipo de descuento</label>
                 <select value={tipoDescuento} onChange={(e) => setTipoDescuento(e.target.value)}>
-                  <option value="producto">Descuento de producto</option>
-                  <option value="mayorista">Descuento mayorista</option>
-                  <option value="nuevo">Descuento para cliente nuevo</option>
+                   <option value="producto">Descuento mínimo (normal)</option>
+                   <option value="mayorista">Descuento mayorista</option>
+                   <option value="nuevo">Descuento lista 2 (clientes nuevos)</option>
                 </select>
               </div>
               {editando && (

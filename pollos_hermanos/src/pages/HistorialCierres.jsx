@@ -22,6 +22,7 @@ export default function HistorialCierres() {
   const [transferencias, setTransferencias] = useState([]);
   const [loadingTransf, setLoadingTransf] = useState(false);
   const [proveedorExpandido, setProveedorExpandido] = useState(null);
+  const [filtros, setFiltros] = useState({ desde: "", hasta: "", usuario: "" });
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const today = getFechaLocal();
   const esAdmin = user?.role === "admin";
@@ -201,6 +202,15 @@ export default function HistorialCierres() {
     return lista;
   })();
 
+  const cierresFiltrados = cierres.filter((cierre) => {
+    const fecha = String(cierre.fecha).slice(0, 10);
+    const usuario = String(cierre.usuario_cierre || "").toLowerCase();
+    const usuarioBuscado = filtros.usuario.trim().toLowerCase();
+    return (!filtros.desde || fecha >= filtros.desde)
+      && (!filtros.hasta || fecha <= filtros.hasta)
+      && (!usuarioBuscado || usuario.includes(usuarioBuscado));
+  });
+
   if (loading) return <div className="loading">Cargando...</div>;
 
   return (
@@ -228,11 +238,29 @@ export default function HistorialCierres() {
         </div>
       )}
 
+      <div className="form-card" style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "end", marginBottom: "1rem" }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label>Desde</label>
+          <input type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label>Hasta</label>
+          <input type="date" value={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} />
+        </div>
+        <div className="form-group" style={{ margin: 0, flex: "1 1 180px" }}>
+          <label>Usuario</label>
+          <input placeholder="Buscar usuario" value={filtros.usuario} onChange={(e) => setFiltros({ ...filtros, usuario: e.target.value })} />
+        </div>
+        <button className="btn btn-secondary" onClick={() => setFiltros({ desde: "", hasta: "", usuario: "" })}>Limpiar</button>
+      </div>
+
       {cierres.length === 0 ? (
         <p className="empty">No hay cierres de caja registrados</p>
+      ) : cierresFiltrados.length === 0 ? (
+        <p className="empty">No hay cierres que coincidan con los filtros.</p>
       ) : isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          {cierres.map((c) => (
+          {cierresFiltrados.map((c) => (
             <div key={c.id} style={{
               background: "var(--bg-card)",
               borderRadius: "10px",
@@ -516,7 +544,7 @@ export default function HistorialCierres() {
               </tr>
             </thead>
             <tbody>
-              {cierres.map((c) => (
+              {cierresFiltrados.map((c) => (
                 <>
                   <tr key={c.id} style={{ cursor: "pointer" }} onClick={() => handleExpandir(c)}>
                     <td style={{ width: "30px", textAlign: "center" }}>

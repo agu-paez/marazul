@@ -315,7 +315,7 @@ export default function ProveedoresPage() {
               </div>
             </div>
             <div className="form-group">
-              <label>Dinero por Ventas</label>
+              <label>Efectivo enviado</label>
               <input
                 type="number"
                 step="0.01"

@@ -133,10 +133,22 @@ export const deleteMarca = async (req, res) => {
 
 export const generarPDFMarcasProductos = async (req, res) => {
   try {
-    const descuento = Number(req.query.descuento || 0);
-    if (!Number.isFinite(descuento) || descuento < 0 || descuento >= 100) {
-      return res.status(400).json({ message: "El descuento debe estar entre 0% y 99%" });
+    const tipo = req.query.tipo || "normal";
+    const camposDescuento = {
+      descuento: "descuento",
+      mayorista: "descuento_mayorista",
+      lista2: "descuento_nuevo",
+    };
+    const nombresLista = {
+      normal: "Lista normal",
+      descuento: "Descuento mínimo (normal)",
+      mayorista: "Descuento mayorista",
+      lista2: "Lista 2 (clientes nuevos)",
+    };
+    if (tipo !== "normal" && !camposDescuento[tipo]) {
+      return res.status(400).json({ message: "El tipo de lista no es válido" });
     }
+    const campoDescuento = camposDescuento[tipo];
 
     const marcas = (await Marca.findAll({
       include: [
@@ -144,7 +156,7 @@ export const generarPDFMarcasProductos = async (req, res) => {
           model: Producto,
           where: { activo: true },
           required: false,
-          attributes: ["id", "nombre", "descripcion", "precio", "stock", "unidad", "kg_por_caja", "excluir_de_lista_pdf"]
+           attributes: ["id", "nombre", "descripcion", "precio", "descuento", "descuento_mayorista", "descuento_nuevo", "stock", "unidad", "kg_por_caja", "excluir_de_lista_pdf"]
         },
         { model: Proveedor, attributes: [], where: { activo: true } }
       ],
@@ -160,7 +172,7 @@ export const generarPDFMarcasProductos = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${descuento > 0 ? "lista-clientes-nuevos" : "lista-precios"}.pdf"`
+       `attachment; filename="${tipo === "normal" ? "lista-precios" : `lista-${tipo}`}.pdf"`
     );
     doc.pipe(res);
 
@@ -199,7 +211,7 @@ export const generarPDFMarcasProductos = async (req, res) => {
       doc.rect(0, headerH, pageWidth, 3).fill(ACCENT);
       doc.fillColor(NAVY).fontSize(11).font("Helvetica-Bold")
          .text(
-           "Lista de precios",
+           nombresLista[tipo],
            startX,
            72,
            { align: "left" }
@@ -262,9 +274,10 @@ export const generarPDFMarcasProductos = async (req, res) => {
       return Number.isFinite(n) ? `$${n.toFixed(2)}` : "-";
     };
 
-    const precioConDescuento = (producto) => {
-      const precio = Number(producto.precio) * (1 - descuento / 100);
-      return descuento > 0 ? Math.floor(precio) : precio;
+     const precioConDescuento = (producto) => {
+       const descuento = campoDescuento ? Number(producto[campoDescuento]) || 0 : 0;
+       const precio = Number(producto.precio) * (1 - descuento / 100);
+       return descuento > 0 ? Math.floor(precio) : precio;
     };
     const precioPorKg = (producto) => {
       const precio = precioConDescuento(producto);
