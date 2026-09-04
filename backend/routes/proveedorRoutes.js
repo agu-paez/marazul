@@ -7,6 +7,7 @@ import {
   deleteProveedor,
   registrarMovimientoProveedor,
   cambiarEstadoProveedor,
+  getHistorialProveedores,
 } from "../controllers/proveedorController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 
@@ -14,6 +15,7 @@ const router = Router();
 
 router.use(authenticate);
 
+router.get("/historial", authorize("admin"), getHistorialProveedores);
 router.get("/", getAllProveedores);
 router.get("/:id", getProveedorById);
 router.post("/", authorize("admin"), createProveedor);

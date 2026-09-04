@@ -486,6 +486,7 @@ export default function HistorialVentasPage() {
               </button>
             </div>
             <form onSubmit={guardarProductos}>
+              <div className="mercaderia-edit-list">
               {itemsEditados.map((item, index) => (
                 <div className="item-row" key={`${item.productoId}-${index}`}>
                   <select
@@ -526,6 +527,7 @@ export default function HistorialVentasPage() {
                   {itemsEditados.length > 1 && <button type="button" className="btn btn-sm btn-cancel" onClick={() => setItemsEditados((prev) => prev.filter((_, i) => i !== index))}>X</button>}
                 </div>
               ))}
+              </div>
               <button type="button" className="btn btn-secondary" onClick={agregarProductoEditado}>+ Agregar producto</button>
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => { const venta = ventaProductosEditando; setVentaProductosEditando(null); abrirEditarPago(venta); }}>

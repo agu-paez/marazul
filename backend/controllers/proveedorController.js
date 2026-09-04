@@ -147,13 +147,25 @@ export const registrarMovimientoProveedor = async (req, res) => {
     if (!Number.isFinite(compras) || !Number.isFinite(ventas)) {
       return res.status(400).json({ message: "Los montos no son validos" });
     }
+    const transferencias = Number(req.body.transferencias ?? req.body.transferencias_historial ?? 0);
+    if (!Number.isFinite(transferencias) || transferencias < 0) {
+      return res.status(400).json({ message: "El monto de transferencias no es valido" });
+    }
+    const saldoAnterior = (Number(proveedor.mercaderias_compradas) || 0)
+      + (Number(proveedor.dinero_ventas) || 0)
+      + (Number(proveedor.diferencia_acumulada) || 0)
+      + (Number(req.body.transferencias_historial || 0) || 0);
     const diferencia = ventas - compras;
+    const saldoActual = saldoAnterior + diferencia;
     const movimiento = await ProveedorMovimiento.create({
       fecha: req.body.fecha || getFechaLocal(),
       proveedorId: proveedor.id,
       mercaderias_compradas: compras,
       dinero_ventas: ventas,
       diferencia,
+      saldo_anterior: saldoAnterior,
+      transferencias,
+      saldo_actual: saldoActual,
     });
     await proveedor.update({
       mercaderias_compradas: 0,
@@ -163,6 +175,18 @@ export const registrarMovimientoProveedor = async (req, res) => {
     res.status(201).json({ message: "Movimiento de proveedor registrado", movimiento });
   } catch (error) {
     res.status(500).json({ message: "Error al registrar movimiento del proveedor", error: error.message });
+  }
+};
+
+export const getHistorialProveedores = async (req, res) => {
+  try {
+    const movimientos = await ProveedorMovimiento.findAll({
+      include: [{ model: Proveedor, as: "proveedor", attributes: ["id", "nombre", "alias"] }],
+      order: [["fecha", "DESC"], ["createdAt", "DESC"]],
+    });
+    res.json(movimientos);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener historial de proveedores", error: error.message });
   }
 };
 

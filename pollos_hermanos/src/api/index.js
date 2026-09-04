@@ -93,6 +93,7 @@ export const proveedoresAPI = {
   update: (id, data) => API.put(`/proveedores/${id}`, data),
   delete: (id) => API.delete(`/proveedores/${id}`),
   registrarMovimiento: (id, data) => API.post(`/proveedores/${id}/movimientos`, data),
+  getHistorial: () => API.get("/proveedores/historial"),
   cambiarEstado: (id) => API.patch(`/proveedores/${id}/estado`),
 };
 

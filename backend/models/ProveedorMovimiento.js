@@ -8,6 +8,9 @@ const ProveedorMovimiento = sequelize.define("ProveedorMovimiento", {
   mercaderias_compradas: { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 },
   dinero_ventas: { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 },
   diferencia: { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 },
+  saldo_anterior: { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 },
+  transferencias: { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 },
+  saldo_actual: { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 },
 });
 
 export default ProveedorMovimiento;

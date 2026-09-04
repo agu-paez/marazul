@@ -228,6 +228,9 @@ const initializeDatabase = async () => {
     await ensureColumn(Proveedor, "mercaderias_compradas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "dinero_ventas", { type: DataTypes.FLOAT, defaultValue: 0 });
     await ensureColumn(Proveedor, "diferencia_acumulada", { type: DataTypes.FLOAT, defaultValue: 0 });
+    await ensureColumn(ProveedorMovimiento, "saldo_anterior", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(ProveedorMovimiento, "transferencias", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(ProveedorMovimiento, "saldo_actual", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(Producto, "costo", { type: DataTypes.DECIMAL(10, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(Producto, "excluir_de_lista_pdf", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
     await ensureColumn(Producto, "descuento", { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 });

@@ -1869,3 +1869,67 @@ export const generarPagoClientePDF = async (pago, historial) => {
   doc.setFontSize(7); doc.setTextColor(160, 160, 160); doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, 285, { align: "center" });
   descargarPDF(doc, `pago-cliente-${nombreArchivoSeguro(cliente?.nombre)}-${pago?.id || pago?.fecha || "registro"}.pdf`);
 };
+
+export const generarHistorialProveedorPDF = (movimiento) => {
+  const doc = createPdf();
+  const pw = doc.internal.pageSize.getWidth();
+  const proveedor = movimiento?.proveedor || {};
+  const dinero = (valor) => `$${Number(valor || 0).toFixed(2)}`;
+  const rows = [
+    ["Fecha", movimiento?.fecha || "-"],
+    ["Proveedor", proveedor.nombre || "-"],
+    ["Mercaderías compradas", dinero(movimiento?.mercaderias_compradas)],
+    ["Dinero por ventas / efectivo", dinero(movimiento?.dinero_ventas)],
+    ["Transferencias acumuladas", dinero(movimiento?.transferencias)],
+    ["Diferencia del movimiento", dinero(movimiento?.diferencia)],
+    ["Deuda / diferencia anterior", dinero(movimiento?.saldo_anterior)],
+    ["Deuda / diferencia actual", dinero(movimiento?.saldo_actual)],
+  ];
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(45, 58, 30);
+  doc.text("Historial de proveedor", pw / 2, 25, { align: "center" });
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(90, 90, 90);
+  doc.text("Detalle de Saldos y Diferencias", pw / 2, 34, { align: "center" });
+
+  const tableX = 15;
+  const tableW = pw - 30;
+  const labelW = 85;
+  const rowH = 13;
+  let y = 52;
+  doc.setFillColor(230, 232, 240);
+  doc.rect(tableX, y, tableW, 10, "F");
+  doc.setDrawColor(190, 192, 200);
+  doc.rect(tableX, y, tableW, 10, "S");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(40, 40, 50);
+  doc.text("Concepto", tableX + 4, y + 6.5);
+  doc.text("Importe", tableX + labelW + 4, y + 6.5);
+  y += 10;
+
+  rows.forEach(([label, value], index) => {
+    if (index % 2) {
+      doc.setFillColor(248, 249, 250);
+      doc.rect(tableX, y, tableW, rowH, "F");
+    }
+    doc.setDrawColor(215, 217, 223);
+    doc.rect(tableX, y, tableW, rowH, "S");
+    doc.line(tableX + labelW, y, tableX + labelW, y + rowH);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(70, 70, 75);
+    doc.text(label, tableX + 4, y + 8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(50, 50, 60);
+    doc.text(String(value), tableX + labelW + 4, y + 8);
+    y += rowH;
+  });
+
+  doc.setFontSize(7);
+  doc.setTextColor(160, 160, 160);
+  doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, 285, { align: "center" });
+  descargarPDF(doc, `historial-proveedor-${nombreArchivoSeguro(proveedor.nombre)}-${movimiento?.id || movimiento?.fecha || "registro"}.pdf`);
+};
