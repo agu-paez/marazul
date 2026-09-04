@@ -154,7 +154,7 @@ export const registrarMovimientoProveedor = async (req, res) => {
     const saldoAnterior = -(Math.abs(Number(proveedor.mercaderias_compradas)) || 0)
       + (Number(proveedor.dinero_ventas) || 0)
       + (Number(proveedor.diferencia_acumulada) || 0)
-      + (Number(req.body.transferencias_historial || 0) || 0);
+      + transferencias;
     const diferencia = ventas - compras;
     const saldoActual = saldoAnterior + diferencia;
     const movimiento = await ProveedorMovimiento.create({

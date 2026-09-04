@@ -136,6 +136,7 @@ export default function ProveedoresPage() {
       await proveedoresAPI.registrarMovimiento(saldosModal.id, {
         mercaderias_compradas: Math.abs(parseFloat(saldosForm.mercaderias_compradas) || 0),
         dinero_ventas: parseFloat(saldosForm.dinero_ventas) || 0,
+        transferencias: parseFloat(saldosModal.transferencias_historial) || 0,
         transferencias_historial: parseFloat(saldosModal.transferencias_historial) || 0,
       });
       setSaldosModal(null);
