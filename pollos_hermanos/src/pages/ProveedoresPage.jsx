@@ -125,7 +125,7 @@ export default function ProveedoresPage() {
   const openSaldosModal = (proveedor) => {
     setSaldosModal(proveedor);
     setSaldosForm({
-      mercaderias_compradas: proveedor.mercaderias_compradas || 0,
+      mercaderias_compradas: Math.abs(proveedor.mercaderias_compradas || 0),
       dinero_ventas: proveedor.dinero_ventas || 0,
     });
   };
@@ -304,14 +304,12 @@ export default function ProveedoresPage() {
             <div className="form-group">
               <label>Mercaderias Compradas</label>
               <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: "10px", top: "8px", fontWeight: "bold", color: "var(--danger)", zIndex: 1 }}>-</span>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
-                  value={Math.abs(saldosForm.mercaderias_compradas) || ""}
-                  onChange={(e) => setSaldosForm({ ...saldosForm, mercaderias_compradas: -(parseFloat(e.target.value) || 0) })}
-                  style={{ paddingLeft: "1.5rem" }}
+                  value={saldosForm.mercaderias_compradas || ""}
+                  onChange={(e) => setSaldosForm({ ...saldosForm, mercaderias_compradas: parseFloat(e.target.value) || 0 })}
                 />
               </div>
             </div>
@@ -331,9 +329,9 @@ export default function ProveedoresPage() {
                 padding: "0.6rem 0.75rem", borderRadius: "6px",
                 border: "1px solid var(--border)",
                 fontWeight: "bold", fontSize: "1.1rem",
-                color: (saldosForm.dinero_ventas + saldosForm.mercaderias_compradas) >= 0 ? "var(--success)" : "var(--danger)"
-              }}>
-                ${(saldosForm.dinero_ventas + saldosForm.mercaderias_compradas + (saldosModal.diferencia_acumulada || 0) + (saldosModal.transferencias_historial || 0)).toFixed(2)}
+                 color: (saldosForm.dinero_ventas - saldosForm.mercaderias_compradas) >= 0 ? "var(--success)" : "var(--danger)"
+               }}>
+                ${(saldosForm.dinero_ventas - saldosForm.mercaderias_compradas + (saldosModal.diferencia_acumulada || 0) + (saldosModal.transferencias_historial || 0)).toFixed(2)}
               </div>
             </div>
             <div className="form-group">
@@ -368,7 +366,7 @@ export default function ProveedoresPage() {
           </thead>
           <tbody>
             {proveedores.map((p) => {
-              const diferencia = (p.dinero_ventas || 0) + (p.mercaderias_compradas || 0) + (p.diferencia_acumulada || 0) + (p.transferencias_historial || 0);
+              const diferencia = (p.dinero_ventas || 0) - Math.abs(p.mercaderias_compradas || 0) + (p.diferencia_acumulada || 0) + (p.transferencias_historial || 0);
               return (
                 <tr key={p.id} className={!p.activo ? "proveedor-inactivo" : ""}>
                   <td data-label="Nombre"><strong>{p.nombre}</strong></td>

@@ -11,7 +11,7 @@ import logger from "./utils/logger.js";
 
 import sequelize from "./config/database.js";
 import "./models/index.js";
-import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, CierreCaja, SalidaCamion, SalidaCamionItem, Reintegro } from "./models/index.js";
+import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, ProveedorMovimiento, CierreCaja, SalidaCamion, SalidaCamionItem, Reintegro } from "./models/index.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import proveedorRoutes from "./routes/proveedorRoutes.js";

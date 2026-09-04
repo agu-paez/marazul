@@ -151,7 +151,7 @@ export const registrarMovimientoProveedor = async (req, res) => {
     if (!Number.isFinite(transferencias) || transferencias < 0) {
       return res.status(400).json({ message: "El monto de transferencias no es valido" });
     }
-    const saldoAnterior = (Number(proveedor.mercaderias_compradas) || 0)
+    const saldoAnterior = -(Math.abs(Number(proveedor.mercaderias_compradas)) || 0)
       + (Number(proveedor.dinero_ventas) || 0)
       + (Number(proveedor.diferencia_acumulada) || 0)
       + (Number(req.body.transferencias_historial || 0) || 0);
