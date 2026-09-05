@@ -1438,11 +1438,10 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo, pagosDeud
   const transferencias = construirTransferencias(ventas, pagosDeuda);
   const totalTransferencias = transferencias.reduce((suma, t) => suma + (t.monto || 0), 0);
   drawSimpleTable(
-    ["Fecha", "Alias", "Banco", "Cuenta / Titular", "Monto"],
-    [30, 34, 34, cw - 30 - 34 - 34 - 38, 38],
+    ["Fecha", "Banco", "Cuenta / Titular", "Monto"],
+    [30, 40, cw - 30 - 40 - 38, 38],
     [
       (r) => r.fecha,
-      (r) => r.alias,
       (r) => r.banco,
       (r) => r.cuenta,
       (r) => `$${(r.monto || 0).toFixed(2)}`,
