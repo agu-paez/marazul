@@ -65,7 +65,9 @@ export default function NuevaSalida() {
       p.nombre.toLowerCase().includes(termino) ||
       (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino))
     );
-    return coincideBusqueda && (!mostrarSoloSeleccionados || parseNumero(cantidades[p.id]) > 0);
+    return Number(p.stock) > 0
+      && coincideBusqueda
+      && (!mostrarSoloSeleccionados || parseNumero(cantidades[p.id]) > 0);
   });
 
   const productosSeleccionados = productos.filter((p) => parseNumero(cantidades[p.id]) > 0);
@@ -253,7 +255,9 @@ export default function NuevaSalida() {
                             setCantidades((prev) => ({ ...prev, [p.id]: "" }));
                             return;
                           }
-                           const val = esKg ? e.target.value : parseInt(e.target.value);
+                           const val = esKg
+                             ? e.target.value.replace(/\./g, ",").replace(/[^\d,]/g, "").replace(/(,.*),/g, "$1").replace(/(,\d{0,2}).*/g, "$1")
+                             : parseInt(e.target.value);
                            setCantidades((prev) => ({
                              ...prev,
                              [p.id]: esKg ? val : Math.min(Math.max(0, val), Number(p.stock)),

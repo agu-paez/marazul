@@ -20,3 +20,12 @@ export const formatearNumeroInput = (valor) => {
   if (valor === "" || valor === null || valor === undefined) return "";
   return formatoNumero.format(parseNumero(valor));
 };
+
+export const formatearNumeroMientrasEscribe = (valor) => {
+  const texto = String(valor ?? "").replace(/[^0-9,.]/g, "");
+  if (!texto) return "";
+  const [enteroInicial, decimal] = texto.split(",");
+  const entero = (enteroInicial || "0").replace(/\./g, "").replace(/^0+(?=\d)/, "");
+  const enteroFormateado = entero.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return decimal === undefined ? enteroFormateado : `${enteroFormateado},${decimal.slice(0, 2)}`;
+};

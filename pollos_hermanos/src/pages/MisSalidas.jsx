@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { formatearNumeroInput, parseNumero } from "../utils/numero";
+import { formatearNumeroInput, formatearNumeroMientrasEscribe, parseNumero } from "../utils/numero";
 import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI, proveedoresAPI, productosAPI } from "../api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 import BancoAutocomplete from "../components/BancoAutocomplete";
@@ -489,7 +489,7 @@ export default function MisSalidas() {
                  type="text"
                  inputMode="decimal"
                  value={pagoCliente.monto}
-                 onChange={(event) => setPagoCliente({ ...pagoCliente, monto: event.target.value })}
+                 onChange={(event) => setPagoCliente({ ...pagoCliente, monto: formatearNumeroMientrasEscribe(event.target.value) })}
                  onBlur={(event) => setPagoCliente({ ...pagoCliente, monto: formatearNumeroInput(event.target.value) })}
                  required
                />

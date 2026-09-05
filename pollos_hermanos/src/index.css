@@ -1444,7 +1444,7 @@ h2 {
     height: 26px;
     font-size: 0.95rem;
   }
-  .producto-card-qty input[type="number"] {
+  .producto-card-qty input {
     width: 40px;
     height: 28px;
     font-size: 0.85rem;
@@ -1656,7 +1656,7 @@ input[type="number"] {
   cursor: not-allowed;
 }
 
-.producto-card-qty input[type="number"] {
+.producto-card-qty input {
   width: 48px;
   height: 32px;
   text-align: center;
@@ -1672,7 +1672,7 @@ input[type="number"] {
   box-sizing: border-box;
 }
 
-.producto-card-qty input[type="number"]:focus {
+.producto-card-qty input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(74, 107, 90, 0.15);
 }

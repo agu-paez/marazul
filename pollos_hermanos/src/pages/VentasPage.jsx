@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { productosAPI, ventasAPI, clientesAPI, salidasAPI, bancosAPI, proveedoresAPI } from "../api";
 import BancoAutocomplete from "../components/BancoAutocomplete";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
-import { formatearNumeroInput, parseNumero } from "../utils/numero";
+import { formatearNumeroInput, formatearNumeroMientrasEscribe, parseNumero } from "../utils/numero";
 
 const fechaHoraLocalInput = () => {
   const now = new Date();
@@ -167,7 +167,7 @@ export default function VentasPage() {
   };
 
   const handleMontoInput = (index, value) => {
-    setBorradorMonto((prev) => ({ ...prev, [index]: value }));
+    setBorradorMonto((prev) => ({ ...prev, [index]: formatearNumeroMientrasEscribe(value) }));
   };
 
   const confirmarMontoPago = (index, value) => {
@@ -335,7 +335,7 @@ export default function VentasPage() {
   const productosFiltrados = useMemo(() => {
     const termino = busqueda.toLowerCase();
     return productosBase.filter((p) => {
-      const tieneStockDisponible = !esReparto || Number(p.stock) > 0;
+      const tieneStockDisponible = Number(p.stock) > 0;
       const coincideBusqueda = p.nombre.toLowerCase().includes(termino)
         || (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino));
         return tieneStockDisponible && coincideBusqueda && (!mostrarSoloSeleccionados || parseNumero(cantidades[p.id]) > 0);
@@ -350,7 +350,7 @@ export default function VentasPage() {
   const esProductoKg = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
   const getPrecioVenta = (producto) => {
     if (preciosPersonalizados[producto.id] !== undefined) return preciosPersonalizados[producto.id];
-    let precio = Number(producto.precio);
+    let precio = parseNumero(producto.precio);
     if (descuentosAplicados[producto.id]) {
       const campoDescuento = clienteSeleccionado?.tipo_descuento === "mayorista"
         ? "descuento_mayorista"
@@ -378,7 +378,7 @@ export default function VentasPage() {
   };
 
   const guardarPrecioPersonalizado = () => {
-    const precio = Number(precioEditando);
+    const precio = parseNumero(precioEditando);
     if (!Number.isFinite(precio) || precio <= 0) {
       alert("Ingrese un precio unitario válido");
       return;
@@ -573,7 +573,7 @@ export default function VentasPage() {
             nombre_cuenta: d.nombre_cuenta,
             fecha_hora: d.fecha_hora,
              banco: d.banco,
-             monto: parseFloat(d.monto) || 0,
+             monto: parseNumero(d.monto),
              proveedorId: d.proveedorId ? parseInt(d.proveedorId) : null,
           }));
       }
@@ -584,7 +584,7 @@ export default function VentasPage() {
             nombre_cuenta: d.nombre_cuenta,
             fecha_hora: d.fecha_hora,
              banco: d.banco,
-             monto: parseFloat(d.monto) || 0,
+             monto: parseNumero(d.monto),
              proveedorId: d.proveedorId ? parseInt(d.proveedorId) : null,
           }));
       }
@@ -595,7 +595,7 @@ export default function VentasPage() {
             nombre_cuenta: d.nombre_cuenta,
             fecha_hora: d.fecha_hora,
              banco: d.banco,
-             monto: parseFloat(d.monto) || 0,
+             monto: parseNumero(d.monto),
              proveedorId: d.proveedorId ? parseInt(d.proveedorId) : null,
           }));
       }
@@ -606,7 +606,7 @@ export default function VentasPage() {
             nombre_cuenta: d.nombre_cuenta,
             fecha_hora: d.fecha_hora,
              banco: d.banco,
-             monto: parseFloat(d.monto) || 0,
+             monto: parseNumero(d.monto),
              proveedorId: d.proveedorId ? parseInt(d.proveedorId) : null,
           }));
       }
@@ -766,7 +766,9 @@ export default function VentasPage() {
                         min="0"
                          max={getStockMax(p.id)}
                         onChange={(e) => {
-                            const val = esKg ? e.target.value : parseInt(e.target.value) || 0;
+                            const val = esKg
+                              ? e.target.value.replace(/\./g, ",").replace(/[^\d,]/g, "").replace(/(,.*),/g, "$1").replace(/(,\d{0,2}).*/g, "$1")
+                              : parseInt(e.target.value) || 0;
                             const clamped = esKg ? val : Math.max(0, Math.min(val, Number(getStockMax(p.id))));
                            setCantidades((prev) => ({ ...prev, [p.id]: clamped }));
                          }}
@@ -1145,7 +1147,7 @@ export default function VentasPage() {
                         </button>
                       )}
                     </span>
-                    <strong>${(precio * cantidades[p.id]).toFixed(2)}</strong>
+                     <strong>${(precio * parseNumero(cantidades[p.id])).toFixed(2)}</strong>
                   </div>
                 );
               })}
@@ -1234,7 +1236,8 @@ export default function VentasPage() {
                   <label htmlFor="precio-unitario">Precio unitario</label>
                   <input
                    id="precio-unitario"
-                  type="number"
+                   type="text"
+                   inputMode="decimal"
                   min="0.01"
                   step="0.01"
                   value={precioEditando}
