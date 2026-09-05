@@ -35,7 +35,7 @@ const construirTransferencias = (ventas = [], pagosDeuda = []) => {
       const monto = parseFloat(dato.monto || 0);
       if (monto <= 0) continue;
       transferencias.push({
-        fecha: String(dato.fecha_hora || `${venta.fecha || ""} ${venta.hora || ""}`).replace("T", " ").trim(),
+        fecha: String(dato.fecha_hora || `${venta.fecha || ""} ${venta.hora || ""}`).replace("T", " ").trim().slice(0, 16),
         banco: dato.banco || dato.nombre_banco || "-",
         cuenta: dato.nombre_cuenta || dato.titular || dato.cuenta || "-",
         alias: dato.alias || "-",
@@ -49,7 +49,7 @@ const construirTransferencias = (ventas = [], pagosDeuda = []) => {
     const monto = parseFloat(pago.monto || 0);
     if (monto <= 0) continue;
     transferencias.push({
-      fecha: String(dato.fecha_hora || `${pago.fecha || ""} ${pago.hora || ""}`).replace("T", " ").trim(),
+      fecha: String(dato.fecha_hora || `${pago.fecha || ""} ${pago.hora || ""}`).replace("T", " ").trim().slice(0, 16),
       banco: pago.banco || dato.banco || dato.nombre_banco || "-",
       cuenta: pago.titular || dato.nombre_cuenta || dato.titular || dato.cuenta || "-",
       alias: dato.alias || "-",
@@ -1433,7 +1433,30 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo, pagosDeud
     y += 24;
   }
 
-  // 4. Ventas realizadas
+  // 4. Transferencias realizadas durante la salida
+  drawSectionTitle("Transferencias Realizadas");
+  const transferencias = construirTransferencias(ventas, pagosDeuda);
+  const totalTransferencias = transferencias.reduce((suma, t) => suma + (t.monto || 0), 0);
+  drawSimpleTable(
+    ["Fecha", "Alias", "Banco", "Cuenta / Titular", "Monto"],
+    [30, 34, 34, cw - 30 - 34 - 34 - 38, 38],
+    [
+      (r) => r.fecha,
+      (r) => r.alias,
+      (r) => r.banco,
+      (r) => r.cuenta,
+      (r) => `$${(r.monto || 0).toFixed(2)}`,
+    ],
+    transferencias
+  );
+  if (transferencias.length > 0) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(26, 26, 46);
+    doc.text(`Total Transferencias: $${totalTransferencias.toFixed(2)}`, ml + 3, y + 4);
+    y += 8;
+  }
+
   drawSectionTitle("Ventas Realizadas");
   const ventasItems = [];
   for (const v of ventas) {
@@ -1495,30 +1518,6 @@ export const generarResumenEntregaPDF = async (salida, ventas, conteo, pagosDeud
     doc.setTextColor(150, 150, 150);
     doc.text("Sin observaciones", ml + 3, y + 4);
     y += 9;
-  }
-
-  // 7. Transferencias realizadas durante la salida
-  drawSectionTitle("Transferencias Realizadas");
-  const transferencias = construirTransferencias(ventas, pagosDeuda);
-  const totalTransferencias = transferencias.reduce((suma, t) => suma + (t.monto || 0), 0);
-  drawSimpleTable(
-    ["Fecha", "Alias", "Banco", "Cuenta / Titular", "Monto"],
-    [30, 34, 34, cw - 30 - 34 - 34 - 38, 38],
-    [
-      (r) => r.fecha,
-      (r) => r.alias,
-      (r) => r.banco,
-      (r) => r.cuenta,
-      (r) => `$${(r.monto || 0).toFixed(2)}`,
-    ],
-    transferencias
-  );
-  if (transferencias.length > 0) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(26, 26, 46);
-    doc.text(`Total Transferencias: $${totalTransferencias.toFixed(2)}`, ml + 3, y + 4);
-    y += 8;
   }
 
   // Summary box
