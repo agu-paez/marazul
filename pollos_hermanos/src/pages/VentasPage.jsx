@@ -349,15 +349,17 @@ export default function VentasPage() {
 
   const esProductoKg = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
   const getPrecioVenta = (producto) => {
-    if (preciosPersonalizados[producto.id] !== undefined) return preciosPersonalizados[producto.id];
+    if (preciosPersonalizados[producto.id] !== undefined) return parseNumero(preciosPersonalizados[producto.id]);
     let precio = parseNumero(producto.precio);
     if (descuentosAplicados[producto.id]) {
       const campoDescuento = clienteSeleccionado?.tipo_descuento === "mayorista"
         ? "descuento_mayorista"
         : clienteSeleccionado?.tipo_descuento === "nuevo" ? "descuento_nuevo" : "descuento";
-      precio *= 1 - Number(producto[campoDescuento] || 0) / 100;
+      precio *= 1 - parseNumero(producto[campoDescuento]) / 100;
     }
-    return descuentosAplicados[producto.id] ? Math.floor(precio) : Math.round(precio * 100) / 100;
+    return Number.isFinite(precio)
+      ? (descuentosAplicados[producto.id] ? Math.floor(precio) : Math.round(precio * 100) / 100)
+      : 0;
   };
 
   const toggleDescuentoProducto = (producto) => {
@@ -1147,7 +1149,7 @@ export default function VentasPage() {
                         </button>
                       )}
                     </span>
-                     <strong>${(precio * parseNumero(cantidades[p.id])).toFixed(2)}</strong>
+                     <strong>${(parseNumero(precio) * parseNumero(cantidades[p.id])).toFixed(2)}</strong>
                   </div>
                 );
               })}
