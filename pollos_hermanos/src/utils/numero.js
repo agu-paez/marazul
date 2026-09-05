@@ -15,3 +15,8 @@ export const formatoNumero = new Intl.NumberFormat("es-AR", {
 });
 
 export const dinero = (valor) => `$${formatoNumero.format(parseNumero(valor))}`;
+
+export const formatearNumeroInput = (valor) => {
+  if (valor === "" || valor === null || valor === undefined) return "";
+  return formatoNumero.format(parseNumero(valor));
+};

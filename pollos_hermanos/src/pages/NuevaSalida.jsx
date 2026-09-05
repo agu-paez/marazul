@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { salidasAPI, productosAPI, usuariosAPI } from "../api";
+import { formatearNumeroInput, parseNumero } from "../utils/numero";
 
 const zonas = [
   ...Array.from({ length: 6 }, (_, index) => `Zona ${index + 1}`),
@@ -52,7 +53,7 @@ export default function NuevaSalida() {
     const producto = productos.find((p) => p.id === productoId);
     const esKg = ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
     setCantidades((prev) => {
-      const actual = prev[productoId] || 0;
+      const actual = parseNumero(prev[productoId]);
       const nueva = Math.max(0, actual + (esKg ? delta * 0.5 : delta));
       return { ...prev, [productoId]: nueva };
     });
@@ -64,13 +65,13 @@ export default function NuevaSalida() {
       p.nombre.toLowerCase().includes(termino) ||
       (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino))
     );
-    return coincideBusqueda && (!mostrarSoloSeleccionados || (cantidades[p.id] || 0) > 0);
+    return coincideBusqueda && (!mostrarSoloSeleccionados || parseNumero(cantidades[p.id]) > 0);
   });
 
-  const productosSeleccionados = productos.filter((p) => (cantidades[p.id] || 0) > 0);
+  const productosSeleccionados = productos.filter((p) => parseNumero(cantidades[p.id]) > 0);
   const calcularTotal = () => {
     return productosSeleccionados.reduce((sum, p) => {
-      return sum + p.precio * (cantidades[p.id] || 0);
+      return sum + p.precio * parseNumero(cantidades[p.id]);
     }, 0);
   };
 
@@ -89,7 +90,7 @@ export default function NuevaSalida() {
         asignadoRepartidorId: isRepartidor ? user.id : repartidorSeleccionado,
         items: productosSeleccionados.map((p) => ({
           productoId: p.id,
-          cantidad: cantidades[p.id],
+          cantidad: parseNumero(cantidades[p.id]),
         })),
       };
       await salidasAPI.create(data);
@@ -218,7 +219,7 @@ export default function NuevaSalida() {
           ) : (
             <div className="producto-grid">
               {productosFiltrados.map((p) => {
-                const qty = cantidades[p.id] || 0;
+                 const qty = parseNumero(cantidades[p.id]);
                 const seleccionado = qty > 0;
                 const esKg = ["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase());
                 return (
@@ -240,7 +241,8 @@ export default function NuevaSalida() {
                         -
                       </button>
                       <input
-                        type="number"
+                         type={esKg ? "text" : "number"}
+                         inputMode={esKg ? "decimal" : undefined}
                         min="0"
                         max={p.stock}
                         value={cantidades[p.id] ?? ""}
@@ -251,12 +253,18 @@ export default function NuevaSalida() {
                             setCantidades((prev) => ({ ...prev, [p.id]: "" }));
                             return;
                           }
-                          const val = esKg ? parseFloat(e.target.value) : parseInt(e.target.value);
-                          setCantidades((prev) => ({
-                            ...prev,
-                            [p.id]: Math.min(Math.max(0, val), Number(p.stock)),
-                          }));
-                        }}
+                           const val = esKg ? e.target.value : parseInt(e.target.value);
+                           setCantidades((prev) => ({
+                             ...prev,
+                             [p.id]: esKg ? val : Math.min(Math.max(0, val), Number(p.stock)),
+                           }));
+                         }}
+                         onBlur={(e) => {
+                           if (esKg && e.target.value !== "") {
+                             const valor = Math.min(Math.max(0, parseNumero(e.target.value)), Number(p.stock));
+                             setCantidades((prev) => ({ ...prev, [p.id]: formatearNumeroInput(valor) }));
+                           }
+                         }}
                       />
                       <button
                         type="button"
@@ -279,7 +287,7 @@ export default function NuevaSalida() {
               {productosSeleccionados.map((p) => (
                 <div key={p.id} className="resumen-row">
                    <span>{cantidades[p.id]}{["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase()) ? " kg" : "x"} {p.nombre}</span>
-                  <strong>${(p.precio * cantidades[p.id]).toFixed(2)}</strong>
+                    <strong>${(p.precio * parseNumero(cantidades[p.id])).toFixed(2)}</strong>
                 </div>
               ))}
               <div className="cierre-separator"></div>

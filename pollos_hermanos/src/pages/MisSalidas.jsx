@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { formatearNumeroInput, parseNumero } from "../utils/numero";
 import { salidasAPI, clientesAPI, cierreCajaAPI, bancosAPI, proveedoresAPI, productosAPI } from "../api";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
 import BancoAutocomplete from "../components/BancoAutocomplete";
@@ -174,7 +175,7 @@ export default function MisSalidas() {
   const registrarPagoCliente = async (event) => {
     event.preventDefault();
     const cliente = clientes.find((item) => String(item.id) === String(clientePago));
-    const monto = parseFloat(pagoCliente.monto) || 0;
+    const monto = parseNumero(pagoCliente.monto);
     if (!cliente) return alert("Debe seleccionar un cliente");
     if (monto <= 0) {
       return alert("El monto debe ser mayor a 0");
@@ -484,7 +485,14 @@ export default function MisSalidas() {
             )}
             <div className="form-group">
               <label>Monto *</label>
-              <input type="number" min="0.01" step="0.01" value={pagoCliente.monto} onChange={(event) => setPagoCliente({ ...pagoCliente, monto: event.target.value })} required />
+               <input
+                 type="text"
+                 inputMode="decimal"
+                 value={pagoCliente.monto}
+                 onChange={(event) => setPagoCliente({ ...pagoCliente, monto: event.target.value })}
+                 onBlur={(event) => setPagoCliente({ ...pagoCliente, monto: formatearNumeroInput(event.target.value) })}
+                 required
+               />
             </div>
             <div className="form-group">
               <label>Forma de pago *</label>

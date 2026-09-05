@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { productosAPI, ventasAPI, clientesAPI, salidasAPI, bancosAPI, proveedoresAPI } from "../api";
 import BancoAutocomplete from "../components/BancoAutocomplete";
 import ClienteAutocomplete from "../components/ClienteAutocomplete";
+import { formatearNumeroInput, parseNumero } from "../utils/numero";
 
 const fechaHoraLocalInput = () => {
   const now = new Date();
@@ -105,7 +106,7 @@ export default function VentasPage() {
     const producto = productosPorId.get(productoId);
     const esKg = ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
     setCantidades((prev) => {
-      const actual = prev[productoId] || 0;
+      const actual = parseNumero(prev[productoId]);
       const nueva = Math.max(0, actual + (esKg ? delta * 0.5 : delta));
       return { ...prev, [productoId]: nueva };
     });
@@ -200,7 +201,7 @@ export default function VentasPage() {
   };
 
   const addPago = () => {
-    const totalIngresado = pagos.reduce((sum, pago, index) => sum + (parseFloat(montosEditando[index] ?? pago.monto) || 0), 0);
+    const totalIngresado = pagos.reduce((sum, pago, index) => sum + parseNumero(montosEditando[index] ?? pago.monto), 0);
     const montoRestante = Math.max(0, totalConDeuda - totalIngresado);
     setPagos([...pagos, { medio_pago: "efectivo", monto: montoRestante.toFixed(2) }]);
     setDatosTransferencia([...datosTransferencia, null]);
@@ -337,12 +338,12 @@ export default function VentasPage() {
       const tieneStockDisponible = !esReparto || Number(p.stock) > 0;
       const coincideBusqueda = p.nombre.toLowerCase().includes(termino)
         || (p.codigo_barras && p.codigo_barras.toLowerCase().includes(termino));
-       return tieneStockDisponible && coincideBusqueda && (!mostrarSoloSeleccionados || (cantidades[p.id] || 0) > 0);
+        return tieneStockDisponible && coincideBusqueda && (!mostrarSoloSeleccionados || parseNumero(cantidades[p.id]) > 0);
     });
   }, [productosBase, busqueda, mostrarSoloSeleccionados, cantidades, esReparto]);
 
   const productosSeleccionados = useMemo(
-    () => productosBase.filter((p) => (cantidades[p.id] || 0) > 0),
+    () => productosBase.filter((p) => parseNumero(cantidades[p.id]) > 0),
     [productosBase, cantidades]
   );
 
@@ -389,7 +390,7 @@ export default function VentasPage() {
 
   const calcularSubtotal = () => {
     return productosSeleccionados.reduce((sum, p) => {
-      return sum + getPrecioVenta(p) * (cantidades[p.id] || 0);
+      return sum + getPrecioVenta(p) * parseNumero(cantidades[p.id]);
     }, 0);
   };
 
@@ -410,7 +411,7 @@ export default function VentasPage() {
   const montoDeuda = pagarDeuda && tieneDeuda ? deudaAnterior : 0;
   const totalConDeuda = subtotal + montoDeuda;
 
-  const getPagoMonto = (index) => parseFloat(montosEditando[index] ?? pagos[index]?.monto) || 0;
+  const getPagoMonto = (index) => parseNumero(montosEditando[index] ?? pagos[index]?.monto);
 
   const totalPagosDivididos = pagoDividido
     ? pagos.reduce((sum, _, index) => sum + getPagoMonto(index), 0)
@@ -549,7 +550,7 @@ export default function VentasPage() {
         items: productosSeleccionados.flatMap((p) => {
           return [{
                productoId: p.id,
-               cantidad: cantidades[p.id],
+                cantidad: parseNumero(cantidades[p.id]),
                precio_unitario: getPrecioVenta(p),
              }];
         }),
@@ -718,7 +719,7 @@ export default function VentasPage() {
           ) : (
              <div className="producto-grid">
                {productosFiltrados.map((p) => {
-                  const qty = cantidades[p.id] || 0;
+                   const qty = parseNumero(cantidades[p.id]);
                    const seleccionado = qty > 0;
                    const esKg = ["kg", "kilogramo"].includes(String(p.unidad || "").toLowerCase());
                   return (
@@ -757,17 +758,24 @@ export default function VentasPage() {
                         -
                       </button>
                       <input
-                        type="number"
+                         type={esKg ? "text" : "number"}
+                         inputMode={esKg ? "decimal" : undefined}
                          value={cantidades[p.id] ?? ""}
                          step={esKg ? "0.01" : "1"}
                          aria-label={`Cantidad de ${p.nombre}${esKg ? " en kilogramos" : ""}`}
                         min="0"
                          max={getStockMax(p.id)}
                         onChange={(e) => {
-                           const val = esKg ? parseFloat(e.target.value) || 0 : parseInt(e.target.value) || 0;
-                            const clamped = Math.max(0, Math.min(val, Number(getStockMax(p.id))));
-                          setCantidades((prev) => ({ ...prev, [p.id]: clamped }));
-                        }}
+                            const val = esKg ? e.target.value : parseInt(e.target.value) || 0;
+                            const clamped = esKg ? val : Math.max(0, Math.min(val, Number(getStockMax(p.id))));
+                           setCantidades((prev) => ({ ...prev, [p.id]: clamped }));
+                         }}
+                         onBlur={(e) => {
+                           if (esKg && e.target.value !== "") {
+                             const valor = Math.min(Math.max(0, parseNumero(e.target.value)), Number(getStockMax(p.id)));
+                             setCantidades((prev) => ({ ...prev, [p.id]: formatearNumeroInput(valor) }));
+                           }
+                         }}
                         disabled={esReparto && !camionSeleccionado}
                       />
                       <button
@@ -874,12 +882,13 @@ export default function VentasPage() {
                     <div style={{ flex: 1.4, minWidth: 0 }}>
                       <label style={{ display: "block", fontSize: "0.75rem", fontWeight: "bold", color: "#5a6c7d", marginBottom: "0.25rem" }}>Importe</label>
                       <input
-                        type="number"
+                         type="text"
+                         inputMode="decimal"
                         name="monto"
                         value={borradorMonto[index] ?? ((montosEditando[index] ?? pago.monto) || "")}
                         onChange={(e) => handleMontoInput(index, e.target.value)}
                         onBlur={(e) => {
-                          confirmarMontoPago(index, e.currentTarget.value);
+                           confirmarMontoPago(index, formatearNumeroInput(e.currentTarget.value));
                           setBorradorMonto((prev) => {
                             const next = { ...prev };
                             delete next[index];
@@ -1080,7 +1089,7 @@ export default function VentasPage() {
                   {Object.entries(pagosPorMedio).map(([medio, monto]) => (
                     <div key={medio} className="resumen-row">
                       <span style={{ textTransform: "capitalize" }}>{medio.replace(/_/g, " ")}</span>
-                      <strong>${monto.toFixed(2)}</strong>
+                       <strong>${formatearNumeroInput(monto)}</strong>
                     </div>
                   ))}
                 </div>

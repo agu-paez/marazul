@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { clientesAPI, bancosAPI, proveedoresAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { generarResumenZonasPDF } from "../utils/generarPDF";
-import { dinero, parseNumero } from "../utils/numero";
+import { dinero, formatearNumeroInput, parseNumero } from "../utils/numero";
 import { getFechaLocal } from "../utils/fecha";
 
 const zonas = [
@@ -460,8 +460,9 @@ export default function ClientesPage() {
                      type="text"
                      inputMode="decimal"
                     name="monto"
-                    value={Number(pago.monto) ? pago.monto : ""}
-                    onChange={(e) => handlePagoChange(index, e)}
+                     value={pago.monto || ""}
+                     onChange={(e) => handlePagoChange(index, e)}
+                     onBlur={(e) => handlePagoChange(index, { target: { name: "monto", value: formatearNumeroInput(e.target.value) } })}
                     min="0"
                     step="0.01"
                     placeholder="Monto"
