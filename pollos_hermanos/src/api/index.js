@@ -94,6 +94,8 @@ export const proveedoresAPI = {
   delete: (id) => API.delete(`/proveedores/${id}`),
   registrarMovimiento: (id, data) => API.post(`/proveedores/${id}/movimientos`, data),
   getHistorial: () => API.get("/proveedores/historial"),
+  actualizarMovimiento: (id, data) => API.put(`/proveedores/movimientos/${id}`, data),
+  eliminarMovimiento: (id) => API.delete(`/proveedores/movimientos/${id}`),
   cambiarEstado: (id) => API.patch(`/proveedores/${id}/estado`),
 };
 

@@ -8,6 +8,8 @@ import {
   registrarMovimientoProveedor,
   cambiarEstadoProveedor,
   getHistorialProveedores,
+  updateMovimientoProveedor,
+  deleteMovimientoProveedor,
 } from "../controllers/proveedorController.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 
@@ -16,6 +18,8 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/historial", authorize("admin"), getHistorialProveedores);
+router.put("/movimientos/:id", authorize("admin"), updateMovimientoProveedor);
+router.delete("/movimientos/:id", authorize("admin"), deleteMovimientoProveedor);
 router.get("/", getAllProveedores);
 router.get("/:id", getProveedorById);
 router.post("/", authorize("admin"), createProveedor);

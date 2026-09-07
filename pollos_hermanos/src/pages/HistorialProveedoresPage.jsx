@@ -8,6 +8,9 @@ export default function HistorialProveedoresPage() {
   const [movimientos, setMovimientos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtros, setFiltros] = useState({ desde: "", hasta: "", proveedor: "" });
+  const [editando, setEditando] = useState(null);
+  const [form, setForm] = useState({ fecha: "", mercaderias_compradas: 0, dinero_ventas: 0, transferencias: 0 });
+  const [guardando, setGuardando] = useState(false);
 
   const cargarHistorial = async () => {
     try {
@@ -23,6 +26,46 @@ export default function HistorialProveedoresPage() {
   useEffect(() => {
     cargarHistorial();
   }, []);
+
+  const abrirEdicion = (movimiento) => {
+    setEditando(movimiento);
+    setForm({
+      fecha: String(movimiento.fecha).slice(0, 10),
+      mercaderias_compradas: Number(movimiento.mercaderias_compradas) || 0,
+      dinero_ventas: Number(movimiento.dinero_ventas) || 0,
+      transferencias: Number(movimiento.transferencias) || 0,
+    });
+  };
+
+  const guardarEdicion = async () => {
+    try {
+      setGuardando(true);
+      await proveedoresAPI.actualizarMovimiento(editando.id, {
+        fecha: form.fecha,
+        mercaderias_compradas: parseFloat(form.mercaderias_compradas) || 0,
+        dinero_ventas: parseFloat(form.dinero_ventas) || 0,
+        transferencias: parseFloat(form.transferencias) || 0,
+      });
+      setEditando(null);
+      await cargarHistorial();
+    } catch (error) {
+      console.error("Error al actualizar movimiento:", error);
+      alert("No se pudo actualizar el movimiento.");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const eliminarMovimiento = async (movimiento) => {
+    if (!confirm(`¿Eliminar el movimiento del ${movimiento.proveedor?.nombre || "proveedor"} registrado el ${movimiento.fecha}? Esta accion no se puede deshacer.`)) return;
+    try {
+      await proveedoresAPI.eliminarMovimiento(movimiento.id);
+      await cargarHistorial();
+    } catch (error) {
+      console.error("Error al eliminar movimiento:", error);
+      alert("No se pudo eliminar el movimiento.");
+    }
+  };
 
   if (loading) return <div className="loading">Cargando...</div>;
   const movimientosFiltrados = movimientos.filter((movimiento) => {
@@ -74,7 +117,7 @@ export default function HistorialProveedoresPage() {
                 <th>Transferencias</th>
                 <th>Deuda anterior</th>
                 <th>Deuda actual</th>
-                <th>PDF</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -89,13 +132,72 @@ export default function HistorialProveedoresPage() {
                   <td>{dinero(movimiento.saldo_actual)}</td>
                   <td>
                     <button className="btn btn-sm btn-primary" onClick={() => generarHistorialProveedorPDF(movimiento)}>
-                      Descargar PDF
+                      PDF
+                    </button>
+                    <button className="btn btn-sm btn-editar" onClick={() => abrirEdicion(movimiento)}>
+                      Editar
+                    </button>
+                    <button className="btn btn-sm btn-cancel" onClick={() => eliminarMovimiento(movimiento)}>
+                      Eliminar
                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {editando && (
+        <div className="modal-overlay" onClick={() => !guardando && setEditando(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: "center", marginBottom: "1rem" }}>
+              <h3 style={{ marginBottom: "0.5rem" }}>Editar Movimiento</h3>
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>
+                {editando.proveedor?.nombre || "Sin proveedor"} · {editando.fecha}
+              </p>
+            </div>
+            <div className="form-group">
+              <label>Fecha</label>
+              <input type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Mercaderías compradas</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.mercaderias_compradas}
+                onChange={(e) => setForm({ ...form, mercaderias_compradas: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="form-group">
+              <label>Efectivo enviado</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.dinero_ventas}
+                onChange={(e) => setForm({ ...form, dinero_ventas: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="form-group">
+              <label>Transferencias</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.transferencias}
+                onChange={(e) => setForm({ ...form, transferencias: parseFloat(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setEditando(null)} disabled={guardando}>Cancelar</button>
+              <button className="btn btn-primary" onClick={guardarEdicion} disabled={guardando}>
+                {guardando ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
