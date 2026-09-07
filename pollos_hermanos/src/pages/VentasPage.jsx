@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { productosAPI, ventasAPI, clientesAPI, salidasAPI, bancosAPI, proveedoresAPI } from "../api";
 import BancoAutocomplete from "../components/BancoAutocomplete";
@@ -18,6 +18,7 @@ export default function VentasPage() {
   const [success, setSuccess] = useState(false);
   const [ultimaVenta, setUltimaVenta] = useState(null);
   const [loading, setLoading] = useState(false);
+  const enviandoVentaRef = useRef(false);
   const [busqueda, setBusqueda] = useState("");
   const [mostrarSoloSeleccionados, setMostrarSoloSeleccionados] = useState(false);
   const [cantidades, setCantidades] = useState({});
@@ -526,6 +527,9 @@ export default function VentasPage() {
         return;
       }
     }
+    // El ref bloquea clics consecutivos antes de que React actualice el estado.
+    if (enviandoVentaRef.current) return;
+    enviandoVentaRef.current = true;
     setLoading(true);
     try {
       let clienteId = parseInt(form.clienteId);
@@ -662,6 +666,7 @@ export default function VentasPage() {
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message) + (error.response?.data?.error ? `\nDetalle: ${error.response.data.error}` : ""));
     } finally {
+      enviandoVentaRef.current = false;
       setLoading(false);
     }
   };
