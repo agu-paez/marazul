@@ -180,20 +180,20 @@ export default function HistorialCierres() {
   const puedeAbrir = (fecha) => {
     const diff = diasAtras(fecha);
     if (diff === 0) return true;
-    if (diff < 1 || diff > 6) return false;
+    if (diff < 1 || diff > 9) return false;
     return true;
   };
 
   const motivoNoAbrir = (fecha) => {
     const diff = diasAtras(fecha);
-    if (diff > 6) return "Solo se pueden abrir las cajas de los últimos 6 días";
+    if (diff > 9) return "Solo se pueden abrir las cajas de los últimos 9 días";
     return "";
   };
 
   const fechasAbiertasRecientes = (() => {
     const conCierre = new Set(cierres.map((c) => String(c.fecha).slice(0, 10)));
     const lista = [];
-    for (let i = 1; i <= 6; i++) {
+    for (let i = 1; i <= 9; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const fecha = getFechaLocal(d);
@@ -344,9 +344,9 @@ export default function HistorialCierres() {
                     </button>
                   </div>
                 )}
-                {((diasAtras(c.fecha) <= 6 && esAdminOrOperador) || (c.fecha !== today && esAdmin)) && (
+                {((diasAtras(c.fecha) <= 9 && esAdminOrOperador) || (c.fecha !== today && esAdmin)) && (
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }} onClick={(e) => e.stopPropagation()}>
-                    {diasAtras(c.fecha) <= 6 && esAdminOrOperador && (
+                    {diasAtras(c.fecha) <= 9 && esAdminOrOperador && (
                       puedeAbrir(c.fecha) ? (
                         <button
                           className="btn btn-sm btn-abrir"
@@ -587,7 +587,7 @@ export default function HistorialCierres() {
                               </button>
                             </>
                           )}
-                          {diasAtras(c.fecha) <= 6 && (
+                          {diasAtras(c.fecha) <= 9 && (
                             puedeAbrir(c.fecha) ? (
                               <button
                                 className="btn btn-sm btn-abrir"
