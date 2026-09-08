@@ -112,6 +112,8 @@ const nuevasColumnasVentas = [
   ['productos_modificado_por_id', 'INTEGER'],
   ['productos_modificado_en', 'DATETIME'],
   ['productos_modificacion_detalle', 'TEXT'],
+  ['saldo_anterior', 'DECIMAL(13,2)'],
+  ['saldo_actual', 'DECIMAL(13,2)'],
 ];
 for (const [columna, tipo] of nuevasColumnasVentas) {
   try {

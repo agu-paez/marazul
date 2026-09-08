@@ -69,6 +69,7 @@ export const crearVenta = async (req, res) => {
     if (!cliente) {
       return res.status(400).json({ message: "Cliente no encontrado" });
     }
+    const saldoAnteriorVenta = Math.max(0, (parseFloat(cliente.saldo_pendiente) || 0) - (parseFloat(cliente.saldo_favor) || 0));
 
     const esReparto = tipo_venta === "reparto";
     let salidaCamion = null;
@@ -252,6 +253,8 @@ export const crearVenta = async (req, res) => {
     const now = new Date();
     const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const numeroComprobante = await generarNumeroComprobante();
+    const clienteAlFinal = await Cliente.findByPk(cliente.id);
+    const saldoActualVenta = Math.max(0, (parseFloat(clienteAlFinal?.saldo_pendiente) || 0) - (parseFloat(clienteAlFinal?.saldo_favor) || 0));
 
     const venta = await Venta.create({
       numero_comprobante: numeroComprobante,
@@ -275,6 +278,8 @@ export const crearVenta = async (req, res) => {
       datos_ercheck: datos_ercheck || null,
       monto_deuda_pagado: pagar_deuda && monto_deuda ? parseFloat(monto_deuda) : null,
       monto_sobrante: sobranteFavor.toFixed(2),
+      saldo_anterior: saldoAnteriorVenta.toFixed(2),
+      saldo_actual: saldoActualVenta.toFixed(2),
       proveedorId: proveedorId || null,
       porcentaje_aumento: porcentaje_aumento || 0,
     });

@@ -153,7 +153,6 @@ export const generarComprobantePDF = async (venta) => {
   const montoDeudaPagado = parseFloat(venta.monto_deuda_pagado || 0) || 0;
   const montoSaldoDescontado = parseFloat(venta.monto_sobrante || 0) || 0;
   const hasDeuda = montoDeudaPagado > 0;
-  const saldoRestante = hasDeuda ? (venta.cliente?.saldo_pendiente ? parseFloat(venta.cliente.saldo_pendiente) : 0) : 0;
   const saldoPendiente = parseFloat(venta.cliente?.saldo_pendiente || 0) || 0;
   const saldoFavor = parseFloat(venta.cliente?.saldo_favor || 0) || 0;
   const saldoSumadoVenta = (venta.VentaPagos || [])
@@ -164,13 +163,14 @@ export const generarComprobantePDF = async (venta) => {
   const saldoNetoActual = saldoPendiente - saldoFavor;
   const variacionSaldo = saldoSumadoVenta - montoSaldoDescontado - montoDeudaPagado;
   const saldoNetoAnterior = saldoNetoActual - variacionSaldo;
-   const saldoAnteriorCalculado = Math.max(0, saldoNetoAnterior);
-  const saldoAnteriorMostrado = Number(venta.saldo_anterior_manual ?? saldoAnteriorCalculado) || 0;
+  const saldoAnteriorCalculado = Math.max(0, saldoNetoAnterior);
+  const saldoAnteriorMostrado = Number(venta.saldo_anterior_manual ?? venta.saldo_anterior ?? saldoAnteriorCalculado) || 0;
   const tieneSaldoActualizadoManual = venta.saldo_actualizado_manual !== null && venta.saldo_actualizado_manual !== undefined;
   const saldoActualizadoMostrado = tieneSaldoActualizadoManual
     ? Number(venta.saldo_actualizado_manual) || 0
-    : Math.max(0, saldoNetoActual);
+    : Number(venta.saldo_actual ?? Math.max(0, saldoNetoActual)) || 0;
   const saldoFavorMostrado = tieneSaldoActualizadoManual ? 0 : Math.max(0, -saldoNetoActual);
+  const saldoRestante = hasDeuda ? saldoActualizadoMostrado : 0;
   const muestraCambioSaldo = saldoSumadoVenta > 0 || hasDeuda || montoSaldoDescontado > 0;
 
   const rowH = 7;
