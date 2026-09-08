@@ -572,6 +572,16 @@ tr.cliente-pendiente-revision td:first-child {
   width: min(720px, calc(100vw - 2rem));
 }
 
+.historial-factura-modal {
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--primary) var(--bg-input);
+  scrollbar-width: thin;
+}
+
 .historial-pago-modal .item-row {
   align-items: stretch;
 }
@@ -1938,6 +1948,11 @@ input[type="number"] {
   .modal-wide {
     max-width: 92vw;
   }
+  .historial-factura-modal {
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+    margin: 0.5rem;
+  }
   .product-modal-overlay {
     padding: 1rem;
   }
@@ -2154,6 +2169,10 @@ input[type="number"] {
   }
   .modal-card {
     padding: 1rem;
+  }
+  .historial-factura-modal {
+    width: calc(100vw - 1rem);
+    max-width: none;
   }
 }
 

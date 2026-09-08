@@ -454,7 +454,7 @@ export default function HistorialVentasPage() {
       )}
       {ventaProductosEditando && (
         <div className="modal-overlay" onClick={() => setVentaProductosEditando(null)}>
-          <div className="modal-card modal-wide historial-pago-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card modal-wide historial-pago-modal historial-factura-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Modificar factura {ventaProductosEditando.numero_comprobante}</h3>
             <p className="subtitle">{user?.role === "admin" ? "Puedes modificar productos, cantidades y precios." : "Solo se pueden modificar productos y cantidades. Los precios se mantienen como fueron vendidos."}</p>
             <div className="form-card">
