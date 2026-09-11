@@ -140,10 +140,10 @@ export const generarPDFMarcasProductos = async (req, res) => {
       lista2: "descuento_nuevo",
     };
     const nombresLista = {
-      normal: "Lista normal",
-      descuento: "Descuento mínimo (normal)",
+      normal: "Precio de lista",
+      descuento: "Descuento normal",
       mayorista: "Descuento mayorista",
-      lista2: "Lista 2 (clientes nuevos)",
+      lista2: "Descuento lista 2",
     };
     if (tipo !== "normal" && !camposDescuento[tipo]) {
       return res.status(400).json({ message: "El tipo de lista no es válido" });
