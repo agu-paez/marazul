@@ -201,23 +201,37 @@ export const updateMovimientoProveedor = async (req, res) => {
       return res.status(404).json({ message: "Movimiento no encontrado" });
     }
 
-    const compras = Math.abs(Number(req.body.mercaderias_compradas ?? movimiento.mercaderias_compradas) || 0);
-    const ventas = Number(req.body.dinero_ventas ?? movimiento.dinero_ventas) || 0;
-    const transferencias = Number(req.body.transferencias ?? movimiento.transferencias) ?? 0;
-    if (!Number.isFinite(compras) || !Number.isFinite(ventas) || !Number.isFinite(transferencias) || transferencias < 0) {
+    const compras = Number(req.body.mercaderias_compradas ?? movimiento.mercaderias_compradas);
+    const ventas = Number(req.body.dinero_ventas ?? movimiento.dinero_ventas);
+    const transferencias = Number(req.body.transferencias ?? movimiento.transferencias);
+    if (!Number.isFinite(compras) || compras < 0 || !Number.isFinite(ventas)
+      || !Number.isFinite(transferencias) || transferencias < 0) {
       return res.status(400).json({ message: "Los montos no son validos" });
     }
-    const diferencia = ventas - compras;
+
+    const comprasNuevas = Math.abs(compras);
+    const diferenciaAnterior = Number(movimiento.diferencia) || 0;
+    const transferenciasAnteriores = Number(movimiento.transferencias) || 0;
+    const diferencia = ventas - comprasNuevas;
     const saldoActual = (Number(movimiento.saldo_anterior) || 0) + diferencia;
+    const proveedor = await Proveedor.findByPk(movimiento.proveedorId);
 
     await movimiento.update({
       fecha: req.body.fecha || movimiento.fecha,
-      mercaderias_compradas: compras,
+      mercaderias_compradas: comprasNuevas,
       dinero_ventas: ventas,
       transferencias,
       diferencia,
       saldo_actual: saldoActual,
     });
+
+    if (proveedor) {
+      await proveedor.update({
+        diferencia_acumulada: (Number(proveedor.diferencia_acumulada) || 0) + diferencia - diferenciaAnterior,
+        transferencias_liquidadas: (Number(proveedor.transferencias_liquidadas) || 0) + transferencias - transferenciasAnteriores,
+      });
+    }
+
     res.json({ message: "Movimiento actualizado", movimiento });
   } catch (error) {
     res.status(500).json({ message: "Error al actualizar movimiento de proveedor", error: error.message });
