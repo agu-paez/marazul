@@ -6,9 +6,9 @@ import {
   updateProveedor,
   deleteProveedor,
   registrarMovimientoProveedor,
+  updateMovimientoProveedor,
   cambiarEstadoProveedor,
   getHistorialProveedores,
-  updateMovimientoProveedor,
   deleteMovimientoProveedor,
 } from "../controllers/proveedorController.js";
 import { authenticate, authorize } from "../middleware/auth.js";

@@ -248,8 +248,8 @@ export const deleteMovimientoProveedor = async (req, res) => {
     const proveedor = await Proveedor.findByPk(movimiento.proveedorId);
     if (proveedor) {
       await proveedor.update({
-        diferencia_acumulada: Math.max((Number(proveedor.diferencia_acumulada) || 0) - Number(movimiento.diferencia || 0), 0),
-        transferencias_liquidadas: Math.max((Number(proveedor.transferencias_liquidadas) || 0) - Number(movimiento.transferencias || 0), 0),
+        diferencia_acumulada: (Number(proveedor.diferencia_acumulada) || 0) - (Number(movimiento.diferencia) || 0),
+        transferencias_liquidadas: (Number(proveedor.transferencias_liquidadas) || 0) - (Number(movimiento.transferencias) || 0),
       });
     }
 
