@@ -178,7 +178,8 @@ export const generarPDFMarcasProductos = async (req, res) => {
     );
     doc.pipe(res);
 
-    if (tipo === "vacia") {
+    if (["normal", "descuento", "mayorista", "lista2", "vacia"].includes(tipo)) {
+      const isListaVacia = tipo === "vacia";
       const pageWidth = doc.page.width;
       const pageHeight = doc.page.height;
       const margin = 32;
@@ -192,7 +193,7 @@ export const generarPDFMarcasProductos = async (req, res) => {
         text: "#1f2937",
         alt: "#f8fafc",
       };
-      const colWidths = [tableWidth - 150, 70, 80];
+      const colWidths = [tableWidth - 311, 70, 120, 121];
       const rowHeight = 20;
       const brandHeight = 19;
       const tableHeadHeight = 18;
@@ -207,6 +208,36 @@ export const generarPDFMarcasProductos = async (req, res) => {
         return priority(a.nombre) - priority(b.nombre);
       };
       const marcasOrdenadas = [...marcas].sort(sortBrands);
+      const fmtNumero = (valor) => {
+        if (valor === null || valor === undefined || valor === "") return "-";
+        const n = Number(valor);
+        return Number.isFinite(n) ? n.toFixed(2) : "-";
+      };
+      const fmtPrecio = (valor) => {
+        if (valor === null || valor === undefined || valor === "") return "-";
+        const n = Number(valor);
+        return Number.isFinite(n) ? `$${n.toFixed(2)}` : "-";
+      };
+      const precioConDescuento = (producto) => {
+        const descuento = campoDescuento ? Number(producto[campoDescuento]) || 0 : 0;
+        const precio = Number(producto.precio) * (1 - descuento / 100);
+        return descuento > 0 ? Math.floor(precio) : precio;
+      };
+      const precioPorKg = (producto) => {
+        const precio = precioConDescuento(producto);
+        const descuento = campoDescuento ? Number(producto[campoDescuento]) || 0 : 0;
+        const kg = Number(producto.kg_por_caja);
+        if (Number.isFinite(precio) && precio > 0 && Number.isFinite(kg) && kg > 0) {
+          const precioKg = precio / kg;
+          return descuento > 0 ? Math.floor(precioKg) : precioKg;
+        }
+        return null;
+      };
+      const precioCaja = (producto) => {
+        const kg = Number(producto.kg_por_caja);
+        const pkg = precioPorKg(producto);
+        return pkg !== null && Number.isFinite(kg) && kg > 0 ? pkg * kg : null;
+      };
       const drawPageTitle = (includeImage) => {
         let y = 22;
         if (includeImage && imageOk) {
@@ -214,14 +245,14 @@ export const generarPDFMarcasProductos = async (req, res) => {
           y += 108;
         }
         doc.fillColor(colors.blue).font("Helvetica-Bold").fontSize(15)
-          .text("LISTA DE PRECIOS", margin, y, { width: tableWidth, align: "center" });
+          .text(nombresLista[tipo].toUpperCase(), margin, y, { width: tableWidth, align: "center" });
         return y + 24;
       };
       const drawTableHead = (y) => {
         doc.rect(margin, y, tableWidth, tableHeadHeight).fill(colors.lightBlue);
         doc.font("Helvetica-Bold").fontSize(8).fillColor(colors.blue);
         let x = margin;
-        ["Producto", "Kg/Caja", "Precio"].forEach((header, index) => {
+        ["Producto", "Kg/Caja", "Precio/Kg", "Precio Caja"].forEach((header, index) => {
           doc.text(header, x + 5, y + 5, { width: colWidths[index] - 10, align: index === 0 ? "left" : "center" });
           x += colWidths[index];
         });
@@ -238,8 +269,17 @@ export const generarPDFMarcasProductos = async (req, res) => {
         doc.rect(margin, y, tableWidth, rowHeight).strokeColor(colors.border).lineWidth(0.4).stroke();
         doc.font("Helvetica").fontSize(8).fillColor(colors.text);
         doc.text(String(producto.nombre || "Sin nombre"), margin + 5, y + 6, { width: colWidths[0] - 10 });
-        doc.text(producto.kg_por_caja === null || producto.kg_por_caja === undefined || producto.kg_por_caja === "" ? "-" : String(producto.kg_por_caja), margin + colWidths[0], y + 6, { width: colWidths[1], align: "center" });
-        doc.rect(margin + colWidths[0] + colWidths[1] + 5, y + 3, colWidths[2] - 10, rowHeight - 6).strokeColor(colors.border).lineWidth(0.8).stroke();
+        doc.text(fmtNumero(producto.kg_por_caja), margin + colWidths[0], y + 6, { width: colWidths[1], align: "center" });
+        const precios = isListaVacia ? [null, null] : [precioPorKg(producto), precioCaja(producto)];
+        let priceX = margin + colWidths[0] + colWidths[1];
+        precios.forEach((precio, priceIndex) => {
+          if (isListaVacia) {
+            doc.rect(priceX + 5, y + 3, colWidths[priceIndex + 2] - 10, rowHeight - 6).strokeColor(colors.border).lineWidth(0.8).stroke();
+          } else {
+            doc.text(fmtPrecio(precio), priceX + 5, y + 6, { width: colWidths[priceIndex + 2] - 10, align: "right" });
+          }
+          priceX += colWidths[priceIndex + 2];
+        });
         return y + rowHeight;
       };
 
@@ -262,8 +302,10 @@ export const generarPDFMarcasProductos = async (req, res) => {
         });
         y += gap;
       }
-      doc.font("Helvetica").fontSize(7).fillColor("#64748b")
-        .text("Precio a completar manualmente", margin, pageHeight - 24, { width: tableWidth, align: "center" });
+      if (isListaVacia) {
+        doc.font("Helvetica").fontSize(7).fillColor("#64748b")
+          .text("Precios a completar manualmente", margin, pageHeight - 24, { width: tableWidth, align: "center" });
+      }
       doc.end();
       return;
     }
