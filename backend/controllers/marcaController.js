@@ -7,6 +7,7 @@ import logger from "../utils/logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOGO_PATH = path.resolve(__dirname, "../../pollos_hermanos/public/logo-marazul.jpeg");
+const LISTA_VACIA_IMAGE_PATH = path.resolve(__dirname, "../../pollos_hermanos/public/precios.jpeg");
 
 export const getMarcas = async (req, res) => {
   try {
@@ -144,8 +145,9 @@ export const generarPDFMarcasProductos = async (req, res) => {
       descuento: "Descuento normal",
       mayorista: "Descuento mayorista",
       lista2: "Descuento lista 2",
+      vacia: "Lista vacía",
     };
-    if (tipo !== "normal" && !camposDescuento[tipo]) {
+    if (tipo !== "normal" && tipo !== "vacia" && !camposDescuento[tipo]) {
       return res.status(400).json({ message: "El tipo de lista no es válido" });
     }
     const campoDescuento = camposDescuento[tipo];
@@ -175,6 +177,96 @@ export const generarPDFMarcasProductos = async (req, res) => {
        `attachment; filename="${tipo === "normal" ? "lista-precios" : `lista-${tipo}`}.pdf"`
     );
     doc.pipe(res);
+
+    if (tipo === "vacia") {
+      const pageWidth = doc.page.width;
+      const pageHeight = doc.page.height;
+      const margin = 32;
+      const tableWidth = pageWidth - margin * 2;
+      const limitY = pageHeight - 34;
+      const imageOk = fs.existsSync(LISTA_VACIA_IMAGE_PATH);
+      const colors = {
+        blue: "#075985",
+        lightBlue: "#e0f2fe",
+        border: "#94a3b8",
+        text: "#1f2937",
+        alt: "#f8fafc",
+      };
+      const colWidths = [tableWidth - 150, 70, 80];
+      const rowHeight = 20;
+      const brandHeight = 19;
+      const tableHeadHeight = 18;
+      const gap = 5;
+      const sortBrands = (a, b) => {
+        const priority = (name) => {
+          const normalized = String(name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          if (normalized === "pollos" || normalized.includes("pollo")) return 0;
+          if (normalized === "grangys" || normalized.includes("grangy")) return 1;
+          return 2;
+        };
+        return priority(a.nombre) - priority(b.nombre);
+      };
+      const marcasOrdenadas = [...marcas].sort(sortBrands);
+      const drawPageTitle = (includeImage) => {
+        let y = 22;
+        if (includeImage && imageOk) {
+          doc.image(LISTA_VACIA_IMAGE_PATH, margin, y, { fit: [tableWidth, 102], align: "center", valign: "center" });
+          y += 108;
+        }
+        doc.fillColor(colors.blue).font("Helvetica-Bold").fontSize(15)
+          .text("LISTA DE PRECIOS", margin, y, { width: tableWidth, align: "center" });
+        return y + 24;
+      };
+      const drawTableHead = (y) => {
+        doc.rect(margin, y, tableWidth, tableHeadHeight).fill(colors.lightBlue);
+        doc.font("Helvetica-Bold").fontSize(8).fillColor(colors.blue);
+        let x = margin;
+        ["Producto", "Kg/Caja", "Precio"].forEach((header, index) => {
+          doc.text(header, x + 5, y + 5, { width: colWidths[index] - 10, align: index === 0 ? "left" : "center" });
+          x += colWidths[index];
+        });
+        return y + tableHeadHeight;
+      };
+      const drawBrand = (marca, y) => {
+        doc.rect(margin, y, tableWidth, brandHeight).fill(colors.blue);
+        doc.font("Helvetica-Bold").fontSize(9).fillColor("#ffffff")
+          .text(String(marca.nombre || "Sin nombre"), margin + 7, y + 5, { width: tableWidth - 14 });
+        return y + brandHeight + 2;
+      };
+      const drawProduct = (producto, y, index) => {
+        doc.rect(margin, y, tableWidth, rowHeight).fill(index % 2 === 0 ? colors.alt : "#ffffff");
+        doc.rect(margin, y, tableWidth, rowHeight).strokeColor(colors.border).lineWidth(0.4).stroke();
+        doc.font("Helvetica").fontSize(8).fillColor(colors.text);
+        doc.text(String(producto.nombre || "Sin nombre"), margin + 5, y + 6, { width: colWidths[0] - 10 });
+        doc.text(producto.kg_por_caja === null || producto.kg_por_caja === undefined || producto.kg_por_caja === "" ? "-" : String(producto.kg_por_caja), margin + colWidths[0], y + 6, { width: colWidths[1], align: "center" });
+        doc.rect(margin + colWidths[0] + colWidths[1] + 5, y + 3, colWidths[2] - 10, rowHeight - 6).strokeColor(colors.border).lineWidth(0.8).stroke();
+        return y + rowHeight;
+      };
+
+      let pageNumber = 1;
+      let y = drawPageTitle(true);
+      for (const marca of marcasOrdenadas) {
+        const productos = marca.Productos || [];
+        const needed = brandHeight + 2 + tableHeadHeight + productos.length * rowHeight + gap;
+        if (y + needed > limitY) {
+          if (pageNumber >= 2) break;
+          doc.addPage();
+          pageNumber += 1;
+          y = drawPageTitle(false);
+        }
+        y = drawBrand(marca, y);
+        y = drawTableHead(y);
+        productos.forEach((producto, index) => {
+          if (y + rowHeight > limitY) return;
+          y = drawProduct(producto, y, index);
+        });
+        y += gap;
+      }
+      doc.font("Helvetica").fontSize(7).fillColor("#64748b")
+        .text("Precio a completar manualmente", margin, pageHeight - 24, { width: tableWidth, align: "center" });
+      doc.end();
+      return;
+    }
 
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
