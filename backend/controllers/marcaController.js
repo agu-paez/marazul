@@ -161,7 +161,7 @@ export const generarPDFMarcasProductos = async (req, res) => {
       ? Number(producto.Descuentos?.find((item) => item.id === descuentoPersonalizado.id)?.ProductoDescuento?.porcentaje) || 0
       : campoDescuento ? Number(producto[campoDescuento]) || 0 : 0;
 
-    const marcas = (await Marca.findAll({
+    const marcasCargadas = (await Marca.findAll({
       include: [
         { 
           model: Producto,
@@ -177,7 +177,15 @@ export const generarPDFMarcasProductos = async (req, res) => {
     })).map((marca) => {
       marca.Productos = (marca.Productos || []).filter((producto) => !producto.excluir_de_lista_pdf);
       return marca;
-    }).filter((m) => (m.Productos || []).length > 0);
+    });
+    const marcas = tipo === "vacia"
+      ? [
+        ...marcasCargadas,
+        ...["Solimeno", "Vidalyshadai"]
+          .filter((nombre) => !marcasCargadas.some((marca) => String(marca.nombre || "").toLowerCase() === nombre.toLowerCase()))
+          .map((nombre) => ({ nombre, Productos: [] })),
+      ]
+      : marcasCargadas.filter((m) => (m.Productos || []).length > 0);
 
     const doc = new PDFDocument({ margin: 50, size: "A4" });
 
@@ -192,9 +200,9 @@ export const generarPDFMarcasProductos = async (req, res) => {
       const isListaVacia = tipo === "vacia";
       const pageWidth = doc.page.width;
       const pageHeight = doc.page.height;
-      const margin = 32;
+      const margin = isListaVacia ? 26 : 32;
       const tableWidth = pageWidth - margin * 2;
-      const limitY = pageHeight - 34;
+      const limitY = pageHeight - (isListaVacia ? 28 : 34);
       const imageOk = fs.existsSync(LISTA_VACIA_IMAGE_PATH);
       const colors = {
         blue: "#075985",
@@ -206,10 +214,10 @@ export const generarPDFMarcasProductos = async (req, res) => {
       const colWidths = isListaVacia
         ? [tableWidth - 190, 70, 120]
         : [tableWidth - 311, 70, 120, 121];
-      const rowHeight = 20;
-      const brandHeight = 19;
-      const tableHeadHeight = 18;
-      const gap = 5;
+      const rowHeight = isListaVacia ? 17 : 20;
+      const brandHeight = isListaVacia ? 17 : 19;
+      const tableHeadHeight = isListaVacia ? 16 : 18;
+      const gap = isListaVacia ? 3 : 5;
       const sortBrands = (a, b) => {
         const priority = (name) => {
           const normalized = String(name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -253,16 +261,17 @@ export const generarPDFMarcasProductos = async (req, res) => {
       const drawPageTitle = (includeImage) => {
         let y = 22;
         if (includeImage && imageOk) {
-          doc.image(LISTA_VACIA_IMAGE_PATH, margin, y, { fit: [tableWidth, 102], align: "center", valign: "center" });
-          y += 108;
+          const imageHeight = isListaVacia ? 82 : 102;
+          doc.image(LISTA_VACIA_IMAGE_PATH, margin, y, { fit: [tableWidth, imageHeight], align: "center", valign: "center" });
+          y += imageHeight + 6;
         }
-        doc.fillColor(colors.blue).font("Helvetica-Bold").fontSize(15)
+        doc.fillColor(colors.blue).font("Helvetica-Bold").fontSize(isListaVacia ? 13 : 15)
           .text((nombresLista[tipo] || descuentoPersonalizado?.nombre || "Lista de precios").toUpperCase(), margin, y, { width: tableWidth, align: "center" });
         return y + 24;
       };
       const drawTableHead = (y) => {
         doc.rect(margin, y, tableWidth, tableHeadHeight).fill(colors.lightBlue);
-        doc.font("Helvetica-Bold").fontSize(8).fillColor(colors.blue);
+        doc.font("Helvetica-Bold").fontSize(isListaVacia ? 7 : 8).fillColor(colors.blue);
         let x = margin;
         const headers = isListaVacia
           ? ["Producto", "Kg/Caja", "Precio"]
@@ -275,14 +284,14 @@ export const generarPDFMarcasProductos = async (req, res) => {
       };
       const drawBrand = (marca, y) => {
         doc.rect(margin, y, tableWidth, brandHeight).fill(colors.blue);
-        doc.font("Helvetica-Bold").fontSize(9).fillColor("#ffffff")
+        doc.font("Helvetica-Bold").fontSize(isListaVacia ? 8 : 9).fillColor("#ffffff")
           .text(String(marca.nombre || "Sin nombre"), margin + 7, y + 5, { width: tableWidth - 14 });
         return y + brandHeight + 2;
       };
       const drawProduct = (producto, y, index) => {
         doc.rect(margin, y, tableWidth, rowHeight).fill(index % 2 === 0 ? colors.alt : "#ffffff");
         doc.rect(margin, y, tableWidth, rowHeight).strokeColor(colors.border).lineWidth(0.4).stroke();
-        doc.font("Helvetica").fontSize(8).fillColor(colors.text);
+        doc.font("Helvetica").fontSize(isListaVacia ? 7 : 8).fillColor(colors.text);
         doc.text(String(producto.nombre || "Sin nombre"), margin + 5, y + 6, { width: colWidths[0] - 10 });
         doc.text(fmtNumero(producto.kg_por_caja), margin + colWidths[0], y + 6, { width: colWidths[1], align: "center" });
         if (isListaVacia) {
