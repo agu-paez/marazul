@@ -193,7 +193,9 @@ export const generarPDFMarcasProductos = async (req, res) => {
         text: "#1f2937",
         alt: "#f8fafc",
       };
-      const colWidths = [tableWidth - 311, 70, 120, 121];
+      const colWidths = isListaVacia
+        ? [tableWidth - 190, 70, 120]
+        : [tableWidth - 311, 70, 120, 121];
       const rowHeight = 20;
       const brandHeight = 19;
       const tableHeadHeight = 18;
@@ -252,7 +254,10 @@ export const generarPDFMarcasProductos = async (req, res) => {
         doc.rect(margin, y, tableWidth, tableHeadHeight).fill(colors.lightBlue);
         doc.font("Helvetica-Bold").fontSize(8).fillColor(colors.blue);
         let x = margin;
-        ["Producto", "Kg/Caja", "Precio/Kg", "Precio Caja"].forEach((header, index) => {
+        const headers = isListaVacia
+          ? ["Producto", "Kg/Caja", "Precio"]
+          : ["Producto", "Kg/Caja", "Precio/Kg", "Precio Caja"];
+        headers.forEach((header, index) => {
           doc.text(header, x + 5, y + 5, { width: colWidths[index] - 10, align: index === 0 ? "left" : "center" });
           x += colWidths[index];
         });
@@ -270,16 +275,17 @@ export const generarPDFMarcasProductos = async (req, res) => {
         doc.font("Helvetica").fontSize(8).fillColor(colors.text);
         doc.text(String(producto.nombre || "Sin nombre"), margin + 5, y + 6, { width: colWidths[0] - 10 });
         doc.text(fmtNumero(producto.kg_por_caja), margin + colWidths[0], y + 6, { width: colWidths[1], align: "center" });
-        const precios = isListaVacia ? [null, null] : [precioPorKg(producto), precioCaja(producto)];
-        let priceX = margin + colWidths[0] + colWidths[1];
-        precios.forEach((precio, priceIndex) => {
-          if (isListaVacia) {
-            doc.rect(priceX + 5, y + 3, colWidths[priceIndex + 2] - 10, rowHeight - 6).strokeColor(colors.border).lineWidth(0.8).stroke();
-          } else {
+        if (isListaVacia) {
+          const priceX = margin + colWidths[0] + colWidths[1];
+          doc.rect(priceX + 5, y + 3, colWidths[2] - 10, rowHeight - 6).strokeColor(colors.border).lineWidth(0.8).stroke();
+        } else {
+          const precios = [precioPorKg(producto), precioCaja(producto)];
+          let priceX = margin + colWidths[0] + colWidths[1];
+          precios.forEach((precio, priceIndex) => {
             doc.text(fmtPrecio(precio), priceX + 5, y + 6, { width: colWidths[priceIndex + 2] - 10, align: "right" });
-          }
-          priceX += colWidths[priceIndex + 2];
-        });
+            priceX += colWidths[priceIndex + 2];
+          });
+        }
         return y + rowHeight;
       };
 
