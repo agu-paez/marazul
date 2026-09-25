@@ -120,6 +120,12 @@ export const productosAPI = {
   actualizarDescuentos: (data) => API.put("/productos/actualizar-descuentos", data),
 };
 
+export const descuentosAPI = {
+  getAll: () => API.get("/descuentos"),
+  create: (data) => API.post("/descuentos", data),
+  aplicar: (id, data) => API.put(`/descuentos/${id}/aplicar`, data),
+};
+
 export const repartosAPI = {
   getToday: () => API.get("/repartos/hoy"),
   getAll: () => API.get("/repartos"),

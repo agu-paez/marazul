@@ -320,6 +320,7 @@ export default function VentasPage() {
         descuento: sc.descuento ?? productoCatalogo?.descuento ?? 0,
          descuento_mayorista: sc.descuento_mayorista ?? productoCatalogo?.descuento_mayorista ?? 0,
          descuento_nuevo: sc.descuento_nuevo ?? productoCatalogo?.descuento_nuevo ?? 0,
+         Descuentos: sc.Descuentos ?? productoCatalogo?.Descuentos ?? [],
         permitir_modificar_precio: Boolean(sc.permitir_modificar_precio ?? productoCatalogo?.permitir_modificar_precio),
          unidad: sc.unidad || productoCatalogo?.unidad,
          stock: sc.disponible,
@@ -349,14 +350,20 @@ export default function VentasPage() {
   );
 
   const esProductoKg = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
+  const getPorcentajeDescuento = (producto) => {
+    const tipo = clienteSeleccionado?.tipo_descuento;
+    if (tipo?.startsWith("custom:")) {
+      const descuento = (producto.Descuentos || []).find((item) => String(item.id) === tipo.slice(7));
+      return Number(descuento?.ProductoDescuento?.porcentaje) || 0;
+    }
+    const campo = tipo === "mayorista" ? "descuento_mayorista" : tipo === "nuevo" ? "descuento_nuevo" : "descuento";
+    return Number(producto[campo]) || 0;
+  };
   const getPrecioVenta = (producto) => {
     if (preciosPersonalizados[producto.id] !== undefined) return parseNumero(preciosPersonalizados[producto.id]);
     let precio = parseNumero(producto.precio);
     if (descuentosAplicados[producto.id]) {
-      const campoDescuento = clienteSeleccionado?.tipo_descuento === "mayorista"
-        ? "descuento_mayorista"
-        : clienteSeleccionado?.tipo_descuento === "nuevo" ? "descuento_nuevo" : "descuento";
-      precio *= 1 - parseNumero(producto[campoDescuento]) / 100;
+      precio *= 1 - getPorcentajeDescuento(producto) / 100;
     }
     return Number.isFinite(precio)
       ? (descuentosAplicados[producto.id] ? Math.floor(precio) : Math.round(precio * 100) / 100)
@@ -364,10 +371,7 @@ export default function VentasPage() {
   };
 
   const toggleDescuentoProducto = (producto) => {
-    const campoDescuento = clienteSeleccionado?.tipo_descuento === "mayorista"
-      ? "descuento_mayorista"
-      : clienteSeleccionado?.tipo_descuento === "nuevo" ? "descuento_nuevo" : "descuento";
-    if (Number(producto[campoDescuento] || 0) <= 0) return;
+    if (getPorcentajeDescuento(producto) <= 0) return;
     setDescuentosAplicados((prev) => ({ ...prev, [producto.id]: !prev[producto.id] }));
     setPreciosPersonalizados((prev) => {
       const nuevos = { ...prev };
@@ -746,7 +750,7 @@ export default function VentasPage() {
                         </span>
                       )}
                     </div>
-                    {Number(p[clienteSeleccionado?.tipo_descuento === "mayorista" ? "descuento_mayorista" : clienteSeleccionado?.tipo_descuento === "nuevo" ? "descuento_nuevo" : "descuento"] || 0) > 0 && (
+                    {getPorcentajeDescuento(p) > 0 && (
                       <label style={{ display: "block", margin: "0.35rem 0", fontSize: "0.8rem" }}>
                         <input
                           type="checkbox"

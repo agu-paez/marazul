@@ -1,4 +1,4 @@
-import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor, SalidaCamion, Reintegro, User } from "../models/index.js";
+import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor, SalidaCamion, Reintegro, User, Descuento } from "../models/index.js";
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { getFechaLocal } from "../utils/fecha.js";
@@ -10,6 +10,13 @@ const parseMonto = (valor) => {
     ? texto.replace(/\./g, "").replace(",", ".")
     : texto.replace(/\.(?=\d{3}(?:\.|$))/g, "");
   return Number(normalizado);
+};
+
+const validarTipoDescuento = async (tipo) => {
+  if (["producto", "mayorista", "nuevo"].includes(tipo)) return true;
+  if (!String(tipo || "").startsWith("custom:")) return false;
+  const id = Number(String(tipo).slice(7));
+  return Number.isInteger(id) && Boolean(await Descuento.findOne({ where: { id, activo: true } }));
 };
 
 const normalizarSaldos = async (cliente) => {
@@ -56,7 +63,7 @@ export const createCliente = async (req, res) => {
       return res.status(400).json({ message: "El nombre del cliente es requerido" });
     }
 
-    if (!["producto", "mayorista", "nuevo"].includes(tipo_descuento)) {
+    if (!(await validarTipoDescuento(tipo_descuento))) {
       return res.status(400).json({ message: "El tipo de descuento no es válido" });
     }
     const cliente = await Cliente.create({
@@ -79,7 +86,7 @@ export const updateCliente = async (req, res) => {
     }
 
     const { nombre, zona, activo, tipo_descuento } = req.body;
-    if (tipo_descuento !== undefined && !["producto", "mayorista", "nuevo"].includes(tipo_descuento)) {
+    if (tipo_descuento !== undefined && !(await validarTipoDescuento(tipo_descuento))) {
       return res.status(400).json({ message: "El tipo de descuento no es válido" });
     }
     await cliente.update({

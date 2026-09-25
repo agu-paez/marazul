@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { productosAPI, marcasAPI } from "../api";
+import { productosAPI, marcasAPI, descuentosAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { descargarPDFBlob } from "../utils/generarPDF";
 
@@ -14,6 +14,8 @@ export default function ProductosPage() {
   const [porcentaje, setPorcentaje] = useState("");
   const [ajusteMarcaId, setAjusteMarcaId] = useState("");
   const [tipoDescuento, setTipoDescuento] = useState("producto");
+  const [descuentos, setDescuentos] = useState([]);
+  const [nuevoDescuento, setNuevoDescuento] = useState("");
   const [showListaPrecios, setShowListaPrecios] = useState(false);
   const [tipoPrecio, setTipoPrecio] = useState("normal");
   const [busqueda, setBusqueda] = useState("");
@@ -43,12 +45,13 @@ export default function ProductosPage() {
 
   const loadData = async () => {
     try {
-      const [prodRes, marcasRes] = await Promise.all([
+      const [prodRes, marcasRes, descuentosRes] = await Promise.all([
         productosAPI.getAll(),
-        marcasAPI.getAll(),
+        marcasAPI.getAll(), descuentosAPI.getAll(),
       ]);
       setProductos(prodRes.data);
       setMarcas(marcasRes.data);
+      setDescuentos(descuentosRes.data);
     } catch (error) {
       console.error("Error:", error);
     }
@@ -139,13 +142,14 @@ export default function ProductosPage() {
   const descargarPDF = async () => {
     const nombresArchivo = {
       normal: "lista-normal.pdf",
-      descuento: "lista-descuento-minimo.pdf",
+       descuento: "lista-descuento-minimo.pdf",
       mayorista: "lista-mayorista.pdf",
       lista2: "lista-2-clientes-nuevos.pdf",
+       vacia: "lista-vacia.pdf",
     };
     try {
-      const response = await marcasAPI.descargarPDF({ tipo: tipoPrecio });
-      descargarPDFBlob(new Blob([response.data]), nombresArchivo[tipoPrecio]);
+       const response = await marcasAPI.descargarPDF({ tipo: tipoPrecio });
+       descargarPDFBlob(new Blob([response.data]), nombresArchivo[tipoPrecio] || `lista-${tipoPrecio}.pdf`);
       setShowListaPrecios(false);
       setTipoPrecio("normal");
     } catch (error) {
@@ -212,7 +216,19 @@ export default function ProductosPage() {
                    <option value="producto">Descuento mínimo (normal)</option>
                    <option value="mayorista">Descuento mayorista</option>
                    <option value="nuevo">Descuento lista 2 (clientes nuevos)</option>
-                </select>
+                   {descuentos.map((descuento) => <option key={descuento.id} value={`custom:${descuento.id}`}>{descuento.nombre}</option>)}
+                 </select>
+                 <button type="button" className="btn btn-secondary" style={{ marginTop: "0.5rem" }} onClick={async () => {
+                   const nombre = nuevoDescuento.trim();
+                   if (!nombre) { alert("Ingrese un nombre"); return; }
+                   try {
+                     const response = await descuentosAPI.create({ nombre });
+                     setDescuentos((prev) => [...prev, response.data.descuento].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+                     setTipoDescuento(`custom:${response.data.descuento.id}`);
+                     setNuevoDescuento("");
+                   } catch (error) { alert("Error: " + (error.response?.data?.message || error.message)); }
+                 }}>Agregar nuevo descuento</button>
+                 <input value={nuevoDescuento} onChange={(e) => setNuevoDescuento(e.target.value)} placeholder="Nombre del nuevo descuento" style={{ marginTop: "0.5rem" }} />
               </div>
             )}
             <div className="form-group">
@@ -245,11 +261,9 @@ export default function ProductosPage() {
                 onClick={async () => {
                   try {
                     if (modoAjuste === "descuento") {
-                      await productosAPI.actualizarDescuentos({
-                        descuento: parseFloat(porcentaje),
-                        tipo: tipoDescuento,
-                        marcaId: ajusteMarcaId ? parseInt(ajusteMarcaId) : null,
-                      });
+                       if (tipoDescuento.startsWith("custom:")) {
+                         await descuentosAPI.aplicar(Number(tipoDescuento.slice(7)), { porcentaje: parseFloat(porcentaje), marcaId: ajusteMarcaId ? parseInt(ajusteMarcaId) : null });
+                       } else await productosAPI.actualizarDescuentos({ descuento: parseFloat(porcentaje), tipo: tipoDescuento, marcaId: ajusteMarcaId ? parseInt(ajusteMarcaId) : null });
                     } else {
                       await productosAPI.actualizarPrecios({
                         porcentaje: parseFloat(porcentaje),
@@ -286,7 +300,9 @@ export default function ProductosPage() {
                  <option value="normal">Lista normal</option>
                  <option value="descuento">Descuento mínimo (normal)</option>
                  <option value="mayorista">Descuento mayorista</option>
-                 <option value="lista2">Lista 2 (clientes nuevos)</option>
+                  <option value="lista2">Lista 2 (clientes nuevos)</option>
+                  {descuentos.map((descuento) => <option key={descuento.id} value={`custom:${descuento.id}`}>{descuento.nombre}</option>)}
+                 <option value="vacia">Lista vacía para completar a mano</option>
                </select>
              </div>
             <div className="modal-actions">

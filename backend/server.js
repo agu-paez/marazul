@@ -27,6 +27,7 @@ import bancoRoutes from "./routes/bancoRoutes.js";
 import produccionRoutes from "./routes/produccionRoutes.js";
 import gastoDiaRoutes from "./routes/gastoDiaRoutes.js";
 import pagoEmpleadoRoutes from "./routes/pagoEmpleadoRoutes.js";
+import descuentoRoutes from "./routes/descuentoRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,6 +116,7 @@ app.use("/api/bancos", bancoRoutes);
 app.use("/api/produccion", produccionRoutes);
 app.use("/api/gastos-dia", gastoDiaRoutes);
 app.use("/api/pagos-empleados", pagoEmpleadoRoutes);
+app.use("/api/descuentos", descuentoRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ message: "Mar Azul API - Funcionando!" });

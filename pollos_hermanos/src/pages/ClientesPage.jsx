@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { clientesAPI, bancosAPI, proveedoresAPI } from "../api";
+import { clientesAPI, bancosAPI, proveedoresAPI, descuentosAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
 import { generarResumenZonasPDF } from "../utils/generarPDF";
 import { dinero, formatearNumeroInput, formatearNumeroMientrasEscribe, parseNumero } from "../utils/numero";
@@ -23,6 +23,7 @@ export default function ClientesPage() {
   const [nombre, setNombre] = useState("");
   const [zona, setZona] = useState("");
   const [tipoDescuento, setTipoDescuento] = useState("producto");
+  const [descuentos, setDescuentos] = useState([]);
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [clientePago, setClientePago] = useState(null);
   const [pagosCC, setPagosCC] = useState([{ medio_pago: "efectivo", monto: 0 }]);
@@ -36,10 +37,11 @@ export default function ClientesPage() {
 
   useEffect(() => {
     loadClientes();
-    Promise.all([bancosAPI.getAll(), proveedoresAPI.getAll()])
-      .then(([bancosRes, proveedoresRes]) => {
+    Promise.all([bancosAPI.getAll(), proveedoresAPI.getAll(), descuentosAPI.getAll()])
+      .then(([bancosRes, proveedoresRes, descuentosRes]) => {
         setBancos(bancosRes.data.map((banco) => banco.nombre));
         setProveedores(proveedoresRes.data);
+        setDescuentos(descuentosRes.data);
       })
       .catch((error) => console.error("Error al cargar datos bancarios:", error));
   }, []);
@@ -257,6 +259,7 @@ export default function ClientesPage() {
                    <option value="producto">Descuento mínimo (normal)</option>
                    <option value="mayorista">Descuento mayorista</option>
                    <option value="nuevo">Descuento lista 2 (clientes nuevos)</option>
+                   {descuentos.map((descuento) => <option key={descuento.id} value={`custom:${descuento.id}`}>{descuento.nombre}</option>)}
                 </select>
               </div>
               {editando && (

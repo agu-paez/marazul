@@ -1,4 +1,4 @@
-import { Producto, Marca, Proveedor } from "../models/index.js";
+import { Producto, Marca, Proveedor, Descuento } from "../models/index.js";
 import { Op, literal } from "sequelize";
 
 const getActiveMarcaIds = async () => {
@@ -18,7 +18,7 @@ export const getAllProductos = async (req, res) => {
         attributes: ["id", "nombre"],
         required: false,
         include: [{ model: Proveedor, attributes: ["id", "nombre"], where: { activo: true } }]
-      }],
+      }, { model: Descuento, as: "Descuentos", where: { activo: true }, required: false, through: { attributes: ["porcentaje"] } }],
       where: {
         activo: true,
         [Op.or]: [{ marcaId: null }, { marcaId: { [Op.in]: activeMarcaIds } }],
@@ -38,7 +38,7 @@ export const getLowStock = async (req, res) => {
         model: Marca, 
         attributes: ["id", "nombre"],
         include: [{ model: Proveedor, attributes: ["id", "nombre"], where: { activo: true } }]
-      }],
+      }, { model: Descuento, as: "Descuentos", where: { activo: true }, required: false, through: { attributes: ["porcentaje"] } }],
       where: {
         activo: true,
         [Op.or]: [{ marcaId: null }, { marcaId: { [Op.in]: activeMarcaIds } }],

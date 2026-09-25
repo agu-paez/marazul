@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Marca, Proveedor, Producto } from "../models/index.js";
+import { Marca, Proveedor, Producto, Descuento } from "../models/index.js";
 import PDFDocument from "pdfkit";
 import logger from "../utils/logger.js";
 
@@ -147,10 +147,19 @@ export const generarPDFMarcasProductos = async (req, res) => {
       lista2: "Descuento lista 2",
       vacia: "Lista vacía",
     };
-    if (tipo !== "normal" && tipo !== "vacia" && !camposDescuento[tipo]) {
+    if (tipo !== "normal" && tipo !== "vacia" && !camposDescuento[tipo] && !tipo.startsWith("custom:")) {
       return res.status(400).json({ message: "El tipo de lista no es válido" });
     }
     const campoDescuento = camposDescuento[tipo];
+    const descuentoPersonalizadoId = tipo.startsWith("custom:") ? Number(tipo.slice(7)) : null;
+    let descuentoPersonalizado = null;
+    if (descuentoPersonalizadoId) {
+      descuentoPersonalizado = await Descuento.findOne({ where: { id: descuentoPersonalizadoId, activo: true } });
+      if (!descuentoPersonalizado) return res.status(400).json({ message: "El descuento personalizado no es válido" });
+    }
+    const getDescuento = (producto) => descuentoPersonalizado
+      ? Number(producto.Descuentos?.find((item) => item.id === descuentoPersonalizado.id)?.ProductoDescuento?.porcentaje) || 0
+      : campoDescuento ? Number(producto[campoDescuento]) || 0 : 0;
 
     const marcas = (await Marca.findAll({
       include: [
@@ -158,7 +167,8 @@ export const generarPDFMarcasProductos = async (req, res) => {
           model: Producto,
           where: { activo: true },
           required: false,
-           attributes: ["id", "nombre", "descripcion", "precio", "descuento", "descuento_mayorista", "descuento_nuevo", "stock", "unidad", "kg_por_caja", "excluir_de_lista_pdf"]
+           attributes: ["id", "nombre", "descripcion", "precio", "descuento", "descuento_mayorista", "descuento_nuevo", "stock", "unidad", "kg_por_caja", "excluir_de_lista_pdf"],
+           include: [{ model: Descuento, as: "Descuentos", where: { activo: true }, required: false, through: { attributes: ["porcentaje"] } }]
         },
         { model: Proveedor, attributes: [], where: { activo: true } }
       ],
@@ -220,14 +230,14 @@ export const generarPDFMarcasProductos = async (req, res) => {
         const n = Number(valor);
         return Number.isFinite(n) ? `$${n.toFixed(2)}` : "-";
       };
-      const precioConDescuento = (producto) => {
-        const descuento = campoDescuento ? Number(producto[campoDescuento]) || 0 : 0;
+    const precioConDescuento = (producto) => {
+        const descuento = getDescuento(producto);
         const precio = Number(producto.precio) * (1 - descuento / 100);
         return descuento > 0 ? Math.floor(precio) : precio;
       };
       const precioPorKg = (producto) => {
         const precio = precioConDescuento(producto);
-        const descuento = campoDescuento ? Number(producto[campoDescuento]) || 0 : 0;
+        const descuento = getDescuento(producto);
         const kg = Number(producto.kg_por_caja);
         if (Number.isFinite(precio) && precio > 0 && Number.isFinite(kg) && kg > 0) {
           const precioKg = precio / kg;
@@ -247,7 +257,7 @@ export const generarPDFMarcasProductos = async (req, res) => {
           y += 108;
         }
         doc.fillColor(colors.blue).font("Helvetica-Bold").fontSize(15)
-          .text(nombresLista[tipo].toUpperCase(), margin, y, { width: tableWidth, align: "center" });
+          .text((nombresLista[tipo] || descuentoPersonalizado?.nombre || "Lista de precios").toUpperCase(), margin, y, { width: tableWidth, align: "center" });
         return y + 24;
       };
       const drawTableHead = (y) => {
@@ -351,7 +361,7 @@ export const generarPDFMarcasProductos = async (req, res) => {
       doc.rect(0, headerH, pageWidth, 3).fill(ACCENT);
       doc.fillColor(NAVY).fontSize(11).font("Helvetica-Bold")
          .text(
-           nombresLista[tipo],
+            nombresLista[tipo] || descuentoPersonalizado?.nombre || "Lista de precios",
            startX,
            72,
            { align: "left" }
@@ -415,13 +425,13 @@ export const generarPDFMarcasProductos = async (req, res) => {
     };
 
      const precioConDescuento = (producto) => {
-       const descuento = campoDescuento ? Number(producto[campoDescuento]) || 0 : 0;
+       const descuento = getDescuento(producto);
        const precio = Number(producto.precio) * (1 - descuento / 100);
        return descuento > 0 ? Math.floor(precio) : precio;
     };
     const precioPorKg = (producto) => {
       const precio = precioConDescuento(producto);
-      const descuento = campoDescuento ? Number(producto[campoDescuento]) || 0 : 0;
+       const descuento = getDescuento(producto);
       const kg = Number(producto.kg_por_caja);
       if (Number.isFinite(precio) && precio > 0 && Number.isFinite(kg) && kg > 0) {
         const precioKg = precio / kg;

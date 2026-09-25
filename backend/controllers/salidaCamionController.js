@@ -1,4 +1,4 @@
-import { SalidaCamion, SalidaCamionItem, Producto, User, Cliente, ClientePago, CierreCaja, Venta, VentaItem, VentaPago } from "../models/index.js";
+import { SalidaCamion, SalidaCamionItem, Producto, User, Cliente, ClientePago, CierreCaja, Venta, VentaItem, VentaPago, Descuento } from "../models/index.js";
 import { Op } from "sequelize";
 import { getFechaLocal } from "../utils/fecha.js";
 
@@ -739,7 +739,7 @@ export const getStockCamion = async (req, res) => {
       include: [
         {
           model: SalidaCamionItem,
-           include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad"] }],
+            include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad", "descuento", "descuento_mayorista", "descuento_nuevo", "permitir_modificar_precio"], include: [{ model: Descuento, as: "Descuentos", where: { activo: true }, required: false, through: { attributes: ["porcentaje"] } }] }],
         },
       ],
     });
@@ -764,6 +764,7 @@ export const getStockCamion = async (req, res) => {
            descuento: item.Producto?.descuento,
             descuento_mayorista: item.Producto?.descuento_mayorista,
             descuento_nuevo: item.Producto?.descuento_nuevo,
+            Descuentos: item.Producto?.Descuentos || [],
            permitir_modificar_precio: item.Producto?.permitir_modificar_precio,
             precio: parseFloat(item.precio_unitario),
           precio_unidad: parseFloat(item.precio_unitario),
