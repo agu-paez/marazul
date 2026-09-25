@@ -217,19 +217,29 @@ export default function ProductosPage() {
                    <option value="mayorista">Descuento mayorista</option>
                    <option value="nuevo">Descuento lista 2 (clientes nuevos)</option>
                    {descuentos.map((descuento) => <option key={descuento.id} value={`custom:${descuento.id}`}>{descuento.nombre}</option>)}
+                   <option value="__nuevo_descuento__">Agregar nuevo descuento...</option>
                  </select>
-                 <button type="button" className="btn btn-secondary" style={{ marginTop: "0.5rem" }} onClick={async () => {
-                   const nombre = nuevoDescuento.trim();
-                   if (!nombre) { alert("Ingrese un nombre"); return; }
-                   try {
-                     const response = await descuentosAPI.create({ nombre });
-                     setDescuentos((prev) => [...prev, response.data.descuento].sort((a, b) => a.nombre.localeCompare(b.nombre)));
-                     setTipoDescuento(`custom:${response.data.descuento.id}`);
-                     setNuevoDescuento("");
-                   } catch (error) { alert("Error: " + (error.response?.data?.message || error.message)); }
-                 }}>Agregar nuevo descuento</button>
-                 <input value={nuevoDescuento} onChange={(e) => setNuevoDescuento(e.target.value)} placeholder="Nombre del nuevo descuento" style={{ marginTop: "0.5rem" }} />
-              </div>
+                  {tipoDescuento === "__nuevo_descuento__" && (
+                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                      <input
+                        value={nuevoDescuento}
+                        onChange={(e) => setNuevoDescuento(e.target.value)}
+                        placeholder="Nombre del nuevo descuento"
+                        autoFocus
+                      />
+                      <button type="button" className="btn btn-secondary" onClick={async () => {
+                        const nombre = nuevoDescuento.trim();
+                        if (!nombre) { alert("Ingrese un nombre"); return; }
+                        try {
+                          const response = await descuentosAPI.create({ nombre });
+                          setDescuentos((prev) => [...prev, response.data.descuento].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+                          setTipoDescuento(`custom:${response.data.descuento.id}`);
+                          setNuevoDescuento("");
+                        } catch (error) { alert("Error: " + (error.response?.data?.message || error.message)); }
+                      }}>Cargar nombre</button>
+                    </div>
+                  )}
+               </div>
             )}
             <div className="form-group">
               <label>Aplicar a marca</label>
