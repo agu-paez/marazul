@@ -1,5 +1,6 @@
 import { SalidaCamion, SalidaCamionItem, Producto, User, Cliente, ClientePago, CierreCaja, Venta, VentaItem, VentaPago, Descuento } from "../models/index.js";
 import { Op } from "sequelize";
+import sequelize from "../config/database.js";
 import { getFechaLocal } from "../utils/fecha.js";
 
 const checkDayClosed = async (fecha) => {
@@ -12,6 +13,30 @@ const devueltoEnUnidades = (item) => Number(item.cantidad_devuelta) || 0;
 const unidadesDeVentaItem = (item) => Number(item.cantidad) || 0;
 
 const redondearUnidades = (valor) => Math.round(valor * 100) / 100;
+
+// Margen tolerado al comparar cantidades de mercaderia, para no bloquear por
+// errores de redondeo de punto flotante entre kg y(storage DECIMAL(13,2)).
+const TOLERANCIA_UNIDADES = 0.009;
+
+const esUnidadDePeso = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
+
+// Unidades ya vendidas de una salida, agrupadas por producto.
+const getVendidoPorProducto = async (salidaId, transaction) => {
+  const ventas = await Venta.findAll({
+    where: { salidaCamionId: salidaId, estado: "completada" },
+    include: [{ model: VentaItem, attributes: ["productoId", "cantidad"] }],
+    transaction,
+  });
+
+  const vendidoPorProducto = {};
+  for (const venta of ventas) {
+    for (const vi of venta.VentaItems) {
+      const productoId = String(vi.productoId);
+      vendidoPorProducto[productoId] = redondearUnidades((vendidoPorProducto[productoId] || 0) + unidadesDeVentaItem(vi));
+    }
+  }
+  return vendidoPorProducto;
+};
 
 const includeSalida = [
   {
@@ -184,8 +209,7 @@ export const createSalida = async (req, res) => {
         return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
       }
       const cantidad = Number(item.cantidad);
-      const esKilogramo = ["kg", "kilogramo"].includes(String(producto.unidad || "").toLowerCase());
-      if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esKilogramo && !Number.isInteger(cantidad))) {
+      if (!Number.isFinite(cantidad) || cantidad <= 0 || (!esUnidadDePeso(producto) && !Number.isInteger(cantidad))) {
         return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
       }
       const productoId = String(item.productoId);
@@ -549,82 +573,192 @@ export const guardarConteoSalida = async (req, res) => {
 };
 
 export const updateSalidaCompleta = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     if (req.userRole === "repartidor") {
+      await transaction.rollback();
       return res.status(403).json({ message: "Los repartidores solo pueden modificar el estado" });
     }
 
     const salida = await SalidaCamion.findByPk(req.params.id, {
-      include: [{ model: SalidaCamionItem }],
+      transaction,
+      lock: transaction.LOCK.UPDATE,
     });
 
     if (!salida) {
+      await transaction.rollback();
       return res.status(404).json({ message: "Salida no encontrada" });
     }
 
     if (await checkDayClosed(salida.fecha)) {
+      await transaction.rollback();
       return res.status(400).json({ message: "No se puede modificar, la caja del día ya fue cerrada" });
+    }
+
+    // En camino ya puede tener ventas registradas por el repartidor, asi que se
+    // puede editar la mercaderia mientras no se baje de lo ya vendido. Para tocar
+    // una entrega hay que reabrirla primero.
+    if (!["pendiente", "en_camino"].includes(salida.estado)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Solo se puede editar una salida pendiente o en camino" });
     }
 
     const { camion, destino, clienteId, notas, asignadoRepartidorId, items } = req.body;
 
-    if (salida.estado !== "pendiente") {
-      return res.status(400).json({ message: "Solo se puede editar una salida en estado pendiente" });
+    if (!camion || !String(camion).trim()) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Debe completar el camion" });
+    }
+    if (!destino || !String(destino).trim()) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Debe seleccionar una zona para la salida" });
+    }
+    if (!asignadoRepartidorId) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Debe seleccionar el repartidor asignado a la salida" });
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({ message: "Debe agregar al menos un producto" });
     }
 
-    let clienteNombreUpd = null;
-    let clienteIdUpd = null;
+    let clienteUpd = null;
     if (clienteId) {
-      const cliente = await Cliente.findByPk(clienteId);
+      const cliente = await Cliente.findByPk(clienteId, { transaction });
       if (!cliente) {
+        await transaction.rollback();
         return res.status(400).json({ message: "Cliente no encontrado" });
       }
-      clienteNombreUpd = cliente.nombre;
-      clienteIdUpd = cliente.id;
+      if (cliente.zona !== destino) {
+        await transaction.rollback();
+        return res.status(400).json({ message: "El cliente no pertenece a la zona seleccionada" });
+      }
+      clienteUpd = cliente;
     }
 
-    for (const oldItem of salida.SalidaCamionItems) {
-      const prod = await Producto.findByPk(oldItem.productoId);
-      if (prod) {
-        await prod.update({ stock: parseFloat(prod.stock) + (parseFloat(oldItem.cantidad) || 0) });
+    // Consolida por productoId: la UI manda un item por producto, pero si llega
+    // repetido se acumula la cantidad en vez de crear items duplicados.
+    const cantidadPorProducto = new Map();
+    for (const item of items) {
+      const productoId = String(item?.productoId ?? "");
+      if (!productoId) {
+        await transaction.rollback();
+        return res.status(400).json({ message: "Cada producto de la salida debe tener un id" });
+      }
+      const cantidad = Number(item.cantidad);
+      const acumulada = cantidadPorProducto.get(productoId) || 0;
+      if (!Number.isFinite(cantidad)) {
+        await transaction.rollback();
+        return res.status(400).json({ message: "Las cantidades de la mercadería no son válidas" });
+      }
+      cantidadPorProducto.set(productoId, redondearUnidades(acumulada + cantidad));
+    }
+
+    const itemsPrevios = await SalidaCamionItem.findAll({
+      where: { salidaCamionId: salida.id },
+      transaction,
+    });
+    const previoPorProducto = new Map(itemsPrevios.map((item) => [String(item.productoId), item]));
+
+    // Se bloquean todos los productos que la edicion puede mover: los que ya
+    // estaban en la salida y los nuevos.
+    const productosIds = [...new Set([...previoPorProducto.keys(), ...cantidadPorProducto.keys()])];
+    const productos = await Producto.findAll({
+      where: { id: { [Op.in]: productosIds } },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    const productoPorId = new Map(productos.map((producto) => [String(producto.id), producto]));
+
+    for (const [productoId, cantidad] of cantidadPorProducto) {
+      const producto = productoPorId.get(productoId);
+      if (!producto) {
+        await transaction.rollback();
+        return res.status(400).json({ message: `Producto ID ${productoId} no encontrado` });
+      }
+      if (cantidad <= 0 || (!esUnidadDePeso(producto) && !Number.isInteger(cantidad))) {
+        await transaction.rollback();
+        return res.status(400).json({ message: `La cantidad de "${producto.nombre}" no es válida` });
       }
     }
 
-    await SalidaCamionItem.destroy({ where: { salidaCamionId: salida.id } });
+    const vendidoPorProducto = await getVendidoPorProducto(salida.id, transaction);
+
+    for (const [productoId, cantidad] of cantidadPorProducto) {
+      const producto = productoPorId.get(productoId);
+      const previo = previoPorProducto.get(productoId);
+      const vendido = vendidoPorProducto[productoId] || 0;
+      if (vendido > 0 && !previo) {
+        await transaction.rollback();
+        return res.status(400).json({ message: `No se puede quitar "${producto.nombre}" porque ya tiene mercadería vendida` });
+      }
+      const devuelto = previo ? devueltoEnUnidades(previo) : 0;
+      const minimo = redondearUnidades(vendido + devuelto);
+      if (minimo > 0 && cantidad < minimo - TOLERANCIA_UNIDADES) {
+        await transaction.rollback();
+        const detalle = devuelto > 0 ? `${vendido} vendidos y ${devuelto} devueltos` : `${vendido} vendidos`;
+        return res.status(400).json({ message: `No se puede bajar "${producto.nombre}" a ${cantidad}: ya tiene ${detalle}` });
+      }
+    }
+
+    // Devuelve al deposito lo que la salida aun tiene afuera y descuenta lo que
+    // quedara cargado. Se hace sobre todos los productos afectados para que un
+    // producto quitado y uno nuevo no se pisen entre si.
+    for (const productoId of productosIds) {
+      const producto = productoPorId.get(productoId);
+      if (!producto) continue;
+      const previo = previoPorProducto.get(productoId);
+      const sigueEnLaSalida = cantidadPorProducto.has(productoId);
+      const devueltoPrevio = previo ? devueltoEnUnidades(previo) : 0;
+      const salientePrevio = previo ? redondearUnidades(cargadoEnUnidades(previo) - devueltoPrevio) : 0;
+      // Lo devuelto solo descuenta del stock mientras el item siga existiendo:
+      // si se quita el producto, esa mercaderia ya esta en el deposito y hay que
+      // devolver solo lo que quedo afuera, o el stock se infla.
+      const devueltoNuevo = sigueEnLaSalida ? devueltoPrevio : 0;
+      const salienteNuevo = redondearUnidades((cantidadPorProducto.get(productoId) || 0) - devueltoNuevo);
+      const disponible = redondearUnidades((parseFloat(producto.stock) || 0) + Math.max(0, salientePrevio));
+      if (salienteNuevo > disponible + TOLERANCIA_UNIDADES) {
+        await transaction.rollback();
+        return res.status(400).json({
+          message: `Stock insuficiente para "${producto.nombre}": disponible ${disponible}, solicitado ${salienteNuevo}`,
+        });
+      }
+      const stockNuevo = redondearUnidades(Math.max(0, disponible - salienteNuevo));
+      await producto.update({ stock: stockNuevo }, { transaction });
+    }
+
+    await SalidaCamionItem.destroy({ where: { salidaCamionId: salida.id }, transaction });
 
     let precioTotal = 0;
-    if (items && items.length > 0) {
-      for (const item of items) {
-        const producto = await Producto.findByPk(item.productoId);
-        if (!producto) {
-          return res.status(400).json({ message: `Producto ID ${item.productoId} no encontrado` });
-        }
-        if (producto.stock < item.cantidad) {
-          return res.status(400).json({
-            message: `Stock insuficiente para "${producto.nombre}": disponible ${producto.stock}`,
-          });
-        }
-        precioTotal += producto.precio * item.cantidad;
-        await SalidaCamionItem.create({
-          salidaCamionId: salida.id,
-          productoId: item.productoId,
-          cantidad: item.cantidad,
-          precio_unitario: producto.precio,
-        });
-        await producto.update({ stock: producto.stock - item.cantidad });
-      }
+    for (const [productoId, cantidad] of cantidadPorProducto) {
+      const producto = productoPorId.get(productoId);
+      const previo = previoPorProducto.get(productoId);
+      // Se conserva el precio con el que se cargo: si el producto ya estaba en la
+      // salida, reprificarlo alteraria el monto de mercaderia ya solda.
+      const precioUnitario = previo ? parseFloat(previo.precio_unitario) : parseFloat(producto.precio);
+      await SalidaCamionItem.create({
+        salidaCamionId: salida.id,
+        productoId: producto.id,
+        cantidad,
+        cantidad_devuelta: previo ? devueltoEnUnidades(previo) : 0,
+        precio_unitario: precioUnitario,
+      }, { transaction });
+      precioTotal += precioUnitario * cantidad;
     }
 
-    await salida.update({
-      camion,
+    const updateData = {
+      camion: String(camion).trim(),
       destino,
-      cliente_nombre: clienteNombreUpd || "",
-      clienteId: clienteIdUpd,
+      cliente_nombre: clienteUpd ? clienteUpd.nombre : "",
+      clienteId: clienteUpd ? clienteUpd.id : null,
       notas,
       precio_total: precioTotal,
       monto_salida: precioTotal,
       asignadoRepartidorId,
-    });
+    };
+
+    await salida.update(updateData, { transaction });
+    await transaction.commit();
 
     const salidaActualizada = await SalidaCamion.findByPk(salida.id, {
       include: includeSalida,
@@ -632,6 +766,7 @@ export const updateSalidaCompleta = async (req, res) => {
 
     res.json({ message: "Salida actualizada", salida: salidaActualizada });
   } catch (error) {
+    if (!transaction.finished) await transaction.rollback();
     res.status(500).json({ message: "Error al actualizar salida", error: error.message });
   }
 };
