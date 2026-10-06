@@ -11,7 +11,7 @@ import logger from "./utils/logger.js";
 
 import sequelize from "./config/database.js";
 import "./models/index.js";
-import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, ProveedorMovimiento, CierreCaja, SalidaCamion, SalidaCamionItem, Reintegro } from "./models/index.js";
+import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, ProveedorMovimiento, CierreCaja, SalidaCamion, SalidaCamionItem, Reintegro, ConteoVentasLocal } from "./models/index.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import proveedorRoutes from "./routes/proveedorRoutes.js";
@@ -21,6 +21,7 @@ import repartoRoutes from "./routes/repartoRoutes.js";
 import salidaCamionRoutes from "./routes/salidaCamionRoutes.js";
 import cierreCajaRoutes from "./routes/cierreCajaRoutes.js";
 import ventaRoutes from "./routes/ventaRoutes.js";
+import ventasLocalRoutes from "./routes/ventasLocalRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import clienteRoutes from "./routes/clienteRoutes.js";
 import bancoRoutes from "./routes/bancoRoutes.js";
@@ -110,6 +111,7 @@ app.use("/api/repartos", repartoRoutes);
 app.use("/api/salidas-camion", salidaCamionRoutes);
 app.use("/api/cierre-caja", cierreCajaRoutes);
 app.use("/api/ventas", ventaRoutes);
+app.use("/api/ventas-local", ventasLocalRoutes);
 app.use("/api/usuarios", userRoutes);
 app.use("/api/clientes", clienteRoutes);
 app.use("/api/bancos", bancoRoutes);
@@ -267,6 +269,10 @@ const initializeDatabase = async () => {
     await ensureColumn(ClientePago, "saldo_anterior", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
     await ensureColumn(ClientePago, "saldo_actual", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
     await ensureColumn(Reintegro, "cantidad", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 1 });
+    await ensureColumn(ConteoVentasLocal, "conteo_billetes", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(ConteoVentasLocal, "gastos_combustible", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(ConteoVentasLocal, "gastos_otros", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });
+    await ensureColumn(ConteoVentasLocal, "usuarioId", { type: DataTypes.INTEGER, allowNull: true });
 
     const pagosClientes = await ClientePago.findAll({ where: { titular: null } });
     for (const pago of pagosClientes) {
