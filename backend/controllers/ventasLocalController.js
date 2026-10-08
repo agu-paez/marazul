@@ -11,6 +11,7 @@ import {
   VentaPago,
 } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
+import logger from "../utils/logger.js";
 
 const normalizarMonto = (valor) => {
   const monto = Number(valor);
@@ -25,17 +26,17 @@ const esFechaValida = (fecha) => /^\d{4}-\d{2}-\d{2}$/.test(String(fecha || ""))
 // columna puede devolver ambos formatos.
 const parseDatos = (datos) => {
   if (!datos) return [];
+  let parsed = datos;
   if (typeof datos === "string") {
     try {
-      const parsed = JSON.parse(datos);
-      if (typeof parsed === "string") return JSON.parse(parsed);
-      return parsed;
+      parsed = JSON.parse(datos);
+      if (typeof parsed === "string") parsed = JSON.parse(parsed);
     } catch {
       return [];
     }
   }
-  if (Array.isArray(datos)) return datos;
-  if (typeof datos === "object") return [datos];
+  if (Array.isArray(parsed)) return parsed;
+  if (typeof parsed === "object") return [parsed];
   return [];
 };
 
@@ -85,6 +86,7 @@ const resumenMediosInicial = () => ({
 const pagosDeudaDelDia = async (fecha) => {
   const pagos = await ClientePago.findAll({
     where: { fecha },
+    attributes: ["id", "monto", "medio_pago", "fecha", "hora", "datos_transferencia", "datos_tarjeta", "datos_cheque", "datos_ercheck", "titular", "banco", "clienteId"],
     include: [{ model: Cliente, attributes: ["id", "nombre"] }],
   });
   return pagos.map((pago) => ({
@@ -256,15 +258,28 @@ const armarInforme = (fecha, ventas, pagosDeuda, conteo, cierre) => {
 const ventasLocalesDelDia = (fecha) =>
   Venta.findAll({
     where: { fecha, tipo_venta: "local", estado: "completada" },
+    attributes: [
+      "id",
+      "numero_comprobante",
+      "fecha",
+      "hora",
+      "total",
+      "medio_pago",
+      "pago_dividido",
+      "datos_transferencia",
+      "cliente_nombre",
+      "notas",
+      "clienteId",
+    ],
     order: [["hora", "ASC"]],
     include: [
       {
         model: VentaItem,
-        include: [{ model: Producto, attributes: ["id", "nombre", "unidad"] }],
+        attributes: ["id", "cantidad", "precio_unitario", "ventaId", "productoId"],
+        include: [{ model: Producto, attributes: ["id", "nombre"] }],
       },
-      { model: VentaPago },
+      { model: VentaPago, attributes: ["id", "medio_pago", "monto", "ventaId"] },
       { model: Cliente, as: "cliente", attributes: ["id", "nombre"] },
-      { model: User, as: "vendedor", attributes: ["id", "nombre"] },
     ],
   });
 
@@ -278,8 +293,11 @@ export const getDetalleVentasLocal = async (req, res) => {
     const [ventas, pagosDeuda, registroConteo, cierre] = await Promise.all([
       ventasLocalesDelDia(fecha),
       pagosDeudaDelDia(fecha),
-      ConteoVentasLocal.findOne({ where: { fecha } }),
-      CierreCaja.findOne({ where: { fecha } }),
+      ConteoVentasLocal.findOne({
+        where: { fecha },
+        attributes: ["conteo_billetes", "gastos_combustible", "gastos_otros"],
+      }),
+      CierreCaja.findOne({ where: { fecha }, attributes: ["hora", "usuario_cierre"] }),
     ]);
 
     const conteo = registroConteo
@@ -292,6 +310,10 @@ export const getDetalleVentasLocal = async (req, res) => {
 
     res.json(armarInforme(fecha, ventas, pagosDeuda, conteo, cierre));
   } catch (error) {
+    logger.error("Error al obtener el detalle de ventas por local", {
+      fecha: req.query.fecha,
+      error: error.stack || error.message,
+    });
     res.status(500).json({ message: "Error al obtener el historial de ventas por local", error: error.message });
   }
 };
@@ -416,6 +438,10 @@ const fechas = new Set([
 
     res.json(registros);
   } catch (error) {
+    logger.error("Error al obtener historial de ventas por local", {
+      query: req.query,
+      error: error.stack || error.message,
+    });
     res.status(500).json({ message: "Error al obtener historial de ventas por local", error: error.message });
   }
 };
