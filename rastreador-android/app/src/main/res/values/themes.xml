@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.MarAzul" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/marazul_primary</item>
+        <item name="android:colorPrimaryDark">@color/marazul_primary_dark</item>
+        <item name="android:colorAccent">@color/marazul_accent</item>
+        <item name="android:statusBarColor">@color/marazul_primary_dark</item>
+        <item name="android:windowBackground">@color/white</item>
+    </style>
+</resources>

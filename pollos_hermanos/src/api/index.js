@@ -168,6 +168,12 @@ export const cierreCajaAPI = {
   getIngresosEgresos: (params) => API.get("/cierre-caja/ingresos-egresos", { params }),
 };
 
+export const ventasLocalAPI = {
+  getHistorial: (params) => API.get("/ventas-local", { params }),
+  getDetalle: (fecha) => API.get("/ventas-local/detalle", { params: { fecha } }),
+  guardarConteo: (fecha, data) => API.put(`/ventas-local/${fecha}/conteo`, data),
+};
+
 export const ventasAPI = {
   getAll: (params) => API.get("/ventas", { params }),
   getById: (id) => API.get(`/ventas/${id}`),
@@ -228,6 +234,14 @@ export const produccionAPI = {
   getHistorial: () => API.get("/produccion/historial"),
   descargarHistorialPDF: (semana) => API.get(`/produccion/historial/${semana}/pdf`, { responseType: "blob" }),
   create: (data) => API.post("/produccion", data),
+};
+
+export const dispositivosAPI = {
+  getAll: (params) => API.get("/dispositivos", { params }),
+  create: (data) => API.post("/dispositivos", data),
+  update: (id, data) => API.put(`/dispositivos/${id}`, data),
+  regenerarToken: (id) => API.put(`/dispositivos/${id}/token`),
+  delete: (id) => API.delete(`/dispositivos/${id}`),
 };
 
 export default API;

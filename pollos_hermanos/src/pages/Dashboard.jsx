@@ -1,7 +1,15 @@
 import { useState, useEffect } from "react";
 import { salidasAPI, cierreCajaAPI, productosAPI, pagosEmpleadosAPI, usuariosAPI, ventasAPI } from "../api";
 import { useAuth } from "../context/AuthContext";
-import { dinero } from "../utils/numero";
+import { dinero, formatearNumeroInput, parseNumero } from "../utils/numero";
+import { marcarPdfVentasLocalPendiente } from "../utils/ventasLocalPDF";
+
+const zonas = [
+  ...Array.from({ length: 6 }, (_, index) => `Zona ${index + 1}`),
+  "Mayorista",
+  "Zona Carlos Paz",
+];
+
 
 const getFechaLocal = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
@@ -14,6 +22,8 @@ const formatCant = (n) => {
 };
 
 const textoCantidad = (cant) => `${formatCant(cant)} unid.`;
+
+const esUnidadDePeso = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -42,6 +52,17 @@ export default function Dashboard() {
   const [guardandoPagos, setGuardandoPagos] = useState(false);
   const [fechaConsulta, setFechaConsulta] = useState(() => localStorage.getItem("dashboardFecha") || getFechaLocal());
   const [ultimaFechaCierre, setUltimaFechaCierre] = useState(null);
+  const [editando, setEditando] = useState(null);
+  const [editForm, setEditForm] = useState({ camion: "", destino: "", notas: "", asignadoRepartidorId: "" });
+  const [editCantidades, setEditCantidades] = useState({});
+  const [editPrevio, setEditPrevio] = useState({});
+  const [editPrecios, setEditPrecios] = useState({});
+  const [editVendidos, setEditVendidos] = useState({});
+  const [editDevueltos, setEditDevueltos] = useState({});
+  const [editCatalogo, setEditCatalogo] = useState([]);
+  const [editRepartidores, setEditRepartidores] = useState([]);
+  const [editBusqueda, setEditBusqueda] = useState("");
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -166,6 +187,188 @@ export default function Dashboard() {
     setItemsRegreso(newItems);
   };
 
+  const abrirEdicionSalida = async (salida) => {
+    try {
+      const [salidaRes, stockRes, productosRes, repartidoresRes] = await Promise.all([
+        salidasAPI.getById(salida.id),
+        salidasAPI.getStockCamion(salida.id),
+        productosAPI.getAll(),
+        usuariosAPI.getRepartidores(),
+      ]);
+
+      const previo = {};
+      const precios = {};
+      for (const item of salidaRes.data.SalidaCamionItems || []) {
+        const id = String(item.productoId);
+        previo[id] = Number(item.cantidad) || 0;
+        precios[id] = parseFloat(item.precio_unitario) || 0;
+      }
+      const cantidades = { ...previo };
+
+      const vendidos = {};
+      const devueltos = {};
+      for (const item of stockRes.data.items || []) {
+        const id = String(item.productoId);
+        vendidos[id] = Number(item.vendido) || 0;
+        devueltos[id] = Number(item.devuelto) || 0;
+      }
+
+      setEditando(salida);
+      setEditForm({
+        camion: salidaRes.data.camion || "",
+        destino: salidaRes.data.destino || "",
+        notas: salidaRes.data.notas || "",
+        asignadoRepartidorId: salidaRes.data.asignadoRepartidorId || "",
+      });
+      setEditCantidades(cantidades);
+      setEditPrevio(previo);
+      setEditPrecios(precios);
+      setEditVendidos(vendidos);
+      setEditDevueltos(devueltos);
+      setEditCatalogo(productosRes.data);
+      setEditRepartidores(repartidoresRes.data);
+      setEditBusqueda("");
+    } catch (error) {
+      alert("Error al abrir la edicion: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const cerrarEdicionSalida = () => {
+    setEditando(null);
+    setEditCantidades({});
+    setEditPrevio({});
+    setEditPrecios({});
+    setEditVendidos({});
+    setEditDevueltos({});
+    setEditBusqueda("");
+  };
+
+  const cantidadEditada = (productoId) => parseNumero(editCantidades[productoId]);
+  const vendidoDe = (productoId) => Number(editVendidos[String(productoId)]) || 0;
+  const devueltoDe = (productoId) => Number(editDevueltos[String(productoId)]) || 0;
+
+  // Piso por producto: lo vendido mas lo devuelto ya no se puede bajar, porque
+  // son unidades que ya salieron del camion. Es el mismo limite que impone el
+  // backend, asi la UI no deja escribir algo que despues sera rechazado.
+  const minimoProducto = (productoId) => redondearUnid(vendidoDe(productoId) + devueltoDe(productoId));
+
+  // Tope por producto: el stock del deposito mas lo que esta salida ya tiene
+  // afuera, para que al recargar un camion no se corte antes de tiempo.
+  const maximoProducto = (producto) => {
+    const id = String(producto.id);
+    const cargado = editPrevio[id] || 0;
+    return redondearUnid(Math.max(cargado, parseNumero(producto.stock) + cargado));
+  };
+
+  // Toda cantidad de la edicion pasa por aca: nunca puede quedar por debajo de lo
+  // ya vendido/devuelto ni por encima de lo que hay disponible.
+  const calcularCantidad = (producto, valor) => {
+    const id = String(producto.id);
+    return redondearUnid(Math.min(maximoProducto(producto), Math.max(minimoProducto(id), valor)));
+  };
+
+  const ajustarCantidad = (producto, delta) => {
+    const id = String(producto.id);
+    const esKg = esUnidadDePeso(producto);
+    setEditCantidades((prev) => {
+      const nueva = calcularCantidad(producto, parseNumero(prev[id]) + (esKg ? delta * 0.5 : delta));
+      return { ...prev, [id]: esKg ? formatearNumeroInput(nueva) : nueva };
+    });
+  };
+
+  // Los kg se tipean como texto con coma decimal, igual que en el alta de salidas.
+  const cambiarCantidad = (producto, texto) => {
+    const id = String(producto.id);
+    if (texto === "") {
+      setEditCantidades((prev) => ({ ...prev, [id]: "" }));
+      return;
+    }
+    if (esUnidadDePeso(producto)) {
+      setEditCantidades((prev) => ({ ...prev, [id]: texto }));
+      return;
+    }
+    setEditCantidades((prev) => ({ ...prev, [id]: calcularCantidad(producto, parseNumero(texto)) }));
+  };
+
+  const normalizarCantidad = (producto) => {
+    if (!esUnidadDePeso(producto)) return;
+    const id = String(producto.id);
+    setEditCantidades((prev) => {
+      if (prev[id] === "" || prev[id] === undefined) return prev;
+      return { ...prev, [id]: formatearNumeroInput(calcularCantidad(producto, parseNumero(prev[id]))) };
+    });
+  };
+
+  const quitarProducto = (producto) => {
+    const id = String(producto.id);
+    if (vendidoDe(id) > 0) return;
+    setEditCantidades((prev) => ({ ...prev, [id]: esUnidadDePeso(producto) ? "" : 0 }));
+  };
+
+  const productosEditables = editCatalogo.filter((p) => {
+    const id = String(p.id);
+    const cantidad = cantidadEditada(id);
+    if (parseNumero(p.stock) <= 0 && cantidad <= 0) return false;
+    const termino = editBusqueda.toLowerCase();
+    return (
+      p.nombre.toLowerCase().includes(termino) ||
+      (p.codigo_barras || "").toLowerCase().includes(termino)
+    );
+  });
+
+  const productosEnEdicion = editCatalogo
+    .filter((p) => cantidadEditada(p.id) > 0)
+    .map((p) => {
+      const id = String(p.id);
+      const cantidad = cantidadEditada(id);
+      // Si el producto ya venia en la salida se mantiene el precio con el que
+      // se cargo; si es nuevo entra con el precio actual.
+      const precioUnitario = editPrecios[id] || parseNumero(p.precio);
+      return { producto: p, cantidad, vendido: vendidoDe(id), precioUnitario, total: precioUnitario * cantidad };
+    });
+
+  const totalEdicion = productosEnEdicion.reduce((suma, item) => suma + item.total, 0);
+
+  const guardarEdicionSalida = async () => {
+    if (!editando) return;
+    if (productosEnEdicion.length === 0) {
+      alert("Debe dejar al menos un producto en la salida");
+      return;
+    }
+    if (!editForm.camion.trim()) {
+      alert("Debe completar el camion");
+      return;
+    }
+    if (!editForm.destino) {
+      alert("Debe seleccionar una zona para la salida");
+      return;
+    }
+    if (!editForm.asignadoRepartidorId) {
+      alert("Debe seleccionar el repartidor asignado a la salida");
+      return;
+    }
+
+    setGuardandoEdicion(true);
+    try {
+      await salidasAPI.update(editando.id, {
+        camion: editForm.camion.trim(),
+        destino: editForm.destino,
+        notas: editForm.notas,
+        asignadoRepartidorId: editForm.asignadoRepartidorId,
+        items: productosEnEdicion.map((item) => ({
+          productoId: item.producto.id,
+          cantidad: item.cantidad,
+        })),
+      });
+      cerrarEdicionSalida();
+      await loadData();
+    } catch (error) {
+      alert("Error: " + (error.response?.data?.message || error.message));
+    } finally {
+      setGuardandoEdicion(false);
+    }
+  };
+
   const confirmarEntregado = () => {
     if (editandoRegreso) {
       ejecutarEntregado();
@@ -204,7 +407,7 @@ export default function Dashboard() {
   const [showPendientesCierre, setShowPendientesCierre] = useState(false);
   const [salidasPendientesCierre, setSalidasPendientesCierre] = useState([]);
 
-  const handleCerrarCaja = async () => {
+const handleCerrarCaja = async () => {
     const pendientes = salidas.filter((s) => s.estado === "pendiente");
     const enCamino = salidas.filter((s) => s.estado === "en_camino");
 
@@ -214,10 +417,13 @@ export default function Dashboard() {
       return;
     }
 
-     if (!confirm(`¿Cerrar la caja del ${fechaConsulta}? No se podran hacer mas modificaciones.`)) return;
+     if (!confirm(`¿Cerrar la caja del ${fechaConsulta}? No se podran hacer mas modificaciones.\nEl PDF de ventas por local se descarga desde su historial.`)) return;
     setCerrando(true);
     try {
       await cierreCajaAPI.cerrar(fechaConsulta);
+      // El PDF de ventas por local no se descarga solo: se baja desde el
+      // historial cuando haga falta. Solo marcamos que sigue pendiente.
+      marcarPdfVentasLocalPendiente(fechaConsulta);
       localStorage.removeItem("dashboardFecha");
       setCierreExitoso(true);
       setSalidas([]);
@@ -419,6 +625,166 @@ export default function Dashboard() {
         </div>
       )}
 
+      {editando && (
+        <div className="modal-overlay" onClick={cerrarEdicionSalida}>
+          <div className="modal-card modal-wide salida-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Editar Salida - {editando.camion}</h3>
+            <p className="subtitle">Agregue o quite productos. Los que ya tienen mercadería vendida no se pueden quitar ni bajar de la cantidad vendida.</p>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Camion (Placa/Numero) *</label>
+                <input
+                  value={editForm.camion}
+                  onChange={(e) => setEditForm({ ...editForm, camion: e.target.value })}
+                  placeholder="Ej: ABC-123"
+                />
+              </div>
+              <div className="form-group">
+                <label>Zonas</label>
+                <select
+                  value={editForm.destino}
+                  onChange={(e) => setEditForm({ ...editForm, destino: e.target.value })}
+                >
+                  <option value="" disabled hidden>Seleccionar zona...</option>
+                  {zonas.map((zona) => <option key={zona} value={zona}>{zona}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Repartidor Asignado *</label>
+                <select
+                  value={editForm.asignadoRepartidorId}
+                  onChange={(e) => setEditForm({ ...editForm, asignadoRepartidorId: e.target.value })}
+                >
+                  <option value="">Seleccionar repartidor...</option>
+                  {editRepartidores.map((r) => (
+                    <option key={r.id} value={r.id}>{r.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Notas</label>
+                <input
+                  value={editForm.notas}
+                  onChange={(e) => setEditForm({ ...editForm, notas: e.target.value })}
+                  placeholder="Observaciones"
+                />
+              </div>
+            </div>
+
+            <div className="producto-search">
+              <div className="search-with-clear">
+                <input
+                  value={editBusqueda}
+                  onChange={(e) => setEditBusqueda(e.target.value)}
+                  placeholder="Buscar producto..."
+                />
+                {editBusqueda && (
+                  <button type="button" className="search-clear" onClick={() => setEditBusqueda("")} aria-label="Borrar búsqueda">
+                    X
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {productosEditables.length === 0 ? (
+              <p className="empty">No se encontraron productos</p>
+            ) : (
+              <div className="producto-grid">
+                {productosEditables.map((p) => {
+                  const id = String(p.id);
+                  const cantidad = cantidadEditada(id);
+                  const vendido = vendidoDe(id);
+                  const minimo = minimoProducto(id);
+                  const seleccionado = cantidad > 0;
+                  const esKg = esUnidadDePeso(p);
+                  const bloqueado = vendido > 0;
+                  const maximo = maximoProducto(p);
+                  return (
+                    <div key={id} className={`producto-card ${seleccionado ? "selected" : ""} ${minimo > 0 ? "bloqueado" : ""}`}>
+                      {seleccionado && !bloqueado && (
+                        <button
+                          type="button"
+                          className="producto-card-quitar"
+                          onClick={() => quitarProducto(p)}
+                          aria-label={`Quitar ${p.nombre} de la salida`}
+                          title="Quitar de la salida"
+                        >
+                          X
+                        </button>
+                      )}
+                      <div className="producto-card-name">{p.nombre}</div>
+                      <div className="producto-card-price">${Number(p.precio).toFixed(2)} {esKg ? "/ kg" : `/${p.unidad || "unidad"}`}</div>
+                      <div className={`producto-card-stock ${parseNumero(p.stock) <= (p.stock_minimo || 10) ? "bajo" : ""}`}>
+                        Stock: {p.stock}
+                      </div>
+                      {bloqueado && <div className="producto-card-vendido">Vendido: {formatCant(vendido)}</div>}
+                      {minimo > 0 && !bloqueado && <div className="producto-card-vendido">Devuelto: {formatCant(devueltoDe(id))}</div>}
+                      <div className="producto-card-qty">
+                        <button type="button" onClick={() => ajustarCantidad(p, -1)} disabled={cantidad <= minimo}>
+                          -
+                        </button>
+                        <input
+                          type={esKg ? "text" : "number"}
+                          inputMode={esKg ? "decimal" : undefined}
+                          min={minimo}
+                          max={maximo}
+                          step={esKg ? "0.01" : "1"}
+                          value={editCantidades[id] ?? ""}
+                          aria-label={`Cantidad de ${p.nombre}${esKg ? " en kilogramos" : ""}`}
+                          onChange={(e) => cambiarCantidad(p, esKg
+                            ? e.target.value.replace(/\./g, ",").replace(/[^\d,]/g, "").replace(/(,.*),/g, "$1").replace(/(,\d{0,2}).*/g, "$1")
+                            : e.target.value)}
+                          onBlur={() => normalizarCantidad(p)}
+                        />
+                        <button type="button" onClick={() => ajustarCantidad(p, 1)} disabled={cantidad >= maximo}>
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {productosEnEdicion.length > 0 && (
+              <div className="resumen-card">
+                {productosEnEdicion.map((item) => (
+                  <div key={item.producto.id} className="resumen-row">
+                    <span>
+                      {formatCant(item.cantidad)}{esUnidadDePeso(item.producto) ? " kg" : "x"} {item.producto.nombre}
+                      {item.vendido > 0 && <em className="resumen-nota"> · {formatCant(item.vendido)} ya vendidos</em>}
+                    </span>
+                    <strong>${item.total.toFixed(2)}</strong>
+                  </div>
+                ))}
+                <div className="cierre-separator"></div>
+                <div className="resumen-row resumen-total">
+                  <span>Total:</span>
+                  <strong>${totalEdicion.toFixed(2)}</strong>
+                </div>
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={cerrarEdicionSalida} disabled={guardandoEdicion}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={guardarEdicionSalida}
+                disabled={guardandoEdicion || productosEnEdicion.length === 0}
+              >
+                {guardandoEdicion ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {regresando && (
          <div className="modal-overlay" onClick={() => { setRegresando(null); setEditandoRegreso(false); }}>
            <div className="modal-card modal-wide regreso-modal" onClick={(e) => e.stopPropagation()}>
@@ -539,6 +905,9 @@ export default function Dashboard() {
           <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
           <h3 style={{ color: "var(--success)", marginBottom: "0.5rem" }}>Caja Cerrada Exitosamente</h3>
           <p style={{ color: "var(--text-secondary)" }}>El dia ha sido cerrado. No se pueden realizar mas operaciones.</p>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>
+            El PDF de ventas por local se descarga desde Historial de Ventas por Local.
+          </p>
         </div>
       )}
 
@@ -829,6 +1198,9 @@ export default function Dashboard() {
                         <td><span className="estado-badge" style={{ backgroundColor: estadoColors[s.estado] }}>{s.estado.replace("_", " ")}</span></td>
                         <td>
                           <div className="action-buttons">
+                            {["pendiente", "en_camino"].includes(s.estado) && (
+                              <button className="btn btn-sm btn-editar" onClick={() => abrirEdicionSalida(s)}>Editar Envío</button>
+                            )}
                             {s.estado === "pendiente" && <button className="btn btn-sm btn-camino" onClick={() => updateEstado(s.id, "en_camino")}>Enviar</button>}
                             {s.estado === "en_camino" && <button className="btn btn-sm btn-entregado" onClick={() => handleEntregadoClick(s.id)}>Registrar Entrega</button>}
                             {s.estado === "sobrante" && isAdmin && <button className="btn btn-sm btn-editar" onClick={() => openRegresoForm(s, true)}>Editar</button>}

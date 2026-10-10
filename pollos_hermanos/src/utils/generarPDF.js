@@ -2001,3 +2001,342 @@ export const generarHistorialProveedorPDF = (movimiento) => {
   doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, 285, { align: "center" });
   descargarPDF(doc, `historial-proveedor-${nombreArchivoSeguro(proveedor.nombre)}-${movimiento?.id || movimiento?.fecha || "registro"}.pdf`);
 };
+
+export const generarHistorialVentasLocalPDF = async (datos) => {
+  const doc = createPdf();
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const ml = 15, mr = 15;
+  const cw = pw - ml - mr;
+
+  const rowH = 6;
+  const tableHeaderH = 7;
+  const padH = 3;
+
+  let y = 0;
+
+  const logo = await cargarLogo();
+
+  const addPageIfNeeded = (spaceNeeded) => {
+    if (y + spaceNeeded > ph - 25) {
+      doc.addPage();
+      y = 15;
+    }
+  };
+
+  const drawEncabezado = () => {
+    doc.setFillColor(26, 26, 46);
+    doc.rect(0, 0, pw, 36, "F");
+
+    if (logo) {
+      doc.addImage(logo, "JPEG", ml, 3, 28, 28);
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(217, 119, 6);
+    doc.text("MAR AZUL", ml + 32, 12);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Sistema de Gestion de Repartos", ml + 32, 19);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(226, 232, 240);
+    doc.text("Historial de Ventas por Local", ml + 32, 27);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(180, 185, 195);
+    doc.text(datos.fecha, ml + 90, 27);
+    y = 42;
+  };
+
+  const drawSectionTitle = (title) => {
+    addPageIfNeeded(12);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(26, 26, 46);
+    doc.setFillColor(245, 245, 248);
+    doc.rect(ml, y - 3, cw, 10, "F");
+    doc.text(title, ml + 3, y + 4);
+    y += 11;
+  };
+
+  const drawInfoBox = () => {
+    addPageIfNeeded(42);
+    doc.setFillColor(248, 249, 252);
+    doc.rect(ml, y - 3, cw, 36, "F");
+    doc.setDrawColor(220, 222, 228);
+    doc.setLineWidth(0.3);
+    doc.rect(ml, y - 3, cw, 36, "S");
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 110);
+    doc.text("INFORMACION DE LAS VENTAS", ml + 3, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(50, 50, 60);
+    doc.text(`Fecha: ${datos.fecha}`, ml + 3, y + 7);
+    doc.text(`Cantidad de ventas: ${datos.ventas_count || 0}`, ml + 80, y + 7);
+    doc.text(`Total vendido: $${parseFloat(datos.total_ventas || 0).toFixed(2)}`, ml + 3, y + 14);
+    doc.text(`Cantidad de transferencias: ${datos.cantidad_transferencias || 0}`, ml + 80, y + 14);
+    doc.text(`Efectivo del dia: $${parseFloat(datos.conteo?.efectivo_ventas || 0).toFixed(2)}`, ml + 3, y + 21);
+    doc.text(`Total transferencias: $${parseFloat(datos.total_transferencias || 0).toFixed(2)}`, ml + 80, y + 21);
+    doc.text(`Cerrado por: ${datos.usuario_cierre || "-"}`, ml + 3, y + 28);
+    doc.text(`Hora de cierre: ${datos.hora_cierre || "-"}`, ml + 80, y + 28);
+
+    y += 38;
+  };
+
+  const drawSimpleTable = (headers, colWidths, cellGetters, rows) => {
+    if (rows.length === 0) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(150, 150, 150);
+      doc.text("Sin datos", ml + 3, y + 4);
+      y += 9;
+      return;
+    }
+
+    addPageIfNeeded(tableHeaderH + rows.length * rowH + 8);
+
+    doc.setFillColor(230, 232, 240);
+    doc.rect(ml, y, cw, tableHeaderH, "F");
+    doc.setDrawColor(190, 192, 200);
+    doc.setLineWidth(0.3);
+    doc.rect(ml, y, cw, tableHeaderH, "S");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6);
+    doc.setTextColor(40, 40, 50);
+    let hx = ml + padH;
+    for (let i = 0; i < headers.length; i++) {
+      doc.text(headers[i], hx, y + 4.5);
+      if (i < headers.length - 1) {
+        doc.setDrawColor(190, 192, 200);
+        doc.setLineWidth(0.15);
+        doc.line(hx + colWidths[i], y, hx + colWidths[i], y + tableHeaderH);
+      }
+      hx += colWidths[i];
+    }
+    y += tableHeaderH;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6);
+    for (let i = 0; i < rows.length; i++) {
+      addPageIfNeeded(rowH + 4);
+      if (i % 2 === 1) {
+        doc.setFillColor(248, 249, 250);
+        doc.rect(ml, y, cw, rowH, "F");
+      }
+      doc.setDrawColor(215, 217, 223);
+      doc.setLineWidth(0.15);
+      doc.line(ml, y, ml + cw, y);
+      doc.setTextColor(50, 50, 60);
+      let rx = ml + padH;
+      for (let j = 0; j < cellGetters.length; j++) {
+        doc.text(String(cellGetters[j](rows[i])), rx, y + 4);
+        if (j < colWidths.length - 1) {
+          doc.setDrawColor(215, 217, 223);
+          doc.setLineWidth(0.1);
+          doc.line(rx + colWidths[j], y, rx + colWidths[j], y + rowH);
+        }
+        rx += colWidths[j];
+      }
+      y += rowH;
+    }
+    doc.setDrawColor(210, 210, 215);
+    doc.setLineWidth(0.3);
+    doc.line(ml, y, ml + cw, y);
+    y += 3;
+  };
+
+  // ---- Build PDF ----
+  drawEncabezado();
+  drawInfoBox();
+
+  // 1. Medios de pago
+  drawSectionTitle("Medios de Pago");
+  drawSimpleTable(
+    ["Medio", "Monto"],
+    [cw - 45, 45],
+    [(r) => r.medio, (r) => `$${parseFloat(r.monto || 0).toFixed(2)}`],
+    datos.resumen_medios || []
+  );
+
+  // 2. Conteo de billetes contra el efectivo registrado
+  const conteo = datos.conteo;
+  if (conteo) {
+    const totalGastos = Number(conteo.total_gastos || 0);
+    const diferencia = Number(conteo.diferencia || 0);
+    const ok = Math.abs(diferencia) < 0.01;
+    const sobra = !ok && diferencia > 0;
+    const enVerde = ok || sobra;
+    const lineasConteo = [
+      `Billetes contados: $${parseFloat(conteo.total_conteo || 0).toFixed(2)}`,
+      `Gastos de combustible: $${parseFloat(conteo.gastos_combustible || 0).toFixed(2)}`,
+      `Otros gastos: $${parseFloat(conteo.gastos_otros || 0).toFixed(2)}`,
+      `Efectivo segun ventas: $${parseFloat(conteo.efectivo_ventas || 0).toFixed(2)}`,
+      totalGastos > 0 && `Efectivo segun ventas (ventas - gastos): $${parseFloat(conteo.efectivo_neto || 0).toFixed(2)}`,
+      !ok && `Diferencia ${sobra ? "SOBRANTE" : "FALTANTE"}: $${Math.abs(diferencia).toFixed(2)}`,
+    ].filter(Boolean);
+    const conteoBoxH = 15 + lineasConteo.length * 5;
+    addPageIfNeeded(conteoBoxH + 5);
+    doc.setFillColor(enVerde ? 236 : 254, enVerde ? 253 : 226, enVerde ? 245 : 226);
+    doc.setDrawColor(enVerde ? 16 : 220, enVerde ? 185 : 38, enVerde ? 129 : 38);
+    doc.rect(ml, y - 3, cw, conteoBoxH, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(enVerde ? 21 : 153, enVerde ? 128 : 27, enVerde ? 61 : 27);
+    doc.text(ok ? "CONTEO CORROBORADO" : "DIFERENCIA EN CONTEO DE EFECTIVO", ml + 4, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(60, 60, 70);
+    doc.text(lineasConteo, ml + 4, y + 10, { lineHeightFactor: 1.25 });
+    y += conteoBoxH + 5;
+  } else {
+    addPageIfNeeded(20);
+    doc.setFillColor(255, 251, 235);
+    doc.setDrawColor(234, 179, 8);
+    doc.rect(ml, y - 3, cw, 14, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(146, 64, 14);
+    doc.text("SIN CONTEO DE BILLETES REGISTRADO", ml + 4, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(80, 70, 40);
+    doc.text("No se puede corroborar el efectivo del dia contra el conteo de caja", ml + 4, y + 11);
+    y += 19;
+  }
+
+  addPageIfNeeded(22);
+  doc.setFillColor(236, 248, 253);
+  doc.setDrawColor(14, 116, 144);
+  doc.rect(ml, y - 3, cw, 18, "FD");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(15, 78, 100);
+  doc.text("TRANSFERENCIAS REALIZADAS", ml + 4, y + 4);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(`Cantidad de transferencias: ${datos.cantidad_transferencias || 0}`, ml + 4, y + 11);
+  y += 24;
+
+  // 3. Detalle de transferencias
+  drawSectionTitle("Transferencias Realizadas");
+  const transferencias = datos.transferencias || [];
+  drawSimpleTable(
+    ["Fecha", "Banco", "Cuenta / Titular", "Monto"],
+    [30, 40, cw - 30 - 40 - 38, 38],
+    [
+      (r) => r.fecha,
+      (r) => r.banco,
+      (r) => r.cuenta,
+      (r) => `$${(r.monto || 0).toFixed(2)}`,
+    ],
+    transferencias
+  );
+  if (transferencias.length > 0) {
+    const totalTransferenciasPdf = transferencias.reduce((suma, t) => suma + (t.monto || 0), 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(26, 26, 46);
+    doc.text(`Total Transferencias: $${totalTransferenciasPdf.toFixed(2)}`, ml + 3, y + 4);
+    y += 8;
+  }
+
+  // 4. Ventas realizadas
+  drawSectionTitle("Ventas Realizadas");
+  const ventasItems = datos.ventas_items || [];
+  drawSimpleTable(
+    ["Comprobante", "Cliente", "Producto", "Cant.", "P.Unit.", "Subtotal"],
+    [30, 30, cw - 30 - 30 - 18 - 24 - 26, 18, 24, 26],
+    [
+      (r) => r.comprobante,
+      (r) => r.cliente,
+      (r) => r.producto,
+      (r) => r.cantidad,
+      (r) => `$${(r.precio || 0).toFixed(2)}`,
+      (r) => `$${(r.subtotal || 0).toFixed(2)}`,
+    ],
+    ventasItems
+  );
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(26, 26, 46);
+  doc.text(`Total Ventas: $${parseFloat(datos.total_ventas || 0).toFixed(2)}`, ml + 3, y + 4);
+  y += 8;
+
+  // 5. Observaciones
+  drawSectionTitle("Observaciones de Ventas");
+  const observaciones = datos.observaciones || [];
+  if (observaciones.length > 0) {
+    for (const observacion of observaciones) {
+      addPageIfNeeded(16);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(60, 60, 70);
+      doc.text(`${observacion.comprobante} - ${observacion.cliente}`, ml + 3, y + 3);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      doc.setTextColor(100, 100, 100);
+      const lines = doc.splitTextToSize(observacion.notas, cw - 10);
+      doc.text(lines, ml + 6, y + 8);
+      y += 8 + lines.length * 4 + 2;
+    }
+  } else {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.text("Sin observaciones", ml + 3, y + 4);
+    y += 9;
+  }
+
+  // Resumen
+  y = Math.max(y + 2, ph - 50);
+  doc.setFillColor(245, 246, 250);
+  doc.rect(ml, y, cw, 18, "F");
+  doc.setDrawColor(190, 192, 200);
+  doc.setLineWidth(0.4);
+  doc.rect(ml, y, cw, 18, "S");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(26, 26, 46);
+  doc.text("RESUMEN", ml + 4, y + 6);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(60, 60, 70);
+  doc.text(`Ventas: ${datos.ventas_count || 0}`, ml + 4, y + 13);
+  doc.text(`Efectivo: $${parseFloat(conteo?.efectivo_ventas || 0).toFixed(2)}`, ml + 55, y + 13);
+  doc.text(`Transferencias: $${parseFloat(datos.total_transferencias || 0).toFixed(2)}`, ml + 110, y + 13);
+  y += 22;
+
+  // Firmas
+  addPageIfNeeded(22);
+  doc.setDrawColor(200, 200, 210);
+  doc.setLineWidth(0.2);
+  doc.line(ml, y, pw - mr, y);
+  y += 8;
+  const firmaW = 70;
+  const firmaGap = (cw - firmaW * 2) / 2;
+  doc.setDrawColor(180, 180, 190);
+  doc.setLineWidth(0.4);
+  const f1x = ml + firmaGap;
+  const f2x = pw - mr - firmaGap - firmaW;
+  doc.line(f1x, y, f1x + firmaW, y);
+  doc.line(f2x, y, f2x + firmaW, y);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 130);
+  doc.text("Firma del responsable", f1x + firmaW / 2, y + 6, { align: "center" });
+  doc.text("Firma del vendedor", f2x + firmaW / 2, y + 6, { align: "center" });
+
+  doc.setFontSize(6);
+  doc.setTextColor(170, 170, 180);
+  doc.text("Documento generado automaticamente por el Sistema de Gestion Mar Azul", pw / 2, ph - 8, { align: "center" });
+
+  descargarPDF(doc, `historial-ventas-local-${datos.fecha}.pdf`);
+};

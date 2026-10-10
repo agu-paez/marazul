@@ -15,6 +15,7 @@ const UsuariosPage = lazy(() => import("./pages/UsuariosPage"));
 const ProveedoresPage = lazy(() => import("./pages/ProveedoresPage"));
 const ProductosPage = lazy(() => import("./pages/ProductosPage"));
 const EstadisticasPage = lazy(() => import("./pages/EstadisticasPage"));
+const MapaPage = lazy(() => import("./pages/MapaPage"));
 
 function PrivateRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
@@ -138,6 +139,15 @@ function AppRoutes() {
           <div className="app">
             <Navbar />
             <main className="main-content"><EstadisticasPage /></main>
+          </div>
+        </PrivateRoute>
+      } />
+
+      <Route path="/mapa" element={
+        <PrivateRoute allowedRoles={["admin", "operador"]}>
+          <div className="app">
+            <Navbar />
+            <main className="main-content"><MapaPage /></main>
           </div>
         </PrivateRoute>
       } />

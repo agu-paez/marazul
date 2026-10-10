@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { cierreCajaAPI } from "../api";
 import { generarResumenPagosPorProveedorPDF, generarTransferenciaIndividualPDF, generarCierreCajaPDF } from "../utils/generarPDF";
+import { marcarPdfVentasLocalPendiente } from "../utils/ventasLocalPDF";
 
 const MAX_DIAS_ATRAS_CAJA = 12;
 
@@ -51,9 +52,10 @@ export default function HistorialCierres() {
   const handleAbrir = async (c) => {
     if (!window.confirm(`¿Abrir la caja del día ${c.fecha}?\nEsto eliminará el cierre y permitirá modificar el día y volver a cerrarlo.`)) return;
     try {
-      await cierreCajaAPI.abrir(c.fecha);
+await cierreCajaAPI.abrir(c.fecha);
       localStorage.setItem("dashboardFecha", String(c.fecha).slice(0, 10));
-      alert("Caja abierta correctamente");
+      marcarPdfVentasLocalPendiente(c.fecha);
+      alert("Caja abierta correctamente. Si ya bajaste el PDF de ventas por local, volvé a descargarlo desde el historial después de cerrar.");
       loadCierres();
     } catch (error) {
       alert("Error: " + (error.response?.data?.message || error.message));
@@ -61,9 +63,12 @@ export default function HistorialCierres() {
   };
 
   const handleCerrar = async (fecha) => {
-    if (!window.confirm(`¿Cerrar la caja del día ${fecha}?\nSe generará el cierre con los datos actuales de ese día.`)) return;
+    if (!window.confirm(`¿Cerrar la caja del día ${fecha}?\nSe generará el cierre con los datos actuales de ese día.\nEl PDF de ventas por local se descarga desde su historial.`)) return;
     try {
       await cierreCajaAPI.cerrar(fecha);
+      // El PDF de ventas por local no se descarga solo: se baja desde el
+      // historial de ventas por local cuando haga falta.
+      marcarPdfVentasLocalPendiente(fecha);
       alert("Caja cerrada correctamente");
       loadCierres();
     } catch (error) {

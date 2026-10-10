@@ -2,11 +2,20 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ventasAPI, clientesAPI, bancosAPI, proveedoresAPI, productosAPI } from "../api";
 import BancoAutocomplete from "../components/BancoAutocomplete";
+import { getFechaLocal } from "../utils/fecha";
 import {
   generarComprobantePDF,
   generarHistorialDeudasPDF,
   generarDeudaVentaPDF,
 } from "../utils/generarPDF";
+
+const DIAS_HISTORIAL = 15;
+
+const fechaDesdeHistorial = () => {
+  const fecha = new Date();
+  fecha.setDate(fecha.getDate() - DIAS_HISTORIAL);
+  return getFechaLocal(fecha);
+};
 
 export default function HistorialVentasPage() {
   const { user } = useAuth();
@@ -46,7 +55,7 @@ export default function HistorialVentasPage() {
   const loadVentas = async (params = {}) => {
     setLoading(true);
     try {
-      const res = await ventasAPI.getAll(params);
+      const res = await ventasAPI.getAll({ ...params, desde: fechaDesdeHistorial() });
       setVentas(res.data);
     } catch (error) {
       console.error("Error:", error);
@@ -236,6 +245,12 @@ export default function HistorialVentasPage() {
 
   const totalPagosEditados = pagosEditados.reduce((sum, pago) => sum + (Number(pago.monto) || 0), 0);
   const totalEsperadoPago = (Number(ventaPagoEditando?.total) || 0) + (Number(ventaPagoEditando?.monto_deuda_pagado) || 0);
+  const claseNuevo = (venta) => {
+    if (venta.pago_modificado_por && venta.productos_modificado_por) return "mod-nuevo-morado";
+    if (venta.productos_modificado_por) return "mod-nuevo-celeste";
+    if (venta.pago_modificado_por) return "mod-nuevo-azul";
+    return "";
+  };
   const formatearModificacion = (venta, tipo) => {
     const detalleKey = tipo === "pagos" ? "pago_modificacion_detalle" : "productos_modificacion_detalle";
     const detalle = venta[detalleKey];
@@ -245,7 +260,14 @@ export default function HistorialVentasPage() {
       const mostrar = tipo === "pagos"
         ? (item) => `${item.medio_pago}: $${Number(item.monto).toFixed(2)}`
         : (item) => `${item.cantidad} ${item.nombre}`;
-      return `${datos.anteriores?.map(mostrar).join(", ")} -> ${datos.nuevos?.map(mostrar).join(", ")}`;
+      const anteriores = datos.anteriores?.map(mostrar).join(", ") ?? "";
+      const nuevos = datos.nuevos?.map(mostrar).join(", ") ?? "";
+      const clase = claseNuevo(venta);
+      return (
+        <>
+          {anteriores} <span className={`mod-nuevo ${clase || ""}`}>{`-> ${nuevos}`}</span>
+        </>
+      );
     } catch {
       return "Detalle no disponible";
     }
@@ -271,6 +293,7 @@ export default function HistorialVentasPage() {
   return (
     <div>
       <h2>Historial de Ventas</h2>
+      <p className="subtitle">Se muestran las ventas de los últimos {DIAS_HISTORIAL} días.</p>
 
       <div className="form-card filtros-card">
         <div className="filtros-grid">
@@ -309,7 +332,7 @@ export default function HistorialVentasPage() {
       </div>
 
       {ventas.length === 0 ? (
-        <p className="empty">No hay ventas registradas</p>
+        <p className="empty">No hay ventas en los últimos {DIAS_HISTORIAL} días</p>
       ) : (
         <div className="table-container historial-ventas-container">
           <table className="historial-ventas-table">
@@ -376,7 +399,10 @@ export default function HistorialVentasPage() {
                    <td>
                      <button
                        type="button"
-                       className="btn btn-sm btn-secondary"
+                       className={`btn btn-sm ${[
+                         v.productos_modificado_por ? "btn-detalle-productos" : "",
+                         v.pago_modificado_por ? "btn-detalle-pagos" : "",
+                       ].filter(Boolean).join(" ") || "btn-secondary"}`}
                        onClick={() => setVentaModificacionDetalle(v)}
                      >
                        Detalle

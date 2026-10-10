@@ -525,7 +525,7 @@ export default function ProductosPage() {
         </div>
       </div>
 
-      <div className="table-container">
+      <div className="table-container productos-tabla">
         <table>
           <thead>
             <tr>

@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import HistorialVentasPage from "./HistorialVentasPage";
 import HistorialSalidas from "./HistorialSalidas";
+import HistorialVentasLocal from "./HistorialVentasLocal";
 import HistorialCierres from "./HistorialCierres";
 import ProduccionHistorialPage from "./ProduccionHistorialPage";
 import HistorialGastosPage from "./HistorialGastosPage";
@@ -23,6 +24,7 @@ export default function HistorialPage() {
   ];
     if (isAdmin) {
     tabs.push({ key: "salidas", label: "Historial de Salidas" });
+    tabs.push({ key: "ventas-local", label: "Historial de Ventas por Local" });
     tabs.push({ key: "cierres", label: "Historial de Cierres de Caja" });
     tabs.push({ key: "gastos", label: "Historial de Gastos" });
     tabs.push({ key: "pagos-empleados", label: "Historial de Pagos" });
@@ -54,6 +56,7 @@ export default function HistorialPage() {
         {activeTab === "ventas" && <HistorialVentasPage />}
         {activeTab === "deudas" && <HistorialDeudasPage />}
         {activeTab === "salidas" && isAdmin && <HistorialSalidas />}
+        {activeTab === "ventas-local" && <HistorialVentasLocal />}
         {activeTab === "cierres" && isAdmin && <HistorialCierres />}
         {activeTab === "gastos" && isAdmin && <HistorialGastosPage />}
         {activeTab === "pagos-empleados" && isAdmin && <HistorialPagosEmpleadosPage />}

@@ -40,30 +40,25 @@ export default function HistorialProveedoresPage() {
   const guardarEdicion = async () => {
     try {
       setGuardando(true);
-      await proveedoresAPI.actualizarMovimiento(editando.id, {
-        fecha: form.fecha,
-        mercaderias_compradas: parseFloat(form.mercaderias_compradas) || 0,
-        dinero_ventas: parseFloat(form.dinero_ventas) || 0,
-        transferencias: parseFloat(form.transferencias) || 0,
-      });
+      await proveedoresAPI.actualizarMovimiento(editando.id, form);
       setEditando(null);
       await cargarHistorial();
     } catch (error) {
       console.error("Error al actualizar movimiento:", error);
-      alert("No se pudo actualizar el movimiento.");
+      alert(error.response?.data?.message || "No se pudo actualizar el movimiento.");
     } finally {
       setGuardando(false);
     }
   };
 
   const eliminarMovimiento = async (movimiento) => {
-    if (!confirm(`¿Eliminar el movimiento del ${movimiento.proveedor?.nombre || "proveedor"} registrado el ${movimiento.fecha}? Esta accion no se puede deshacer.`)) return;
+    if (!window.confirm(`¿Eliminar el movimiento del proveedor ${movimiento.proveedor?.nombre || "Sin proveedor"} del ${movimiento.fecha}? Esta acción no se puede deshacer.`)) return;
     try {
       await proveedoresAPI.eliminarMovimiento(movimiento.id);
       await cargarHistorial();
     } catch (error) {
       console.error("Error al eliminar movimiento:", error);
-      alert("No se pudo eliminar el movimiento.");
+      alert(error.response?.data?.message || "No se pudo eliminar el movimiento.");
     }
   };
 
@@ -134,12 +129,8 @@ export default function HistorialProveedoresPage() {
                     <button className="btn btn-sm btn-primary" onClick={() => generarHistorialProveedorPDF(movimiento)}>
                       PDF
                     </button>
-                    <button className="btn btn-sm btn-editar" onClick={() => abrirEdicion(movimiento)}>
-                      Editar
-                    </button>
-                    <button className="btn btn-sm btn-cancel" onClick={() => eliminarMovimiento(movimiento)}>
-                      Eliminar
-                    </button>
+                    <button className="btn btn-sm btn-editar" onClick={() => abrirEdicion(movimiento)}>Editar</button>
+                    <button className="btn btn-sm btn-cancel" onClick={() => eliminarMovimiento(movimiento)}>Eliminar</button>
                   </td>
                 </tr>
               ))}
@@ -147,49 +138,26 @@ export default function HistorialProveedoresPage() {
           </table>
         </div>
       )}
-
       {editando && (
         <div className="modal-overlay" onClick={() => !guardando && setEditando(null)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <div style={{ textAlign: "center", marginBottom: "1rem" }}>
-              <h3 style={{ marginBottom: "0.5rem" }}>Editar Movimiento</h3>
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>
-                {editando.proveedor?.nombre || "Sin proveedor"} · {editando.fecha}
-              </p>
-            </div>
+            <h3>Editar Movimiento</h3>
+            <p>{editando.proveedor?.nombre || "Sin proveedor"}</p>
             <div className="form-group">
               <label>Fecha</label>
               <input type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Mercaderías compradas</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.mercaderias_compradas}
-                onChange={(e) => setForm({ ...form, mercaderias_compradas: parseFloat(e.target.value) || 0 })}
-              />
+              <input type="number" min="0" step="0.01" value={form.mercaderias_compradas} onChange={(e) => setForm({ ...form, mercaderias_compradas: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Efectivo enviado</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.dinero_ventas}
-                onChange={(e) => setForm({ ...form, dinero_ventas: parseFloat(e.target.value) || 0 })}
-              />
+              <input type="number" step="0.01" value={form.dinero_ventas} onChange={(e) => setForm({ ...form, dinero_ventas: e.target.value })} />
             </div>
             <div className="form-group">
               <label>Transferencias</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.transferencias}
-                onChange={(e) => setForm({ ...form, transferencias: parseFloat(e.target.value) || 0 })}
-              />
+              <input type="number" min="0" step="0.01" value={form.transferencias} onChange={(e) => setForm({ ...form, transferencias: e.target.value })} />
             </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setEditando(null)} disabled={guardando}>Cancelar</button>
