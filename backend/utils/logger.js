@@ -19,8 +19,8 @@ const logger = winston.createLogger({
   ],
 });
 
-if (process.env.NODE_ENV !== "production") {
-  logger.add(new winston.transports.Console({ format: winston.format.simple() }));
-}
+// En produccion tambien se loguea a consola: los hosts (Hostinger) muestran
+// ese stream en el activity log de la aplicacion.
+logger.add(new winston.transports.Console({ format: winston.format.simple() }));
 
 export default logger;

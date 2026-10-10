@@ -22,6 +22,7 @@ import ProveedorMovimiento from "./ProveedorMovimiento.js";
 import Reintegro from "./Reintegro.js";
 import Descuento from "./Descuento.js";
 import ProductoDescuento from "./ProductoDescuento.js";
+import Dispositivo from "./Dispositivo.js";
 
 User.belongsTo(Role, { foreignKey: "roleId" });
 Role.hasMany(User, { foreignKey: "roleId" });
@@ -117,4 +118,4 @@ Producto.hasMany(Reintegro, { foreignKey: "productoId" });
 Reintegro.belongsTo(User, { foreignKey: "registradoPorId", as: "registrado_por" });
 User.hasMany(Reintegro, { foreignKey: "registradoPorId", as: "reintegros_registrados" });
 
-export { User, Role, Proveedor, Marca, Producto, Descuento, ProductoDescuento, Reparto, RepartoItem, SalidaCamion, SalidaCamionItem, CierreCaja, Venta, VentaItem, VentaPago, Cliente, ClientePago, Banco, Produccion, GastoDia, ConteoVentasLocal, PagoEmpleado, ProveedorMovimiento, Reintegro };
+export { User, Role, Proveedor, Marca, Producto, Descuento, ProductoDescuento, Reparto, RepartoItem, SalidaCamion, SalidaCamionItem, CierreCaja, Venta, VentaItem, VentaPago, Cliente, ClientePago, Banco, Produccion, GastoDia, ConteoVentasLocal, PagoEmpleado, ProveedorMovimiento, Reintegro, Dispositivo };

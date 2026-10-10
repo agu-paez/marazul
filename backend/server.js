@@ -12,6 +12,7 @@ import logger from "./utils/logger.js";
 import sequelize from "./config/database.js";
 import "./models/index.js";
 import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, ProveedorMovimiento, CierreCaja, SalidaCamion, SalidaCamionItem, Reintegro, ConteoVentasLocal } from "./models/index.js";
+import "./models/Dispositivo.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import proveedorRoutes from "./routes/proveedorRoutes.js";
@@ -29,6 +30,7 @@ import produccionRoutes from "./routes/produccionRoutes.js";
 import gastoDiaRoutes from "./routes/gastoDiaRoutes.js";
 import pagoEmpleadoRoutes from "./routes/pagoEmpleadoRoutes.js";
 import descuentoRoutes from "./routes/descuentoRoutes.js";
+import dispositivoRoutes from "./routes/dispositivoRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,7 +88,17 @@ const apiLimiter = rateLimit({
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { message: "Demasiadas solicitudes. Intenta nuevamente más tarde." },
-  skip: (req) => ["/health", "/auth/login", "/auth/register"].includes(req.path),
+  skip: (req) => ["/health", "/auth/login", "/auth/register", "/dispositivos/ubicacion"].includes(req.path),
+});
+
+// Las tablets reportan ubicación de forma constante (cada ~20s). Se les da un
+// límite propio para no agotar el límite global de la API.
+const dispositivoLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: Number(process.env.DISPOSITIVO_RATE_LIMIT_MAX) || 2000,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { message: "Demasiadas solicitudes del dispositivo." },
 });
 
 const authLimiter = rateLimit({
@@ -99,6 +111,7 @@ const authLimiter = rateLimit({
 });
 
 app.use("/api", apiLimiter);
+app.use("/api/dispositivos/ubicacion", dispositivoLimiter);
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use(sanitizeErrorResponses);
@@ -119,6 +132,7 @@ app.use("/api/produccion", produccionRoutes);
 app.use("/api/gastos-dia", gastoDiaRoutes);
 app.use("/api/pagos-empleados", pagoEmpleadoRoutes);
 app.use("/api/descuentos", descuentoRoutes);
+app.use("/api/dispositivos", dispositivoRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ message: "Mar Azul API - Funcionando!" });

@@ -353,7 +353,12 @@ export const getVentas = async (req, res) => {
       where.usuarioId = req.user.id;
     }
 
-    if (req.query.fecha) where.fecha = req.query.fecha;
+    const condicionesFecha = [];
+    if (req.query.fecha) condicionesFecha.push({ fecha: req.query.fecha });
+    if (req.query.desde) condicionesFecha.push({ fecha: { [Op.gte]: req.query.desde } });
+    if (condicionesFecha.length) {
+      where[Op.and] = [...(where[Op.and] || []), ...condicionesFecha];
+    }
     if (req.query.tipo_venta) where.tipo_venta = req.query.tipo_venta;
     if (req.query.usuarioId && req.userRole === "admin") where.usuarioId = req.query.usuarioId;
     if (req.query.medio_pago) where.medio_pago = req.query.medio_pago;
