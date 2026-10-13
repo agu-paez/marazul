@@ -11,7 +11,7 @@ import logger from "./utils/logger.js";
 
 import sequelize from "./config/database.js";
 import "./models/index.js";
-import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, ProveedorMovimiento, CierreCaja, SalidaCamion, SalidaCamionItem, Reintegro, ConteoVentasLocal } from "./models/index.js";
+import { Banco, User, Role, Venta, VentaItem, Producto, Cliente, ClientePago, Proveedor, ProveedorMovimiento, CierreCaja, SalidaCamion, SalidaCamionItem, Reintegro, SaldoAjuste, ConteoVentasLocal } from "./models/index.js";
 import "./models/Dispositivo.js";
 
 import authRoutes from "./routes/authRoutes.js";
@@ -265,6 +265,13 @@ const initializeDatabase = async () => {
     await ensureColumn(Venta, "saldo_actual", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
     await ensureColumn(Venta, "saldo_anterior_manual", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
     await ensureColumn(Venta, "saldo_actualizado_manual", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
+    await ensureColumn(Venta, "saldo_favor_registrado", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
+    await ensureColumn(Venta, "saldo_origen", { type: DataTypes.STRING(20), allowNull: true });
+    await ensureColumn(Venta, "saldos_modificado_por_id", { type: DataTypes.INTEGER, allowNull: true });
+    await ensureColumn(Venta, "saldos_modificado_en", { type: DataTypes.DATE, allowNull: true });
+    await ensureColumn(Venta, "saldos_modificacion_detalle", { type: DataTypes.TEXT, allowNull: true });
+    await ensureColumn(ClientePago, "saldo_favor_registrado", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
+    await ensureColumn(ClientePago, "ventaOrigenId", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(CierreCaja, "gastos_combustible", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_otros", { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 });
     await ensureColumn(CierreCaja, "gastos_por_zona", { type: DataTypes.TEXT, allowNull: true });
@@ -283,6 +290,7 @@ const initializeDatabase = async () => {
     await ensureColumn(ClientePago, "saldo_anterior", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
     await ensureColumn(ClientePago, "saldo_actual", { type: DataTypes.DECIMAL(13, 2), allowNull: true });
     await ensureColumn(Reintegro, "cantidad", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 1 });
+    await ensureColumn(SaldoAjuste, "operacionId", { type: DataTypes.INTEGER, allowNull: true });
     await ensureColumn(ConteoVentasLocal, "conteo_billetes", { type: DataTypes.TEXT, allowNull: true });
     await ensureColumn(ConteoVentasLocal, "gastos_combustible", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });
     await ensureColumn(ConteoVentasLocal, "gastos_otros", { type: DataTypes.DECIMAL(13, 2), allowNull: false, defaultValue: 0 });

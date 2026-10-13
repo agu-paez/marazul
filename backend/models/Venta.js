@@ -132,6 +132,28 @@ const Venta = sequelize.define("Venta", {
     type: DataTypes.DECIMAL(13, 2),
     allowNull: true,
   },
+  saldo_favor_registrado: {
+    type: DataTypes.DECIMAL(13, 2),
+    allowNull: true,
+    comment: "Saldo a favor vigente al momento de registrar la venta",
+  },
+  saldo_origen: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    comment: "Origen del saldo_actualizado_manual: 'manual' o 'propagado'",
+  },
+  saldos_modificado_por_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  saldos_modificado_en: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  saldos_modificacion_detalle: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   proveedorId: {
     type: DataTypes.INTEGER,
     allowNull: true,

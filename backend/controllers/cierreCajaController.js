@@ -2,8 +2,6 @@ import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem,
 import { getFechaLocal } from "../utils/fecha.js";
 import { Op } from "sequelize";
 
-const MAX_DIAS_ATRAS_CAJA = 12;
-
 const normalizarMonto = (valor) => {
   const monto = Number(valor);
   return Number.isFinite(monto) && monto >= 0 ? monto : 0;
@@ -152,8 +150,8 @@ export const cerrarCaja = async (req, res) => {
         return res.status(400).json({ message: "Fecha inválida" });
       }
       const diasAtras = calcularDiasDiferencia(fechaCierre, hoy);
-      if (diasAtras < 0 || diasAtras > MAX_DIAS_ATRAS_CAJA) {
-        return res.status(400).json({ message: `Solo se puede cerrar la caja del día actual o de los últimos ${MAX_DIAS_ATRAS_CAJA} días` });
+      if (diasAtras < 0 || diasAtras > 12) {
+        return res.status(400).json({ message: "Solo se puede cerrar la caja del día actual o de los últimos 12 días" });
       }
     }
 
@@ -284,8 +282,8 @@ export const abrirCaja = async (req, res) => {
       if (diasAtras < 1) {
         return res.status(400).json({ message: "No se puede abrir una caja con fecha futura" });
       }
-      if (diasAtras > MAX_DIAS_ATRAS_CAJA) {
-        return res.status(400).json({ message: `Solo se pueden abrir las cajas de los últimos ${MAX_DIAS_ATRAS_CAJA} días` });
+      if (diasAtras > 12) {
+        return res.status(400).json({ message: "Solo se pueden abrir las cajas de los últimos 12 días" });
       }
     }
 

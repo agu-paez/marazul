@@ -1,7 +1,22 @@
-import { Venta, VentaItem, VentaPago, Producto, User, Cliente, ClientePago, Proveedor, CierreCaja, SalidaCamion, SalidaCamionItem } from "../models/index.js";
+import { Venta, VentaItem, VentaPago, Producto, User, Cliente, ClientePago, Proveedor, CierreCaja, SalidaCamion, SalidaCamionItem, SaldoAjuste } from "../models/index.js";
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { getFechaLocal } from "../utils/fecha.js";
+import {
+  aplicarDeltaSaldo,
+  calcularDeltaManual,
+  esDeltaRelevante,
+  propagarDeltaAdelante,
+  redondear,
+  saldoNeto,
+} from "../utils/saldo.js";
+import {
+  claveIdempotencia,
+  finalizarOperacionIdempotente,
+  iniciarOperacionIdempotente,
+  responderOperacionRepetida,
+} from "../utils/idempotencia.js";
+import { recalcularCierrePorFecha } from "../utils/cierreRecalculado.js";
 
 const esKilogramo = (producto) => ["kg", "kilogramo"].includes(String(producto?.unidad || "").toLowerCase());
 const obtenerDatosPago = (pago) => ({
@@ -28,6 +43,7 @@ const generarNumeroComprobante = async () => {
 };
 
 export const crearVenta = async (req, res) => {
+  let transaction = null;
   try {
     const fechaVenta = getFechaLocal();
     if (await CierreCaja.findOne({ where: { fecha: fechaVenta } })) {
@@ -172,6 +188,9 @@ export const crearVenta = async (req, res) => {
     let sobranteFavor = 0;
     let montoCC = 0;
 
+    transaction = await sequelize.transaction();
+    let pagoDeudaIncluido = null;
+
     if (esPagoDividido) {
       const sumaPagos = pagos.reduce((sum, p) => sum + parseFloat(p.monto), 0);
       const montoDeudaPagar = pagar_deuda && monto_deuda ? parseFloat(monto_deuda) : 0;
@@ -187,74 +206,85 @@ export const crearVenta = async (req, res) => {
         .reduce((sum, p) => sum + (parseFloat(p.monto) || 0), 0);
 
       if (montoCC > 0) {
-        const deudaOriginal = parseFloat(cliente.saldo_pendiente) || 0;
-        const favorOriginal = parseFloat(cliente.saldo_favor) || 0;
-        const saldoPendiente = Math.max(0, deudaOriginal - favorOriginal);
-        const saldoFavor = Math.max(0, favorOriginal - deudaOriginal);
-        const creditoAplicado = Math.min(saldoFavor, montoCC);
-        const nuevoSaldo = saldoPendiente + montoCC - creditoAplicado;
-        await cliente.update({
-          saldo_pendiente: nuevoSaldo.toFixed(2),
-          saldo_favor: (saldoFavor - creditoAplicado).toFixed(2),
+        const saldoCliente = aplicarDeltaSaldo({
+          pendiente: cliente.saldo_pendiente,
+          favor: cliente.saldo_favor,
+          delta: montoCC,
         });
+        await cliente.update({
+          saldo_pendiente: saldoCliente.saldo_pendiente,
+          saldo_favor: saldoCliente.saldo_favor,
+        }, { transaction });
       }
 
       if (sobranteFavor > 0) {
-        const clienteActual = await Cliente.findByPk(cliente.id);
-        const deudaRegistrada = Math.max(0, parseFloat(clienteActual.saldo_pendiente) || 0);
-        const favorActual = Math.max(0, parseFloat(clienteActual.saldo_favor) || 0);
-        const deudaActual = Math.max(0, deudaRegistrada - favorActual);
-        const descontado = Math.min(deudaActual, sobranteFavor);
+        const clienteActual = await Cliente.findByPk(cliente.id, { transaction, lock: transaction.LOCK.UPDATE });
+        const saldoCliente = aplicarDeltaSaldo({
+          pendiente: clienteActual.saldo_pendiente,
+          favor: clienteActual.saldo_favor,
+          delta: -sobranteFavor,
+        });
         await clienteActual.update({
-          saldo_pendiente: (deudaActual - descontado).toFixed(2),
-          saldo_favor: (favorActual + sobranteFavor - descontado).toFixed(2),
-        });
+          saldo_pendiente: saldoCliente.saldo_pendiente,
+          saldo_favor: saldoCliente.saldo_favor,
+        }, { transaction });
       }
-    } else {
-      if (medio_pago === "cuenta_corriente") {
-        const deudaOriginal = parseFloat(cliente.saldo_pendiente) || 0;
-        const favorOriginal = parseFloat(cliente.saldo_favor) || 0;
-        const saldoPendiente = Math.max(0, deudaOriginal - favorOriginal);
-        const saldoFavor = Math.max(0, favorOriginal - deudaOriginal);
-        const creditoAplicado = Math.min(saldoFavor, subtotalCalc);
-        const nuevoSaldo = saldoPendiente + subtotalCalc - creditoAplicado;
-        await cliente.update({
-          saldo_pendiente: nuevoSaldo.toFixed(2),
-          saldo_favor: (saldoFavor - creditoAplicado).toFixed(2),
-        });
-      }
+    } else if (medio_pago === "cuenta_corriente") {
+      const saldoCliente = aplicarDeltaSaldo({
+        pendiente: cliente.saldo_pendiente,
+        favor: cliente.saldo_favor,
+        delta: subtotalCalc,
+      });
+      await cliente.update({
+        saldo_pendiente: saldoCliente.saldo_pendiente,
+        saldo_favor: saldoCliente.saldo_favor,
+      }, { transaction });
     }
 
     if (pagar_deuda && monto_deuda && parseFloat(monto_deuda) > 0) {
       const deudaPagar = parseFloat(monto_deuda);
-      const saldoActual = parseFloat(cliente.saldo_pendiente);
+      const saldoActual = parseFloat(cliente.saldo_pendiente) || 0;
+      const favorActual = parseFloat(cliente.saldo_favor) || 0;
+      const saldoNetoCliente = Math.max(0, saldoActual - favorActual);
 
-      if (deudaPagar > saldoActual) {
+      if (deudaPagar > saldoNetoCliente) {
+        await transaction.rollback();
         return res.status(400).json({
-          message: `El monto a pagar ($${deudaPagar.toFixed(2)}) excede la deuda pendiente ($${saldoActual.toFixed(2)})`,
+          message: `El monto a pagar ($${deudaPagar.toFixed(2)}) excede la deuda pendiente ($${saldoNetoCliente.toFixed(2)})`,
         });
       }
 
-      const nuevoSaldo = Math.max(0, saldoActual - deudaPagar);
-      await cliente.update({ saldo_pendiente: nuevoSaldo.toFixed(2) });
+      const saldoCliente = aplicarDeltaSaldo({
+        pendiente: cliente.saldo_pendiente,
+        favor: cliente.saldo_favor,
+        delta: -deudaPagar,
+      });
+      await cliente.update({
+        saldo_pendiente: saldoCliente.saldo_pendiente,
+        saldo_favor: saldoCliente.saldo_favor,
+      }, { transaction });
 
       const nowPago = new Date();
-       const horaPago = nowPago.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
-      await ClientePago.create({
+      const horaPago = nowPago.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      pagoDeudaIncluido = await ClientePago.create({
         clienteId: cliente.id,
         monto: deudaPagar.toFixed(2),
         medio_pago: medio_pago || "efectivo",
         fecha: getFechaLocal(nowPago),
         hora: horaPago,
         notas: `Pago de deuda incluido en venta`,
-      });
+        saldo_anterior: saldoNetoCliente.toFixed(2),
+        saldo_actual: Math.max(0, saldoNetoCliente - deudaPagar).toFixed(2),
+        saldo_favor_registrado: saldoCliente.saldo_favor,
+      }, { transaction });
     }
 
     const now = new Date();
     const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const numeroComprobante = await generarNumeroComprobante();
-    const clienteAlFinal = await Cliente.findByPk(cliente.id);
+    const clienteAlFinal = await Cliente.findByPk(cliente.id, { transaction });
     const saldoActualVenta = Math.max(0, (parseFloat(clienteAlFinal?.saldo_pendiente) || 0) - (parseFloat(clienteAlFinal?.saldo_favor) || 0));
+    const favorVenta = Math.max(0, parseFloat(clienteAlFinal?.saldo_favor) || 0);
 
     const venta = await Venta.create({
       numero_comprobante: numeroComprobante,
@@ -280,9 +310,16 @@ export const crearVenta = async (req, res) => {
       monto_sobrante: sobranteFavor.toFixed(2),
       saldo_anterior: saldoAnteriorVenta.toFixed(2),
       saldo_actual: saldoActualVenta.toFixed(2),
+      saldo_favor_registrado: favorVenta.toFixed(2),
       proveedorId: proveedorId || null,
       porcentaje_aumento: porcentaje_aumento || 0,
-    });
+    }, { transaction });
+
+    // El pago de deuda incluido se crea antes que la venta, asi que se
+    // vincula recien cuando la venta ya tiene id.
+    if (pagoDeudaIncluido) {
+      await pagoDeudaIncluido.update({ ventaOrigenId: venta.id }, { transaction });
+    }
 
     if (esPagoDividido) {
       for (const pago of pagos) {
@@ -290,14 +327,14 @@ export const crearVenta = async (req, res) => {
           ventaId: venta.id,
           medio_pago: pago.medio_pago,
           monto: parseFloat(pago.monto).toFixed(2),
-        });
+        }, { transaction });
       }
     } else {
       await VentaPago.create({
         ventaId: venta.id,
         medio_pago: medio_pago || "efectivo",
         monto: subtotalCalc.toFixed(2),
-      });
+      }, { transaction });
     }
 
     for (const item of items) {
@@ -307,13 +344,13 @@ export const crearVenta = async (req, res) => {
        const precioUnitario = Number.isFinite(precioPersonalizado) && precioPersonalizado > 0
          ? precioPersonalizado
          : precioBase;
-      await VentaItem.create({
+       await VentaItem.create({
         ventaId: venta.id,
         productoId: item.productoId,
          cantidad: Number(item.cantidad),
         precio_unitario: precioUnitario,
          costo_unitario: parseFloat(producto.costo) || 0,
-      });
+      }, { transaction });
       if (!esReparto) {
         const cantidadStock = Number(item.cantidad);
         stockPorProducto.set(producto.id, (stockPorProducto.get(producto.id) || 0) + cantidadStock);
@@ -322,8 +359,10 @@ export const crearVenta = async (req, res) => {
 
     for (const [productoId, cantidadStock] of stockPorProducto) {
       const producto = productosPorId.get(String(productoId));
-      await producto.update({ stock: parseFloat(producto.stock) - cantidadStock });
+      await producto.update({ stock: parseFloat(producto.stock) - cantidadStock }, { transaction });
     }
+
+    await transaction.commit();
 
     const ventaCompleta = await Venta.findByPk(venta.id, {
       include: [
@@ -333,12 +372,15 @@ export const crearVenta = async (req, res) => {
         },
         { model: VentaPago },
         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
-         { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor", "limite_credito"] },
+         { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor"] },
       ],
     });
 
     res.status(201).json({ message: "Venta registrada", venta: ventaCompleta });
   } catch (error) {
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
     const detalle = error.parent?.sqlMessage || error.original?.sqlMessage || error.message;
     console.error("Error al crear venta:", { message: error.message, detalle, code: error.parent?.code, sql: error.sql || error.parent?.sql });
     res.status(500).json({ message: `Error al crear venta: ${detalle}`, error: detalle });
@@ -545,6 +587,17 @@ export const modificarPagoVenta = async (req, res) => {
       if (pago.proveedorId) pago.alias = proveedoresPorId.get(pago.proveedorId)?.alias || pago.alias;
     });
 
+    const clave = claveIdempotencia(req);
+    const operacion = await iniciarOperacionIdempotente({
+      clave,
+      operacion: "modificar_pago_venta",
+      transaction,
+    });
+    if (operacion.repetida) {
+      await transaction.commit();
+      return responderOperacionRepetida(res, operacion.resultado);
+    }
+
     const totalEsperado = (parseFloat(venta.total) || 0) + (parseFloat(venta.monto_deuda_pagado) || 0);
     const sobranteAnterior = parseFloat(venta.monto_sobrante) || 0;
     let totalNuevo = pagosNuevos.reduce((sum, pago) => sum + pago.monto, 0);
@@ -577,32 +630,31 @@ export const modificarPagoVenta = async (req, res) => {
     const pagosAnterioresDetalle = pagosAnteriores.map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0 }));
     const pagosNuevosDetalle = pagosNuevos.map((pago) => ({ medio_pago: pago.medio_pago, monto: pago.monto, nombre_cuenta: pago.nombre_cuenta, banco: pago.banco, proveedorId: pago.proveedorId, alias: pago.alias }));
 
-    if (venta.clienteId && Math.abs(sobranteNuevo - sobranteAnterior) > 0.01) {
-      const clienteSobrante = await Cliente.findByPk(venta.clienteId, { transaction });
-      if (clienteSobrante) {
-        await clienteSobrante.update({
-          saldo_favor: Math.max(0, (parseFloat(clienteSobrante.saldo_favor) || 0) + (sobranteNuevo - sobranteAnterior)).toFixed(2),
-        }, { transaction });
-      }
-    }
+    const deltaPago = redondear(
+      (creditoNuevo - creditoAnterior) - (sobranteNuevo - sobranteAnterior)
+    );
 
-    if (venta.clienteId && Math.abs(creditoNuevo - creditoAnterior) > 0.01) {
-      const cliente = await Cliente.findByPk(venta.clienteId, { transaction });
+    let saldoPrevioCliente = null;
+    let saldoActualizadoCliente = null;
+    if (venta.clienteId && esDeltaRelevante(deltaPago)) {
+      const cliente = await Cliente.findByPk(venta.clienteId, { transaction, lock: transaction.LOCK.UPDATE });
       if (cliente) {
-        const saldo = (parseFloat(cliente.saldo_pendiente) || 0) - (parseFloat(cliente.saldo_favor) || 0) + creditoNuevo - creditoAnterior;
+        saldoPrevioCliente = redondear(parseFloat(cliente.saldo_pendiente) || 0);
+        const favorRegistrado = venta.saldo_favor_registrado !== null && venta.saldo_favor_registrado !== undefined
+          ? Number(venta.saldo_favor_registrado)
+          : Math.max(0, parseFloat(cliente.saldo_favor) || 0);
+        saldoActualizadoCliente = aplicarDeltaSaldo({
+          pendiente: cliente.saldo_pendiente,
+          favor: cliente.saldo_favor,
+          delta: deltaPago,
+          favorConsumible: favorRegistrado,
+        });
         await cliente.update({
-          saldo_pendiente: Math.max(0, saldo).toFixed(2),
-          saldo_favor: Math.max(0, -saldo).toFixed(2),
+          saldo_pendiente: saldoActualizadoCliente.saldo_pendiente,
+          saldo_favor: saldoActualizadoCliente.saldo_favor,
         }, { transaction });
       }
     }
-
-    const clienteActualizado = venta.clienteId
-      ? await Cliente.findByPk(venta.clienteId, { transaction })
-      : null;
-    const saldoActualCliente = clienteActualizado
-      ? Math.max(0, (parseFloat(clienteActualizado.saldo_pendiente) || 0) - (parseFloat(clienteActualizado.saldo_favor) || 0))
-      : null;
 
     await VentaPago.destroy({ where: { ventaId: venta.id }, transaction });
     await VentaPago.bulkCreate(pagosNuevos.map((pago) => ({
@@ -612,6 +664,17 @@ export const modificarPagoVenta = async (req, res) => {
     })), { transaction });
 
     const ahora = new Date();
+    // El pago editado tambien cambia el saldo "despues de esta venta": si la
+    // fila tiene snapshot, se mueve junto con el cliente en lugar de quedar
+    // desactualizada frente a las ventas posteriores.
+    const nuevoSaldoActualVenta = venta.saldo_actual !== null && venta.saldo_actual !== undefined
+      ? redondear((parseFloat(venta.saldo_actual) || 0) + deltaPago).toFixed(2)
+      : venta.saldo_actual;
+    // Si el saldo de la factura se fijo manualmente, el cambio de pago tambien
+    // lo mueve: sigue representando el saldo despues de esta venta.
+    const nuevoSaldoManualVenta = venta.saldo_actualizado_manual !== null && venta.saldo_actualizado_manual !== undefined && esDeltaRelevante(deltaPago)
+      ? Math.max(0, redondear((parseFloat(venta.saldo_actualizado_manual) || 0) + deltaPago)).toFixed(2)
+      : venta.saldo_actualizado_manual;
     await venta.update({
       medio_pago: pagosNuevos.length > 1 ? "dividido" : pagosNuevos[0].medio_pago,
       pago_dividido: pagosNuevos.length > 1,
@@ -623,20 +686,56 @@ export const modificarPagoVenta = async (req, res) => {
       pago_modificado_por_id: req.user.id,
       pago_modificado_en: ahora,
       monto_sobrante: sobranteNuevo.toFixed(2),
-      ...(saldoActualCliente !== null ? { saldo_actualizado_manual: saldoActualCliente.toFixed(2) } : {}),
+      saldo_actual: nuevoSaldoActualVenta,
+      saldo_actualizado_manual: nuevoSaldoManualVenta,
       pago_modificacion_detalle: JSON.stringify({ anteriores: pagosAnterioresDetalle, nuevos: pagosNuevosDetalle }),
     }, { transaction });
-    await transaction.commit();
 
-    const ventaActualizada = await Venta.findByPk(venta.id, {
-      include: [
-        { model: VentaPago },
-        { model: User, as: "vendedor", attributes: ["id", "nombre"] },
-        { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
-        { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor", "limite_credito"] },
-      ],
-    });
-    res.json({ message: "Pago de venta actualizado", venta: ventaActualizada });
+    if (venta.clienteId) {
+      if (esDeltaRelevante(deltaPago)) {
+        await propagarDeltaAdelante({
+          clienteId: venta.clienteId,
+          ventaCorte: venta,
+          delta: deltaPago,
+          transaction,
+        });
+
+        if (saldoActualizadoCliente) {
+          await SaldoAjuste.create({
+            clienteId: venta.clienteId,
+            ventaId: venta.id,
+            operacionId: operacion.id,
+            origen: "pagos_venta",
+            usuarioId: req.user.id,
+            saldo_anterior: saldoPrevioCliente.toFixed(2),
+            saldo_nuevo: saldoActualizadoCliente.saldo_pendiente,
+            favor_consumido: saldoActualizadoCliente.favor_consumido.toFixed(2),
+            detalle: JSON.stringify({
+              delta: deltaPago.toFixed(2),
+              anteriores: pagosAnterioresDetalle,
+              nuevos: pagosNuevosDetalle,
+            }),
+          }, { transaction });
+        }
+      }
+    }
+
+    const respuesta = {
+      message: "Pago de venta actualizado",
+      venta: await Venta.findByPk(venta.id, {
+        include: [
+          { model: VentaPago },
+          { model: User, as: "vendedor", attributes: ["id", "nombre"] },
+          { model: User, as: "pago_modificado_por", attributes: ["id", "nombre"] },
+          { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor"] },
+        ],
+        transaction,
+      }),
+    };
+
+    await finalizarOperacionIdempotente({ id: operacion.id, resultado: respuesta, transaction });
+    await transaction.commit();
+    res.json(respuesta);
   } catch (error) {
     await transaction.rollback();
     res.status(500).json({ message: "Error al modificar el pago", error: error.message });
@@ -680,25 +779,106 @@ export const modificarSaldosVenta = async (req, res) => {
       return res.status(400).json({ message: "La factura no tiene un cliente válido" });
     }
 
+    // Idempotencia: recien cuando pasa toda la validacion se reclama la clave.
+    // Si el request se repite, no se vuelve a aplicar el delta.
+    const clave = claveIdempotencia(req);
+    const operacion = await iniciarOperacionIdempotente({
+      clave,
+      operacion: "modificar_saldos_venta",
+      transaction,
+    });
+    if (operacion.repetida) {
+      await transaction.commit();
+      return responderOperacionRepetida(res, operacion.resultado);
+    }
+
+    // La base del delta es el saldo "vigente" de despues de esta venta, no el
+    // saldo anterior. Si se re-edita, el valor vigente ya es el que quedo
+    // propagado, asi que guardar el mismo saldo dos veces da delta 0.
+    const saldoPropagado =
+      venta.saldo_actualizado_manual !== null && venta.saldo_actualizado_manual !== undefined
+        ? Number(venta.saldo_actualizado_manual)
+        : venta.saldo_actual !== null && venta.saldo_actual !== undefined
+          ? Number(venta.saldo_actual)
+          : null;
+
+    const saldoBaseVigente = saldoPropagado !== null
+      ? saldoPropagado
+      : saldoNeto(cliente.saldo_pendiente, cliente.saldo_favor);
+
+    const delta = calcularDeltaManual({ saldoActualizado, saldoBase: saldoBaseVigente });
+    const favorRegistrado = venta.saldo_favor_registrado !== null && venta.saldo_favor_registrado !== undefined
+      ? Number(venta.saldo_favor_registrado)
+      : 0;
+
+    const saldoPrevioCliente = redondear(parseFloat(cliente.saldo_pendiente) || 0);
+
+    const saldoClienteActualizado = aplicarDeltaSaldo({
+      pendiente: cliente.saldo_pendiente,
+      favor: cliente.saldo_favor,
+      delta,
+      favorConsumible: favorRegistrado,
+    });
+
+    await cliente.update({
+      saldo_pendiente: saldoClienteActualizado.saldo_pendiente,
+      saldo_favor: saldoClienteActualizado.saldo_favor,
+    }, { transaction });
+
     await venta.update({
       saldo_anterior_manual: saldoAnterior.toFixed(2),
       saldo_actualizado_manual: saldoActualizado.toFixed(2),
+      saldo_origen: "manual",
+      saldos_modificado_por_id: req.user.id,
+      saldos_modificado_en: new Date(),
+      saldos_modificacion_detalle: JSON.stringify({
+        base: Number(saldoBaseVigente).toFixed(2),
+        anterior: saldoAnterior.toFixed(2),
+        actualizado: saldoActualizado.toFixed(2),
+        delta: delta.toFixed(2),
+        favor_consumido: saldoClienteActualizado.favor_consumido.toFixed(2),
+      }),
     }, { transaction });
 
-    // El saldo manual de la boleta representa el saldo pendiente real del cliente.
-    await cliente.update({
-      saldo_pendiente: saldoActualizado.toFixed(2),
-      saldo_favor: "0.00",
-    }, { transaction });
-
-    await transaction.commit();
-
-    const ventaActualizada = await Venta.findByPk(venta.id, {
-      include: [
-        { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor", "limite_credito"] },
-      ],
+    const propagacion = await propagarDeltaAdelante({
+      clienteId: venta.clienteId,
+      ventaCorte: venta,
+      delta,
+      transaction,
     });
-    res.json({ message: "Saldos de factura y cliente actualizados", venta: ventaActualizada });
+
+    await SaldoAjuste.create({
+      clienteId: venta.clienteId,
+      ventaId: venta.id,
+      operacionId: operacion.id,
+      origen: "saldos_venta",
+      usuarioId: req.user.id,
+      saldo_anterior: saldoPrevioCliente.toFixed(2),
+      saldo_nuevo: saldoClienteActualizado.saldo_pendiente,
+      favor_consumido: saldoClienteActualizado.favor_consumido.toFixed(2),
+      detalle: JSON.stringify({
+        base: Number(saldoBaseVigente).toFixed(2),
+        anterior: saldoAnterior.toFixed(2),
+        actualizado: saldoActualizado.toFixed(2),
+        delta: delta.toFixed(2),
+        ventas_propagadas: propagacion.ventas,
+        pagos_propagados: propagacion.pagos,
+      }),
+    }, { transaction });
+
+    const respuesta = {
+      message: "Saldos de factura y cliente actualizados",
+      delta: Number(delta.toFixed(2)),
+      propagacion,
+      venta: await Venta.findByPk(venta.id, {
+        include: [{ model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor"] }],
+        transaction,
+      }),
+    };
+
+    await finalizarOperacionIdempotente({ id: operacion.id, resultado: respuesta, transaction });
+    await transaction.commit();
+    res.json(respuesta);
   } catch (error) {
     if (!transaction.finished) await transaction.rollback();
     res.status(500).json({ message: "Error al modificar los saldos", error: error.message });
@@ -795,6 +975,17 @@ export const modificarProductosVenta = async (req, res) => {
       }
     }
 
+    const clave = claveIdempotencia(req);
+    const operacion = await iniciarOperacionIdempotente({
+      clave,
+      operacion: "modificar_productos_venta",
+      transaction,
+    });
+    if (operacion.repetida) {
+      await transaction.commit();
+      return responderOperacionRepetida(res, operacion.resultado);
+    }
+
     const subtotalNuevo = productosNuevos.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
     const pagosAnteriores = await VentaPago.findAll({ where: { ventaId: venta.id }, transaction });
     const pagosNoCC = pagosAnteriores.filter((pago) => pago.medio_pago !== "cuenta_corriente").map((pago) => ({ medio_pago: pago.medio_pago, monto: Number(pago.monto) || 0 }));
@@ -805,12 +996,29 @@ export const modificarProductosVenta = async (req, res) => {
     const sobranteNuevo = Math.max(0, totalNoCC - totalEsperado);
     const sobranteAnterior = Number(venta.monto_sobrante) || 0;
 
-    if (venta.clienteId && Math.abs(creditoNuevo - creditoAnterior) > 0.01 || venta.clienteId && Math.abs(sobranteNuevo - sobranteAnterior) > 0.01) {
+    const deltaProductos = redondear(
+      (creditoNuevo - creditoAnterior) - (sobranteNuevo - sobranteAnterior)
+    );
+
+    let saldoPrevioCliente = null;
+    let saldoActualizadoCliente = null;
+    if (venta.clienteId && esDeltaRelevante(deltaProductos)) {
       const cliente = await Cliente.findByPk(venta.clienteId, { transaction, lock: transaction.LOCK.UPDATE });
       if (cliente) {
-        const saldo = (Number(cliente.saldo_pendiente) || 0) - (Number(cliente.saldo_favor) || 0)
-          + creditoNuevo - creditoAnterior - sobranteNuevo + sobranteAnterior;
-        await cliente.update({ saldo_pendiente: Math.max(0, saldo).toFixed(2), saldo_favor: Math.max(0, -saldo).toFixed(2) }, { transaction });
+        saldoPrevioCliente = redondear(parseFloat(cliente.saldo_pendiente) || 0);
+        const favorRegistrado = venta.saldo_favor_registrado !== null && venta.saldo_favor_registrado !== undefined
+          ? Number(venta.saldo_favor_registrado)
+          : Math.max(0, Number(cliente.saldo_favor) || 0);
+        saldoActualizadoCliente = aplicarDeltaSaldo({
+          pendiente: cliente.saldo_pendiente,
+          favor: cliente.saldo_favor,
+          delta: deltaProductos,
+          favorConsumible: favorRegistrado,
+        });
+        await cliente.update({
+          saldo_pendiente: saldoActualizadoCliente.saldo_pendiente,
+          saldo_favor: saldoActualizadoCliente.saldo_favor,
+        }, { transaction });
       }
     }
 
@@ -843,7 +1051,7 @@ export const modificarProductosVenta = async (req, res) => {
       ...pagosNoCC,
       ...(creditoNuevo > 0 ? [{ medio_pago: "cuenta_corriente", monto: creditoNuevo }] : []),
     ];
-    await venta.update({
+    const updatesVenta = {
       subtotal: subtotalNuevo.toFixed(2),
       total: subtotalNuevo.toFixed(2),
       medio_pago: pagosFinales.length > 1 ? "dividido" : pagosFinales[0].medio_pago,
@@ -866,18 +1074,97 @@ export const modificarProductosVenta = async (req, res) => {
           precio_unitario: item.precio,
         })),
       }),
-    }, { transaction });
-    await transaction.commit();
-    const ventaActualizada = await Venta.findByPk(venta.id, {
-      include: [
-          { model: VentaItem, include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad"] }] },
-         { model: VentaPago },
-         { model: User, as: "vendedor", attributes: ["id", "nombre"] },
-         { model: User, as: "productos_modificado_por", attributes: ["id", "nombre"] },
-        { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor", "limite_credito"] },
-      ],
+    };
+
+    if (venta.saldo_actual !== null && venta.saldo_actual !== undefined && esDeltaRelevante(deltaProductos)) {
+      const favorRegistrado = venta.saldo_favor_registrado !== null && venta.saldo_favor_registrado !== undefined
+        ? Number(venta.saldo_favor_registrado)
+        : 0;
+      const nuevoSaldoActual = aplicarDeltaSaldo({
+        pendiente: venta.saldo_actual,
+        favor: favorRegistrado,
+        delta: deltaProductos,
+        favorConsumible: favorRegistrado,
+      });
+      updatesVenta.saldo_actual = nuevoSaldoActual.saldo_pendiente;
+      if (venta.saldo_favor_registrado !== null && venta.saldo_favor_registrado !== undefined) {
+        updatesVenta.saldo_favor_registrado = nuevoSaldoActual.saldo_favor;
+      }
+    }
+
+    // Si el saldo de la factura se fijo manualmente, el cambio de productos o
+    // precios tambien lo recalcula; de otro modo quedaria el valor anterior.
+    if (venta.saldo_actualizado_manual !== null && venta.saldo_actualizado_manual !== undefined && esDeltaRelevante(deltaProductos)) {
+      updatesVenta.saldo_actualizado_manual = Math.max(
+        0,
+        redondear((parseFloat(venta.saldo_actualizado_manual) || 0) + deltaProductos)
+      ).toFixed(2);
+    }
+
+    await venta.update(updatesVenta, { transaction });
+
+    // Si el total de la venta cambio y su dia tenia cierre, se recalcula el
+    // total_ventas del cierre. Ventas_netas no se toca: depende de la
+    // mercaderia enviada/devuelta, no de las ventas.
+    await recalcularCierrePorFecha({
+      fecha: venta.fecha,
+      transaction,
+      ventaId: venta.id,
+      usuarioId: req.user.id,
+      operacionId: operacion.id,
+      detalle: "productos de venta modificados",
     });
-    res.json({ message: "Productos de la factura actualizados", venta: ventaActualizada });
+
+    if (venta.clienteId && esDeltaRelevante(deltaProductos)) {
+      await propagarDeltaAdelante({
+        clienteId: venta.clienteId,
+        ventaCorte: venta,
+        delta: deltaProductos,
+        transaction,
+      });
+
+      if (saldoActualizadoCliente) {
+        await SaldoAjuste.create({
+          clienteId: venta.clienteId,
+          ventaId: venta.id,
+          operacionId: operacion.id,
+          origen: "productos_venta",
+          usuarioId: req.user.id,
+          saldo_anterior: saldoPrevioCliente.toFixed(2),
+          saldo_nuevo: saldoActualizadoCliente.saldo_pendiente,
+          favor_consumido: saldoActualizadoCliente.favor_consumido.toFixed(2),
+          detalle: JSON.stringify({
+            delta: deltaProductos.toFixed(2),
+            anteriores: productosAnterioresDetalle,
+            nuevos: productosNuevos.map((item) => ({
+              productoId: item.producto.id,
+              nombre: item.producto.nombre,
+              cantidad: item.cantidad,
+              precio_unitario: item.precio,
+            })),
+          }),
+        }, { transaction });
+      }
+    }
+
+    const respuesta = {
+      message: "Productos de la factura actualizados",
+      delta: Number(deltaProductos.toFixed(2)),
+      venta: await Venta.findByPk(venta.id, {
+        include: [
+          { model: VentaItem, include: [{ model: Producto, attributes: ["id", "nombre", "precio", "unidad"] }] },
+          { model: VentaPago },
+          { model: User, as: "vendedor", attributes: ["id", "nombre"] },
+          { model: User, as: "productos_modificado_por", attributes: ["id", "nombre"] },
+          { model: Cliente, as: "cliente", attributes: ["id", "nombre", "saldo_pendiente", "saldo_favor"] },
+        ],
+        transaction,
+      }),
+    };
+
+    await finalizarOperacionIdempotente({ id: operacion.id, resultado: respuesta, transaction });
+    await transaction.commit();
+    res.json(respuesta);
   } catch (error) {
     if (!transaction.finished) await transaction.rollback();
     res.status(500).json({ message: "Error al modificar los productos de la factura", error: error.message });
@@ -885,21 +1172,36 @@ export const modificarProductosVenta = async (req, res) => {
 };
 
 export const deleteVenta = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     if (req.userRole !== "admin") {
+      await transaction.rollback();
       return res.status(403).json({ message: "Solo admin puede eliminar ventas" });
     }
 
     const venta = await Venta.findByPk(req.params.id, {
       include: [{ model: VentaItem }, { model: VentaPago }],
+      transaction,
     });
 
     if (!venta) {
+      await transaction.rollback();
       return res.status(404).json({ message: "Venta no encontrada" });
     }
 
+    const clave = claveIdempotencia(req);
+    const operacion = await iniciarOperacionIdempotente({
+      clave,
+      operacion: "eliminar_venta",
+      transaction,
+    });
+    if (operacion.repetida) {
+      await transaction.commit();
+      return responderOperacionRepetida(res, operacion.resultado);
+    }
+
     if (venta.clienteId) {
-      const cliente = await Cliente.findByPk(venta.clienteId);
+      const cliente = await Cliente.findByPk(venta.clienteId, { transaction, lock: transaction.LOCK.UPDATE });
       if (cliente) {
         let montoCC = 0;
         if (venta.pago_dividido && venta.VentaPagos) {
@@ -910,34 +1212,73 @@ export const deleteVenta = async (req, res) => {
           montoCC = parseFloat(venta.total);
         }
 
-        if (montoCC > 0) {
-          const nuevoSaldo = Math.max(0, parseFloat(cliente.saldo_pendiente) - montoCC);
-          await cliente.update({ saldo_pendiente: nuevoSaldo.toFixed(2) });
+        const sobranteVenta = parseFloat(venta.monto_sobrante) || 0;
+        const deudaPagada = parseFloat(venta.monto_deuda_pagado) || 0;
+        const delta = redondear(-montoCC + sobranteVenta + deudaPagada);
+
+        if (esDeltaRelevante(delta)) {
+          const saldoCliente = aplicarDeltaSaldo({
+            pendiente: cliente.saldo_pendiente,
+            favor: cliente.saldo_favor,
+            delta,
+          });
+          await cliente.update({
+            saldo_pendiente: saldoCliente.saldo_pendiente,
+            saldo_favor: saldoCliente.saldo_favor,
+          }, { transaction });
         }
 
-        const sobranteVenta = parseFloat(venta.monto_sobrante) || 0;
-        if (sobranteVenta > 0) {
-          const nuevoFavor = Math.max(0, (parseFloat(cliente.saldo_favor) || 0) - sobranteVenta);
-          await cliente.update({ saldo_favor: nuevoFavor.toFixed(2) });
+        if (deudaPagada > 0) {
+          await ClientePago.destroy({
+            where: { ventaOrigenId: venta.id },
+            transaction,
+          });
+        }
+
+        if (esDeltaRelevante(delta)) {
+          const saldoCorte = venta.saldo_actual !== null && venta.saldo_actual !== undefined
+            ? redondear(Number(venta.saldo_actual) + delta)
+            : undefined;
+          await propagarDeltaAdelante({
+            clienteId: venta.clienteId,
+            ventaCorte: venta,
+            delta,
+            saldoCorte,
+            transaction,
+          });
         }
       }
     }
 
     for (const item of venta.VentaItems) {
       if (!venta.salidaCamionId) {
-        const prod = await Producto.findByPk(item.productoId);
+        const prod = await Producto.findByPk(item.productoId, { transaction });
          if (prod) {
-            await prod.update({ stock: Number(prod.stock) + Number(item.cantidad) });
+             await prod.update({ stock: Number(prod.stock) + Number(item.cantidad) }, { transaction });
         }
       }
     }
 
-    await VentaPago.destroy({ where: { ventaId: venta.id } });
-    await VentaItem.destroy({ where: { ventaId: venta.id } });
-    await venta.destroy();
+    await VentaPago.destroy({ where: { ventaId: venta.id }, transaction });
+    await VentaItem.destroy({ where: { ventaId: venta.id }, transaction });
+    await venta.destroy({ transaction });
 
-    res.json({ message: "Venta eliminada y stock restaurado" });
+    await recalcularCierrePorFecha({
+      fecha: venta.fecha,
+      transaction,
+      ventaId: venta.id,
+      usuarioId: req.user.id,
+      operacionId: operacion.id,
+      detalle: "venta eliminada",
+    });
+
+    const respuesta = { message: "Venta eliminada y stock restaurado" };
+    await finalizarOperacionIdempotente({ id: operacion.id, resultado: respuesta, transaction });
+    await transaction.commit();
+
+    res.json(respuesta);
   } catch (error) {
+    if (!transaction.finished) await transaction.rollback();
     res.status(500).json({ message: "Error al eliminar venta", error: error.message });
   }
 };

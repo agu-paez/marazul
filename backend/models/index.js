@@ -20,6 +20,9 @@ import ConteoVentasLocal from "./ConteoVentasLocal.js";
 import PagoEmpleado from "./PagoEmpleado.js";
 import ProveedorMovimiento from "./ProveedorMovimiento.js";
 import Reintegro from "./Reintegro.js";
+import SaldoAjuste from "./SaldoAjuste.js";
+import OperacionIdempotente from "./OperacionIdempotente.js";
+import CierreAjuste from "./CierreAjuste.js";
 import Descuento from "./Descuento.js";
 import ProductoDescuento from "./ProductoDescuento.js";
 import Dispositivo from "./Dispositivo.js";
@@ -118,4 +121,19 @@ Producto.hasMany(Reintegro, { foreignKey: "productoId" });
 Reintegro.belongsTo(User, { foreignKey: "registradoPorId", as: "registrado_por" });
 User.hasMany(Reintegro, { foreignKey: "registradoPorId", as: "reintegros_registrados" });
 
-export { User, Role, Proveedor, Marca, Producto, Descuento, ProductoDescuento, Reparto, RepartoItem, SalidaCamion, SalidaCamionItem, CierreCaja, Venta, VentaItem, VentaPago, Cliente, ClientePago, Banco, Produccion, GastoDia, ConteoVentasLocal, PagoEmpleado, ProveedorMovimiento, Reintegro, Dispositivo };
+SaldoAjuste.belongsTo(Cliente, { foreignKey: "clienteId" });
+Cliente.hasMany(SaldoAjuste, { foreignKey: "clienteId" });
+SaldoAjuste.belongsTo(Venta, { foreignKey: "ventaId" });
+Venta.hasMany(SaldoAjuste, { foreignKey: "ventaId" });
+SaldoAjuste.belongsTo(User, { foreignKey: "usuarioId", as: "usuario" });
+User.hasMany(SaldoAjuste, { foreignKey: "usuarioId" });
+
+SaldoAjuste.belongsTo(OperacionIdempotente, { foreignKey: "operacionId" });
+OperacionIdempotente.hasMany(SaldoAjuste, { foreignKey: "operacionId" });
+
+CierreAjuste.belongsTo(CierreCaja, { foreignKey: "cierreId" });
+CierreCaja.hasMany(CierreAjuste, { foreignKey: "cierreId" });
+CierreAjuste.belongsTo(Venta, { foreignKey: "ventaId" });
+Venta.hasMany(CierreAjuste, { foreignKey: "ventaId" });
+
+export { User, Role, Proveedor, Marca, Producto, Descuento, ProductoDescuento, Reparto, RepartoItem, SalidaCamion, SalidaCamionItem, CierreCaja, Venta, VentaItem, VentaPago, Cliente, ClientePago, Banco, Produccion, GastoDia, ConteoVentasLocal, PagoEmpleado, ProveedorMovimiento, Reintegro, SaldoAjuste, OperacionIdempotente, CierreAjuste, Dispositivo };

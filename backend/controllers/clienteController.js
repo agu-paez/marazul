@@ -1,7 +1,19 @@
-import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor, SalidaCamion, Reintegro, User, Descuento } from "../models/index.js";
+import { Cliente, Venta, VentaItem, VentaPago, ClientePago, Producto, CierreCaja, Proveedor, SalidaCamion, Reintegro, User, SaldoAjuste, Descuento } from "../models/index.js";
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { getFechaLocal } from "../utils/fecha.js";
+import {
+  aplicarDeltaSaldo,
+  esDeltaRelevante,
+  propagarDeltaAdelante,
+  redondear,
+} from "../utils/saldo.js";
+import {
+  claveIdempotencia,
+  finalizarOperacionIdempotente,
+  iniciarOperacionIdempotente,
+  responderOperacionRepetida,
+} from "../utils/idempotencia.js";
 
 const parseMonto = (valor) => {
   if (typeof valor === "number") return valor;
@@ -118,28 +130,99 @@ export const revisarCliente = async (req, res) => {
 };
 
 export const updateMontosCliente = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
-    const cliente = await Cliente.findByPk(req.params.id);
+    const cliente = await Cliente.findByPk(req.params.id, { transaction, lock: transaction.LOCK.UPDATE });
     if (!cliente) {
+      await transaction.rollback();
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
     const saldoPendiente = parseMonto(req.body.saldo_pendiente);
-    const limiteCredito = req.body.limite_credito === undefined
-      ? parseFloat(cliente.limite_credito) || 0
-      : parseMonto(req.body.limite_credito);
-
-    if (!Number.isFinite(saldoPendiente) || !Number.isFinite(limiteCredito) || limiteCredito < 0) {
+    if (!Number.isFinite(saldoPendiente) || saldoPendiente < 0) {
+      await transaction.rollback();
       return res.status(400).json({ message: "Los montos no son validos" });
     }
 
-    await cliente.update({
-      saldo_pendiente: saldoPendiente.toFixed(2),
-      limite_credito: limiteCredito.toFixed(2),
+    const clave = claveIdempotencia(req);
+    const operacion = await iniciarOperacionIdempotente({
+      clave,
+      operacion: "montos_cliente",
+      transaction,
+    });
+    if (operacion.repetida) {
+      await transaction.commit();
+      return responderOperacionRepetida(res, operacion.resultado);
+    }
+
+    // Se captura el saldo previo antes de tocar el cliente: la auditoria lo
+    // necesita y cliente.update() muta la instancia.
+    const saldoPrevio = redondear(parseFloat(cliente.saldo_pendiente) || 0);
+
+    // El ajuste se aplica como delta sobre el par (deuda, favor) en lugar de
+    // sobrescribir la deuda, asi el saldo a favor del cliente se conserva.
+    const delta = redondear(saldoPendiente - saldoPrevio);
+    const saldoCliente = aplicarDeltaSaldo({
+      pendiente: cliente.saldo_pendiente,
+      favor: cliente.saldo_favor,
+      delta,
     });
 
-    res.json({ message: "Montos del cliente actualizados", cliente });
+    await cliente.update({
+      saldo_pendiente: saldoCliente.saldo_pendiente,
+      saldo_favor: saldoCliente.saldo_favor,
+    }, { transaction });
+
+    await SaldoAjuste.create({
+      clienteId: cliente.id,
+      origen: "montos_cliente",
+      ventaId: null,
+      operacionId: operacion.id,
+      usuarioId: req.user.id,
+      saldo_anterior: saldoPrevio.toFixed(2),
+      saldo_nuevo: saldoCliente.saldo_pendiente,
+      favor_consumido: saldoCliente.favor_consumido.toFixed(2),
+      detalle: JSON.stringify({ delta: delta.toFixed(2) }),
+    }, { transaction });
+
+    // No hay venta de corte en este endpoint: el ajuste es sobre el saldo vivo
+    // del cliente, asi que no hay ventas posteriores que corregir. Se mantiene
+    // el corte en la ultima venta por si el cliente factura en el futuro.
+    let propagacion = { ventas: 0, pagos: 0 };
+    if (esDeltaRelevante(delta)) {
+      const ultimaVenta = await Venta.findOne({
+        where: { clienteId: cliente.id },
+        order: [["createdAt", "DESC"], ["id", "DESC"]],
+        transaction,
+      });
+      if (ultimaVenta) {
+        const baseCorte = ultimaVenta.saldo_actualizado_manual !== null && ultimaVenta.saldo_actualizado_manual !== undefined
+          ? Number(ultimaVenta.saldo_actualizado_manual)
+          : ultimaVenta.saldo_actual !== null && ultimaVenta.saldo_actual !== undefined
+            ? Number(ultimaVenta.saldo_actual)
+            : null;
+        propagacion = await propagarDeltaAdelante({
+          clienteId: cliente.id,
+          ventaCorte: ultimaVenta,
+          delta,
+          saldoCorte: baseCorte === null ? undefined : redondear(baseCorte + delta),
+          transaction,
+        });
+      }
+    }
+
+    const respuesta = {
+      message: "Montos del cliente actualizados",
+      cliente: await Cliente.findByPk(cliente.id, { transaction }),
+      delta,
+      propagacion,
+    };
+
+    await finalizarOperacionIdempotente({ id: operacion.id, resultado: respuesta, transaction });
+    await transaction.commit();
+    res.json(respuesta);
   } catch (error) {
+    if (!transaction.finished) await transaction.rollback();
     res.status(500).json({ message: "Error al actualizar montos", error: error.message });
   }
 };
@@ -171,14 +254,20 @@ export const getHistorialCuentaCorriente = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
+    const ajustes = await SaldoAjuste.findAll({
+      where: { clienteId: cliente.id },
+      include: [{ model: User, as: "usuario", attributes: ["id", "nombre"] }],
+      order: [["createdAt", "DESC"]],
+      limit: 100,
+    });
+
     res.json({
       cliente,
       ventas,
       pagos: pagosCC,
+      ajustes,
       saldo_pendiente: parseFloat(cliente.saldo_pendiente),
       saldo_favor: parseFloat(cliente.saldo_favor) || 0,
-      limite_credito: parseFloat(cliente.limite_credito),
-      credito_disponible: parseFloat(cliente.limite_credito) - parseFloat(cliente.saldo_pendiente) + (parseFloat(cliente.saldo_favor) || 0),
     });
   } catch (error) {
     res.status(500).json({ message: "Error al obtener historial", error: error.message });
@@ -225,8 +314,6 @@ export const getHistorialDeudas = async (req, res) => {
         pagos,
         saldo_pendiente: saldoPendiente,
         saldo_favor: saldoFavor,
-        limite_credito: parseFloat(cliente.limite_credito) || 0,
-        credito_disponible: (parseFloat(cliente.limite_credito) || 0) - saldoPendiente + saldoFavor,
       };
     }));
 
@@ -237,53 +324,64 @@ export const getHistorialDeudas = async (req, res) => {
 };
 
 export const registrarPagoCuentaCorriente = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const { pagos } = req.body;
     const fechaHoy = getFechaLocal();
-    const cierre = await CierreCaja.findOne({ where: { fecha: fechaHoy } });
+    const cierre = await CierreCaja.findOne({ where: { fecha: fechaHoy }, transaction });
     if (cierre) {
+      await transaction.rollback();
       return res.status(400).json({ message: "No se pueden registrar pagos: la caja del día está cerrada" });
     }
 
     if (!pagos || pagos.length === 0) {
+      await transaction.rollback();
       return res.status(400).json({ message: "Debe registrar al menos un pago" });
     }
 
-    const cliente = await Cliente.findByPk(req.params.id);
+    const cliente = await Cliente.findByPk(req.params.id, { transaction, lock: transaction.LOCK.UPDATE });
     if (!cliente) {
+      await transaction.rollback();
       return res.status(404).json({ message: "Cliente no encontrado" });
     }
 
     const montos = pagos.map((p) => parseMonto(p.monto));
     if (montos.some((monto) => !Number.isFinite(monto) || monto <= 0)) {
+      await transaction.rollback();
       return res.status(400).json({ message: "Todos los montos del pago deben ser válidos" });
     }
     const totalPago = montos.reduce((sum, monto) => sum + monto, 0);
 
     if (totalPago <= 0) {
+      await transaction.rollback();
       return res.status(400).json({ message: "El total del pago debe ser mayor a 0" });
     }
 
     const deudaOriginal = parseFloat(cliente.saldo_pendiente) || 0;
     const favorOriginal = parseFloat(cliente.saldo_favor) || 0;
     const saldoPendienteActual = Math.max(0, deudaOriginal - favorOriginal);
-    const saldoFavorActual = Math.max(0, favorOriginal - deudaOriginal);
     for (const pago of pagos) {
       const datosBancarios = pago.datos_transferencia || pago.datos_tarjeta || pago.datos_cheque || pago.datos_ercheck;
       const proveedorId = datosBancarios?.proveedorId || null;
       if (["transferencia", "tarjeta", "cheque", "ercheck"].includes(pago.medio_pago)) {
-        const proveedor = proveedorId ? await Proveedor.findOne({ where: { id: proveedorId, activo: true } }) : null;
+        const proveedor = proveedorId ? await Proveedor.findOne({ where: { id: proveedorId, activo: true }, transaction }) : null;
         if (!proveedor) {
+          await transaction.rollback();
           return res.status(400).json({ message: "Debe seleccionar un alias de proveedor válido" });
         }
       }
     }
-    const nuevoSaldo = Math.max(0, saldoPendienteActual - totalPago);
-    const nuevoSaldoFavor = saldoFavorActual + Math.max(0, totalPago - saldoPendienteActual);
+    const saldoCliente = aplicarDeltaSaldo({
+      pendiente: cliente.saldo_pendiente,
+      favor: cliente.saldo_favor,
+      delta: -totalPago,
+    });
+    const nuevoSaldo = parseFloat(saldoCliente.saldo_pendiente);
+    const nuevoSaldoFavor = parseFloat(saldoCliente.saldo_favor);
     await cliente.update({
       saldo_pendiente: nuevoSaldo.toFixed(2),
       saldo_favor: nuevoSaldoFavor.toFixed(2),
-    });
+    }, { transaction });
 
     const now = new Date();
     const hora = now.toLocaleTimeString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -292,6 +390,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
     const salida = await SalidaCamion.findOne({
       where: { fecha, destino: cliente.zona, estado: { [Op.ne]: "cancelado" } },
       order: [["createdAt", "DESC"]],
+      transaction,
     });
 
     for (const pago of pagos) {
@@ -313,11 +412,14 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
         registradoPorId: req.user.id,
         salidaCamionId: salida?.id || null,
         saldo_anterior: saldoPendienteActual.toFixed(2),
-        saldo_actual: nuevoSaldo.toFixed(2),
+        saldo_actual: Math.max(0, nuevoSaldo - nuevoSaldoFavor).toFixed(2),
+        saldo_favor_registrado: nuevoSaldoFavor.toFixed(2),
         titular: datosBancarios?.titular || datosBancarios?.nombre_cuenta || datosBancarios?.cuenta || null,
         banco: datosBancarios?.banco || datosBancarios?.nombre_banco || null,
-      });
+      }, { transaction });
     }
+
+    await transaction.commit();
 
     const clienteActualizado = await Cliente.findByPk(cliente.id);
 
@@ -326,6 +428,7 @@ export const registrarPagoCuentaCorriente = async (req, res) => {
       cliente: clienteActualizado,
     });
   } catch (error) {
+    if (!transaction.finished) await transaction.rollback();
     res.status(500).json({ message: "Error al registrar pago", error: error.message });
   }
 };
@@ -363,13 +466,14 @@ export const registrarReintegro = async (req, res) => {
       return res.status(404).json({ message: "Producto no encontrado" });
     }
 
-    const saldoNeto = (parseFloat(cliente.saldo_pendiente) || 0) - (parseFloat(cliente.saldo_favor) || 0);
-    const nuevoSaldoNeto = saldoNeto - monto;
-    const nuevoSaldoPendiente = Math.max(0, nuevoSaldoNeto);
-    const nuevoSaldoFavor = Math.max(0, -nuevoSaldoNeto);
+    const saldoCliente = aplicarDeltaSaldo({
+      pendiente: cliente.saldo_pendiente,
+      favor: cliente.saldo_favor,
+      delta: -monto,
+    });
     await cliente.update({
-      saldo_pendiente: nuevoSaldoPendiente.toFixed(2),
-      saldo_favor: nuevoSaldoFavor.toFixed(2),
+      saldo_pendiente: saldoCliente.saldo_pendiente,
+      saldo_favor: saldoCliente.saldo_favor,
     }, { transaction });
     await producto.update({ stock: (parseFloat(producto.stock) || 0) + cantidadReintegro }, { transaction });
 
@@ -435,7 +539,7 @@ export const deletePagoCuentaCorriente = async (req, res) => {
       await transaction.rollback();
       return res.status(404).json({ message: "Pago no encontrado" });
     }
-    if (String(pago.notas || "").toLowerCase().includes("incluido en venta")) {
+    if (pago.ventaOrigenId !== null && pago.ventaOrigenId !== undefined) {
       await transaction.rollback();
       return res.status(400).json({ message: "No se puede eliminar un pago incluido en una venta" });
     }

@@ -141,10 +141,10 @@ export const generarPDFMarcasProductos = async (req, res) => {
       lista2: "descuento_nuevo",
     };
     const nombresLista = {
-      normal: "Precio de lista",
-      descuento: "Descuento normal",
+      normal: "Lista normal",
+      descuento: "Descuento mínimo (normal)",
       mayorista: "Descuento mayorista",
-      lista2: "Descuento lista 2",
+      lista2: "Lista 2 (clientes nuevos)",
       vacia: "Lista vacía",
     };
     if (tipo !== "normal" && tipo !== "vacia" && !camposDescuento[tipo] && !tipo.startsWith("custom:")) {

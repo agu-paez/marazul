@@ -77,6 +77,16 @@ const ClientePago = sequelize.define("ClientePago", {
     type: DataTypes.DECIMAL(13, 2),
     allowNull: true,
   },
+  saldo_favor_registrado: {
+    type: DataTypes.DECIMAL(13, 2),
+    allowNull: true,
+    comment: "Saldo a favor vigente al momento de registrar el pago",
+  },
+  ventaOrigenId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: "Venta que genero este pago, en lugar de detectarlo por el texto de notas",
+  },
 });
 
 export default ClientePago;

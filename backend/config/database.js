@@ -1,5 +1,6 @@
 import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,19 +9,37 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
-const { DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT } = process.env;
-if (!DB_NAME || !DB_USER || !DB_HOST) {
-  throw new Error("Faltan DB_NAME, DB_USER o DB_HOST para la conexión MySQL");
-}
+const dialect = (process.env.DB_DIALECT || "mysql").toLowerCase();
 
-const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
-  dialect: "mysql",
-  host: DB_HOST,
-  port: Number(DB_PORT || 3306),
-  logging: false,
-  dialectOptions: { connectTimeout: 10000 },
-  define: { timestamps: true },
-  pool: { max: 10, min: 1, acquire: 10000, idle: 10000 },
-});
+let sequelize;
+
+if (dialect === "sqlite") {
+  const storage = process.env.DB_STORAGE
+    ? path.resolve(__dirname, "..", process.env.DB_STORAGE)
+    : path.join(__dirname, "..", "data", "marazul.sqlite");
+  fs.mkdirSync(path.dirname(storage), { recursive: true });
+
+  sequelize = new Sequelize({
+    dialect: "sqlite",
+    storage,
+    logging: false,
+    define: { timestamps: true },
+  });
+} else {
+  const { DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT } = process.env;
+  if (!DB_NAME || !DB_USER || !DB_HOST) {
+    throw new Error("Faltan DB_NAME, DB_USER o DB_HOST para la conexión MySQL");
+  }
+
+  sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
+    dialect: "mysql",
+    host: DB_HOST,
+    port: Number(DB_PORT || 3306),
+    logging: false,
+    dialectOptions: { connectTimeout: 10000 },
+    define: { timestamps: true },
+    pool: { max: 10, min: 1, acquire: 10000, idle: 10000 },
+  });
+}
 
 export default sequelize;

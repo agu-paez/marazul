@@ -7,8 +7,10 @@
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node scripts/testSaldo.js",
     "build": "node migrate.js",
+    "backfill:saldos": "node scripts/backfillSaldos.js",
+    "backfill:saldos:apply": "node scripts/backfillSaldos.js --aplicar",
     "seed": "node seeders/seed.js",
     "seed:data": "node seeders/seedData.js",
     "seed:transferencias": "node seeders/seedTransferencias.js",
@@ -34,6 +36,7 @@
     "eslint": "^10.8.0",
     "globals": "^17.9.0",
     "nodemon": "^3.1.4",
-    "prettier": "^3.9.6"
+    "prettier": "^3.9.6",
+    "sqlite3": "^6.0.1"
   }
 }
