@@ -1022,15 +1022,9 @@ export const modificarProductosVenta = async (req, res) => {
       }
     }
 
-    // El saldo del cliente ya se actualizó, pero la factura conserva el saldo
-    // original. Se refresca aquí para que el PDF muestre el saldo actualizado
-    // al agregar o quitar productos.
-    const clienteActualizado = venta.clienteId
-      ? await Cliente.findByPk(venta.clienteId, { transaction })
-      : null;
-    const saldoActualCliente = clienteActualizado
-      ? Math.max(0, (Number(clienteActualizado.saldo_pendiente) || 0) - (Number(clienteActualizado.saldo_favor) || 0))
-      : null;
+    // El saldo propio de la factura se ajusta mas abajo (lineas de saldo_actual y
+    // saldo_actualizado_manual); no se reemplaza por el total del cliente para no
+    // romper el encadenado entre facturas.
 
     await VentaItem.destroy({ where: { ventaId: venta.id }, transaction });
     await VentaItem.bulkCreate(productosNuevos.map((item) => ({
@@ -1057,12 +1051,6 @@ export const modificarProductosVenta = async (req, res) => {
       medio_pago: pagosFinales.length > 1 ? "dividido" : pagosFinales[0].medio_pago,
       pago_dividido: pagosFinales.length > 1,
       monto_sobrante: sobranteNuevo.toFixed(2),
-      ...(saldoActualCliente !== null
-        ? {
-            saldo_actual: saldoActualCliente.toFixed(2),
-            saldo_actualizado_manual: saldoActualCliente.toFixed(2),
-          }
-        : {}),
       productos_modificado_por_id: req.user.id,
       productos_modificado_en: new Date(),
       productos_modificacion_detalle: JSON.stringify({
