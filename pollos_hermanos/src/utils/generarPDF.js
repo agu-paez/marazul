@@ -165,7 +165,9 @@ export const generarComprobantePDF = async (venta) => {
   const saldoNetoAnterior = saldoNetoActual - variacionSaldo;
   const saldoAnteriorCalculado = Math.max(0, saldoNetoAnterior);
   const saldoAnteriorMostrado = Number(venta.saldo_anterior_manual ?? venta.saldo_anterior ?? saldoAnteriorCalculado) || 0;
-  const tieneSaldoActualizadoManual = venta.saldo_actualizado_manual !== null && venta.saldo_actualizado_manual !== undefined;
+  const tieneSaldoActualizadoManual = venta.saldo_actualizado_manual !== null
+    && venta.saldo_actualizado_manual !== undefined
+    && ["manual", "propagado"].includes(venta.saldo_origen);
   const saldoActualizadoMostrado = tieneSaldoActualizadoManual
     ? Number(venta.saldo_actualizado_manual) || 0
     : Number(venta.saldo_actual ?? Math.max(0, saldoNetoActual)) || 0;
