@@ -153,6 +153,7 @@ export const generarComprobantePDF = async (venta) => {
   const montoDeudaPagado = parseFloat(venta.monto_deuda_pagado || 0) || 0;
   const montoSaldoDescontado = parseFloat(venta.monto_sobrante || 0) || 0;
   const hasDeuda = montoDeudaPagado > 0;
+  const saldoPendiente = parseFloat(venta.cliente?.saldo_pendiente || 0) || 0;
   const saldoFavor = parseFloat(venta.cliente?.saldo_favor || 0) || 0;
   const saldoSumadoVenta = (venta.VentaPagos || [])
     .filter((p) => p.medio_pago === "cuenta_corriente")
