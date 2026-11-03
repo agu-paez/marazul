@@ -153,7 +153,6 @@ export const generarComprobantePDF = async (venta) => {
   const montoDeudaPagado = parseFloat(venta.monto_deuda_pagado || 0) || 0;
   const montoSaldoDescontado = parseFloat(venta.monto_sobrante || 0) || 0;
   const hasDeuda = montoDeudaPagado > 0;
-  const saldoPendiente = parseFloat(venta.cliente?.saldo_pendiente || 0) || 0;
   const saldoFavor = parseFloat(venta.cliente?.saldo_favor || 0) || 0;
   const saldoSumadoVenta = (venta.VentaPagos || [])
     .filter((p) => p.medio_pago === "cuenta_corriente")
@@ -430,7 +429,7 @@ export const generarComprobantePDF = async (venta) => {
      doc.text(`Saldo actualizado: $${montoEntero(saldoActualizadoMostrado)}`, ml + 8, y + 21);
   } else {
     doc.setTextColor(210, 38, 38);
-     doc.text(`Saldo pendiente: $${montoEntero(saldoPendiente)}`, ml + 8, y + 14);
+     doc.text(`Saldo pendiente: $${montoEntero(saldoActualizadoMostrado)}`, ml + 8, y + 14);
   }
   doc.setTextColor(37, 99, 235);
     doc.text(`Saldo a favor del cliente: $${montoEntero(saldoFavorMostrado)}`, pw - mr - 8, y + 14, { align: "right" });
