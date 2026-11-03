@@ -106,8 +106,8 @@ export default function HistorialVentasPage() {
     const saldoAnteriorCalculado = Math.max(0, saldoNetoActual - variacionSaldo);
     setVentaProductosEditando(venta);
     setSaldosEditados({
-      saldo_anterior: String(venta.saldo_anterior_manual ?? saldoAnteriorCalculado),
-      saldo_actualizado: String(venta.saldo_actualizado_manual ?? Math.max(0, saldoNetoActual)),
+      saldo_anterior: String(venta.saldo_anterior_manual ?? venta.saldo_anterior ?? saldoAnteriorCalculado),
+      saldo_actualizado: String(venta.saldo_actualizado_manual ?? venta.saldo_actual ?? Math.max(0, saldoNetoActual)),
     });
     setItemsEditados((venta.VentaItems || []).map((item) => ({
       productoId: item.productoId,
