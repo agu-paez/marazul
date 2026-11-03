@@ -5,7 +5,7 @@ import { generarResumenPagosPorProveedorPDF, generarTransferenciaIndividualPDF, 
 import { marcarPdfVentasLocalPendiente } from "../utils/ventasLocalPDF";
 
 const MAX_DIAS_ATRAS_APERTURA_CAJA = 17;
-const MAX_DIAS_ATRAS_CIERRE_CAJA = 12;
+const MAX_DIAS_ATRAS_CIERRE_CAJA = 17;
 
 const getFechaLocal = (date = new Date()) => {
   const parts = new Intl.DateTimeFormat("en-CA", {
