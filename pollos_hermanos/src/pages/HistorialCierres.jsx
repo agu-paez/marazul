@@ -4,7 +4,8 @@ import { cierreCajaAPI } from "../api";
 import { generarResumenPagosPorProveedorPDF, generarTransferenciaIndividualPDF, generarCierreCajaPDF } from "../utils/generarPDF";
 import { marcarPdfVentasLocalPendiente } from "../utils/ventasLocalPDF";
 
-const MAX_DIAS_ATRAS_CAJA = 12;
+const MAX_DIAS_ATRAS_APERTURA_CAJA = 17;
+const MAX_DIAS_ATRAS_CIERRE_CAJA = 17;
 
 const getFechaLocal = (date = new Date()) => {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -187,20 +188,20 @@ await cierreCajaAPI.abrir(c.fecha);
   const puedeAbrir = (fecha) => {
     const diff = diasAtras(fecha);
     if (diff === 0) return true;
-    if (diff < 1 || diff > MAX_DIAS_ATRAS_CAJA) return false;
+    if (diff < 1 || diff > MAX_DIAS_ATRAS_APERTURA_CAJA) return false;
     return true;
   };
 
   const motivoNoAbrir = (fecha) => {
     const diff = diasAtras(fecha);
-    if (diff > MAX_DIAS_ATRAS_CAJA) return `Solo se pueden abrir las cajas de los últimos ${MAX_DIAS_ATRAS_CAJA} días`;
+    if (diff > MAX_DIAS_ATRAS_APERTURA_CAJA) return `Solo se pueden abrir las cajas de los últimos ${MAX_DIAS_ATRAS_APERTURA_CAJA} días`;
     return "";
   };
 
   const fechasAbiertasRecientes = (() => {
     const conCierre = new Set(cierres.map((c) => String(c.fecha).slice(0, 10)));
     const lista = [];
-    for (let i = 1; i <= MAX_DIAS_ATRAS_CAJA; i++) {
+    for (let i = 1; i <= MAX_DIAS_ATRAS_CIERRE_CAJA; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const fecha = getFechaLocal(d);
@@ -351,9 +352,9 @@ await cierreCajaAPI.abrir(c.fecha);
                     </button>
                   </div>
                 )}
-                {((diasAtras(c.fecha) <= MAX_DIAS_ATRAS_CAJA && esAdminOrOperador) || (c.fecha !== today && esAdmin)) && (
+                {((diasAtras(c.fecha) <= MAX_DIAS_ATRAS_APERTURA_CAJA && esAdminOrOperador) || (c.fecha !== today && esAdmin)) && (
                   <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }} onClick={(e) => e.stopPropagation()}>
-                    {diasAtras(c.fecha) <= MAX_DIAS_ATRAS_CAJA && esAdminOrOperador && (
+                    {diasAtras(c.fecha) <= MAX_DIAS_ATRAS_APERTURA_CAJA && esAdminOrOperador && (
                       puedeAbrir(c.fecha) ? (
                         <button
                           className="btn btn-sm btn-abrir"
@@ -594,7 +595,7 @@ await cierreCajaAPI.abrir(c.fecha);
                               </button>
                             </>
                           )}
-                          {diasAtras(c.fecha) <= MAX_DIAS_ATRAS_CAJA && (
+                          {diasAtras(c.fecha) <= MAX_DIAS_ATRAS_APERTURA_CAJA && (
                             puedeAbrir(c.fecha) ? (
                               <button
                                 className="btn btn-sm btn-abrir"
