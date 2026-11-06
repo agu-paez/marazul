@@ -266,7 +266,11 @@ export const generarPDFMarcasProductos = async (req, res) => {
           y += imageHeight + 6;
         }
         doc.fillColor(colors.blue).font("Helvetica-Bold").fontSize(isListaVacia ? 10 : 15)
-          .text((nombresLista[tipo] || descuentoPersonalizado?.nombre || "Lista de precios").toUpperCase(), margin, y, { width: tableWidth, align: "center" });
+          .text((nombresLista[tipo] || descuentoPersonalizado?.nombre || "Lista de precios").toUpperCase(), margin, y, {
+            width: tableWidth,
+            align: "center",
+            ...(isListaVacia ? { height: 14 } : {}),
+          });
         return y + 24;
       };
       const drawListFooter = () => {
@@ -274,8 +278,8 @@ export const generarPDFMarcasProductos = async (req, res) => {
         doc.font("Helvetica").fontSize(7).fillColor("#64748b")
           .text("Precios a completar manualmente", margin, pageHeight - 24, {
             width: tableWidth,
+            height: 10,
             align: "center",
-            lineBreak: false,
           });
       };
       const drawTableHead = (y) => {
@@ -286,45 +290,54 @@ export const generarPDFMarcasProductos = async (req, res) => {
           ? ["Producto", "Kg/Caja", "Precio"]
           : ["Producto", "Kg/Caja", "Precio/Kg", "Precio Caja"];
         headers.forEach((header, index) => {
-          doc.text(header, x + 5, y + 5, { width: colWidths[index] - 10, align: index === 0 ? "left" : "center", lineBreak: false });
+          doc.text(header, x + 5, y + 5, {
+            width: colWidths[index] - 10,
+            align: index === 0 ? "left" : "center",
+            ...(isListaVacia ? { height: tableHeadHeight - 5 } : {}),
+          });
           x += colWidths[index];
         });
         return y + tableHeadHeight;
       };
       const drawBrand = (marca, y) => {
         doc.rect(margin, y, tableWidth, brandHeight).fill(colors.blue);
-        const brandName = String(marca.nombre || "Sin nombre");
         const brandFontSize = isListaVacia ? 6.5 : 9;
-        doc.font("Helvetica-Bold").fontSize(brandFontSize).fillColor("#ffffff")
-          .text(brandName, margin + 5, y + 3, { width: tableWidth - 10, lineBreak: false });
+        doc.font("Helvetica-Bold").fontSize(brandFontSize).fillColor("#ffffff");
+        const originalBrandName = String(marca.nombre || "Sin nombre");
+        const brandName = isListaVacia ? fitText(originalBrandName, tableWidth - 10) : originalBrandName;
+        doc.text(brandName, margin + 5, y + 3, {
+          width: tableWidth - 10,
+          ...(isListaVacia ? { height: brandHeight - 3 } : {}),
+        });
         return y + brandHeight + 2;
+      };
+      const fitText = (text, width) => {
+        const ellipsis = "…";
+        let fitted = String(text || "");
+        if (doc.widthOfString(fitted) <= width) return fitted;
+        while (fitted && doc.widthOfString(`${fitted}${ellipsis}`) > width) {
+          fitted = fitted.slice(0, -1);
+        }
+        return fitted ? `${fitted}${ellipsis}` : "";
       };
       const drawProduct = (producto, y, index) => {
         doc.rect(margin, y, tableWidth, rowHeight).fill(index % 2 === 0 ? colors.alt : "#ffffff");
         doc.rect(margin, y, tableWidth, rowHeight).strokeColor(colors.border).lineWidth(0.4).stroke();
         const productNameWidth = colWidths[0] - 8;
         const productFontSize = isListaVacia ? 5.5 : 8;
-        let productName = String(producto.nombre || "Sin nombre");
         doc.font("Helvetica").fontSize(productFontSize).fillColor(colors.text);
-        if (isListaVacia) {
-          const ellipsis = "…";
-          while (productName && doc.widthOfString(productName) > productNameWidth) {
-            productName = productName.slice(0, -1);
-          }
-          if (productName !== String(producto.nombre || "Sin nombre")) {
-            while (productName && doc.widthOfString(`${productName}${ellipsis}`) > productNameWidth) {
-              productName = productName.slice(0, -1);
-            }
-            productName = `${productName}${ellipsis}`;
-          }
-        }
-        doc.text(productName, margin + 4, y + (isListaVacia ? 4 : 6), {
+        const textTopOffset = isListaVacia ? 4 : 6;
+        const cellTextHeight = rowHeight - textTopOffset;
+        const originalProductName = String(producto.nombre || "Sin nombre");
+        const productName = isListaVacia ? fitText(originalProductName, productNameWidth) : originalProductName;
+        doc.text(productName, margin + 4, y + textTopOffset, {
           width: productNameWidth,
-          ...(isListaVacia ? { lineBreak: false } : {}),
+          ...(isListaVacia ? { height: cellTextHeight } : {}),
         });
         doc.text(fmtNumero(producto.kg_por_caja), margin + colWidths[0], y + (isListaVacia ? 4 : 6), {
           width: colWidths[1],
           align: "center",
+          ...(isListaVacia ? { height: cellTextHeight } : {}),
         });
         if (isListaVacia) {
           const priceX = margin + colWidths[0] + colWidths[1];
@@ -340,33 +353,54 @@ export const generarPDFMarcasProductos = async (req, res) => {
         return y + rowHeight;
       };
 
-      let y = drawPageTitle(true);
-      const startNextPage = () => {
-        drawListFooter();
-        doc.addPage();
-        y = drawPageTitle(false);
-      };
-      for (const marca of marcasOrdenadas) {
-        const productos = marca.Productos || [];
-        const firstRowHeight = productos.length ? rowHeight : 0;
-        const brandStartHeight = brandHeight + 2 + tableHeadHeight + firstRowHeight + gap;
-        if (y + brandStartHeight > limitY) {
-          startNextPage();
-        }
-        y = drawBrand(marca, y);
-        y = drawTableHead(y);
-        for (let index = 0; index < productos.length; index += 1) {
-          if (y + rowHeight > limitY) {
+      if (isListaVacia) {
+        let y = drawPageTitle(true);
+        const startNextPage = () => {
+          drawListFooter();
+          doc.addPage();
+          y = drawPageTitle(false);
+        };
+        for (const marca of marcasOrdenadas) {
+          const productos = marca.Productos || [];
+          const firstRowHeight = productos.length ? rowHeight : 0;
+          const brandStartHeight = brandHeight + 2 + tableHeadHeight + firstRowHeight + gap;
+          if (y + brandStartHeight > limitY) {
             startNextPage();
-            y = drawBrand(marca, y);
-            y = drawTableHead(y);
           }
-          const producto = productos[index];
-          y = drawProduct(producto, y, index);
+          y = drawBrand(marca, y);
+          y = drawTableHead(y);
+          for (let index = 0; index < productos.length; index += 1) {
+            if (y + rowHeight > limitY) {
+              startNextPage();
+              y = drawBrand(marca, y);
+              y = drawTableHead(y);
+            }
+            y = drawProduct(productos[index], y, index);
+          }
+          y += gap;
         }
-        y += gap;
+        drawListFooter();
+      } else {
+        let pageNumber = 1;
+        let y = drawPageTitle(true);
+        for (const marca of marcasOrdenadas) {
+          const productos = marca.Productos || [];
+          const needed = brandHeight + 2 + tableHeadHeight + productos.length * rowHeight + gap;
+          if (y + needed > limitY) {
+            if (pageNumber >= 2) break;
+            doc.addPage();
+            pageNumber += 1;
+            y = drawPageTitle(false);
+          }
+          y = drawBrand(marca, y);
+          y = drawTableHead(y);
+          productos.forEach((producto, index) => {
+            if (y + rowHeight > limitY) return;
+            y = drawProduct(producto, y, index);
+          });
+          y += gap;
+        }
       }
-      drawListFooter();
       doc.end();
       return;
     }
