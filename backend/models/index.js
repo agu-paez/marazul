@@ -26,6 +26,10 @@ import CierreAjuste from "./CierreAjuste.js";
 import Descuento from "./Descuento.js";
 import ProductoDescuento from "./ProductoDescuento.js";
 import Dispositivo from "./Dispositivo.js";
+import HorarioCodigo from "./HorarioCodigo.js";
+import Asistencia from "./Asistencia.js";
+import HorarioConfiguracion from "./HorarioConfiguracion.js";
+import FrancoSabado from "./FrancoSabado.js";
 
 User.belongsTo(Role, { foreignKey: "roleId" });
 Role.hasMany(User, { foreignKey: "roleId" });
@@ -136,4 +140,9 @@ CierreCaja.hasMany(CierreAjuste, { foreignKey: "cierreId" });
 CierreAjuste.belongsTo(Venta, { foreignKey: "ventaId" });
 Venta.hasMany(CierreAjuste, { foreignKey: "ventaId" });
 
-export { User, Role, Proveedor, Marca, Producto, Descuento, ProductoDescuento, Reparto, RepartoItem, SalidaCamion, SalidaCamionItem, CierreCaja, Venta, VentaItem, VentaPago, Cliente, ClientePago, Banco, Produccion, GastoDia, ConteoVentasLocal, PagoEmpleado, ProveedorMovimiento, Reintegro, SaldoAjuste, OperacionIdempotente, CierreAjuste, Dispositivo };
+Asistencia.belongsTo(User, { foreignKey: "userId", as: "empleado" });
+User.hasMany(Asistencia, { foreignKey: "userId", as: "asistencias" });
+FrancoSabado.belongsTo(User, { foreignKey: "userId", as: "empleado" });
+User.hasMany(FrancoSabado, { foreignKey: "userId", as: "francos_sabado" });
+
+export { User, Role, Proveedor, Marca, Producto, Descuento, ProductoDescuento, Reparto, RepartoItem, SalidaCamion, SalidaCamionItem, CierreCaja, Venta, VentaItem, VentaPago, Cliente, ClientePago, Banco, Produccion, GastoDia, ConteoVentasLocal, PagoEmpleado, ProveedorMovimiento, Reintegro, SaldoAjuste, OperacionIdempotente, CierreAjuste, Dispositivo, HorarioCodigo, Asistencia, HorarioConfiguracion, FrancoSabado };

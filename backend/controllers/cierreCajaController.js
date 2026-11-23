@@ -1,4 +1,4 @@
-import { CierreCaja, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, VentaPago, Cliente, ClientePago, User, Role, Proveedor, GastoDia, PagoEmpleado, ProveedorMovimiento } from "../models/index.js";
+import { Asistencia, CierreCaja, FrancoSabado, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, VentaPago, Cliente, ClientePago, User, Role, Proveedor, GastoDia, PagoEmpleado, ProveedorMovimiento } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
 import { Op } from "sequelize";
 
@@ -236,6 +236,32 @@ export const cerrarCaja = async (req, res) => {
       pagos_empleados: JSON.stringify(pagosEmpleadosSnapshot),
     });
 
+    try {
+      const empleadosHorario = await User.findAll({
+        where: { activo: true },
+        attributes: ["id"],
+        include: [{ model: Role, attributes: [], where: { nombre: { [Op.in]: ["repartidor", "operador"] } }, required: true }],
+      });
+      const francos = await FrancoSabado.findAll({ where: { fecha: fechaCierre }, attributes: ["userId"] });
+      const idsConFranco = new Set(francos.map(({ userId }) => userId));
+      const idsEmpleados = empleadosHorario.map(({ id }) => id).filter((id) => !idsConFranco.has(id));
+      if (idsEmpleados.length) {
+        const asistencias = await Asistencia.findAll({ where: { fecha: fechaCierre, userId: { [Op.in]: idsEmpleados } }, attributes: ["userId"] });
+        const idsConIngreso = new Set(asistencias.map(({ userId }) => userId));
+        const faltas = idsEmpleados.filter((userId) => !idsConIngreso.has(userId)).map((userId) => ({
+          userId,
+          fecha: fechaCierre,
+          hora_ingreso: null,
+          estado: "ausente",
+          minutos_tarde: 0,
+        }));
+        if (faltas.length) await Asistencia.bulkCreate(faltas, { ignoreDuplicates: true });
+      }
+    } catch (error) {
+      await cierre.destroy();
+      throw error;
+    }
+
     const salidasEnCamino = await SalidaCamion.findAll({
       where: { fecha: fechaCierre, estado: "en_camino" },
     });
@@ -291,6 +317,7 @@ export const abrirCaja = async (req, res) => {
     }
 
     await cierre.destroy();
+    await Asistencia.destroy({ where: { fecha, estado: "ausente" } });
     res.json({ message: "Caja abierta correctamente. Ya puede volver a cerrarla" });
   } catch (error) {
     res.status(500).json({ message: "Error al abrir caja", error: error.message });
@@ -313,6 +340,7 @@ export const eliminarCierre = async (req, res) => {
     }
 
     await cierre.destroy();
+    await Asistencia.destroy({ where: { fecha, estado: "ausente" } });
     res.json({ message: "Cierre eliminado correctamente" });
   } catch (error) {
     res.status(500).json({ message: "Error al eliminar cierre", error: error.message });
