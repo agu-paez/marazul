@@ -30,6 +30,8 @@ import HorarioCodigo from "./HorarioCodigo.js";
 import Asistencia from "./Asistencia.js";
 import HorarioConfiguracion from "./HorarioConfiguracion.js";
 import FrancoSabado from "./FrancoSabado.js";
+import DiaNoLaboralSemana from "./DiaNoLaboralSemana.js";
+import Feriado from "./Feriado.js";
 
 User.belongsTo(Role, { foreignKey: "roleId" });
 Role.hasMany(User, { foreignKey: "roleId" });
@@ -145,4 +147,4 @@ User.hasMany(Asistencia, { foreignKey: "userId", as: "asistencias" });
 FrancoSabado.belongsTo(User, { foreignKey: "userId", as: "empleado" });
 User.hasMany(FrancoSabado, { foreignKey: "userId", as: "francos_sabado" });
 
-export { User, Role, Proveedor, Marca, Producto, Descuento, ProductoDescuento, Reparto, RepartoItem, SalidaCamion, SalidaCamionItem, CierreCaja, Venta, VentaItem, VentaPago, Cliente, ClientePago, Banco, Produccion, GastoDia, ConteoVentasLocal, PagoEmpleado, ProveedorMovimiento, Reintegro, SaldoAjuste, OperacionIdempotente, CierreAjuste, Dispositivo, HorarioCodigo, Asistencia, HorarioConfiguracion, FrancoSabado };
+export { User, Role, Proveedor, Marca, Producto, Descuento, ProductoDescuento, Reparto, RepartoItem, SalidaCamion, SalidaCamionItem, CierreCaja, Venta, VentaItem, VentaPago, Cliente, ClientePago, Banco, Produccion, GastoDia, ConteoVentasLocal, PagoEmpleado, ProveedorMovimiento, Reintegro, SaldoAjuste, OperacionIdempotente, CierreAjuste, Dispositivo, HorarioCodigo, Asistencia, HorarioConfiguracion, FrancoSabado, DiaNoLaboralSemana, Feriado };

@@ -1,4 +1,4 @@
-import { Asistencia, CierreCaja, FrancoSabado, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, VentaPago, Cliente, ClientePago, User, Role, Proveedor, GastoDia, PagoEmpleado, ProveedorMovimiento } from "../models/index.js";
+import { Asistencia, CierreCaja, DiaNoLaboralSemana, Feriado, FrancoSabado, SalidaCamion, SalidaCamionItem, Producto, Venta, VentaItem, VentaPago, Cliente, ClientePago, User, Role, Proveedor, GastoDia, PagoEmpleado, ProveedorMovimiento } from "../models/index.js";
 import { getFechaLocal } from "../utils/fecha.js";
 import { Op } from "sequelize";
 
@@ -8,6 +8,11 @@ const MAX_DIAS_ATRAS_CIERRE_CAJA = 17;
 const normalizarMonto = (valor) => {
   const monto = Number(valor);
   return Number.isFinite(monto) && monto >= 0 ? monto : 0;
+};
+
+const esDomingo = (fecha) => {
+  const [year, month, day] = fecha.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay() === 0;
 };
 
 const checkDayClosed = async (fecha) => {
@@ -158,6 +163,10 @@ export const cerrarCaja = async (req, res) => {
       }
     }
 
+    if (esDomingo(fechaCierre)) {
+      return res.status(400).json({ message: "Los domingos no requieren cierre de caja" });
+    }
+
     const cierreExistente = await CierreCaja.findOne({ where: { fecha: fechaCierre } });
     if (cierreExistente) {
       return res.status(400).json({ message: "La caja ya fue cerrada para este dia" });
@@ -242,10 +251,17 @@ export const cerrarCaja = async (req, res) => {
         attributes: ["id"],
         include: [{ model: Role, attributes: [], where: { nombre: { [Op.in]: ["repartidor", "operador"] } }, required: true }],
       });
+      const [diasNoLaborables, feriado] = await Promise.all([
+        DiaNoLaboralSemana.findAll({ attributes: ["dia_semana"] }),
+        Feriado.findOne({ where: { fecha: fechaCierre }, attributes: ["id"] }),
+      ]);
+      const [year, month, day] = fechaCierre.split("-").map(Number);
+      const diaCierreSemana = new Date(Date.UTC(year, month - 1, day, 12)).getUTCDay();
+      const noEsLaborable = diaCierreSemana === 0 || (diaCierreSemana !== 6 && (Boolean(feriado) || diasNoLaborables.some(({ dia_semana }) => Number(dia_semana) === diaCierreSemana)));
       const francos = await FrancoSabado.findAll({ where: { fecha: fechaCierre }, attributes: ["userId"] });
       const idsConFranco = new Set(francos.map(({ userId }) => userId));
       const idsEmpleados = empleadosHorario.map(({ id }) => id).filter((id) => !idsConFranco.has(id));
-      if (idsEmpleados.length) {
+      if (!noEsLaborable && idsEmpleados.length) {
         const asistencias = await Asistencia.findAll({ where: { fecha: fechaCierre, userId: { [Op.in]: idsEmpleados } }, attributes: ["userId"] });
         const idsConIngreso = new Set(asistencias.map(({ userId }) => userId));
         const faltas = idsEmpleados.filter((userId) => !idsConIngreso.has(userId)).map((userId) => ({
